@@ -367,8 +367,9 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
     ts["bet_history"] = bh
 
     # Telegram alert
+    mode_tag = " [DRY]" if DRY_RUN else ""
     await tg_send(session,
-        f"<b>BUY</b> [{name}]\n"
+        f"<b>BUY{mode_tag}</b> [{name}]\n"
         f"{title}\n"
         f"{outcome} @ {price*100:.1f}c\n"
         f"Target: ${usdc_size:.1f} | Conf: {conf:.0%} ({cl})\n"
@@ -474,6 +475,23 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
             pnl = risk.get("daily_pnl", 0)
             bets = risk.get("daily_bets_placed", 0)
             log.info(f"[FAST] #{cycle} | P&L: ${pnl:+.2f} | bets: {bets} | pos: {op}/{MAX_OPEN_POSITIONS} | exp: ${exp:.0f}")
+
+        # Telegram summary every hour (720 cycles * 5s = 3600s)
+        if cycle % 720 == 0:
+            op = count_all_open(state)
+            exp = total_exposure(state)
+            pnl = risk.get("daily_pnl", 0)
+            bets = risk.get("daily_bets_placed", 0)
+            pv = portfolio_value_ref[0]
+            await tg_send(session,
+                f"<b>📊 Hourly Summary</b>\n"
+                f"Portfolio: ${pv:.2f}\n"
+                f"Daily P&L: ${pnl:+.2f}\n"
+                f"Positions: {op}/{MAX_OPEN_POSITIONS}\n"
+                f"Exposure: ${exp:.0f} ({exp/pv*100:.0f}%)\n"
+                f"Bets today: {bets}\n"
+                f"Mode: {'DRY RUN' if DRY_RUN else 'LIVE'}"
+            )
 
         await asyncio.sleep(FAST_POLL_INTERVAL)
 
