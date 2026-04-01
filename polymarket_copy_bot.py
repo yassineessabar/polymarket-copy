@@ -296,8 +296,8 @@ def place_sell_sync(token_id: str, amount: float):
 # ── TRADE ID ──
 def make_trade_id(a: dict) -> str:
     """Unique trade ID using tx hash + timestamp. No collisions possible."""
-    tx = a.get("transactionHash") or a.get("proxyWalletAddress") or a.get("id") or ""
-    ts = a.get("createdAt") or a.get("timestamp") or ""
+    tx = str(a.get("transactionHash") or a.get("proxyWalletAddress") or a.get("id") or "")
+    ts = str(a.get("createdAt") or a.get("timestamp") or "")
     return f"{a.get('conditionId','?')}_{a.get('side','?')}_{a.get('size','?')}_{a.get('outcomeIndex','?')}_{tx[:20]}_{ts[:20]}"
 
 
