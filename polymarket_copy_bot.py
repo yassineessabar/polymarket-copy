@@ -403,9 +403,9 @@ async def process_close(session, pos, tracked, name, risk_state):
             log.error(f"[{name}]      Sell failed: {e}")
 
     risk_state["daily_pnl"] = risk_state.get("daily_pnl", 0) + pnl_usd
-    emoji = "+" if pnl_usd >= 0 else ""
+    mode_tag = " [DRY]" if DRY_RUN else ""
     await tg_send(session,
-        f"<b>CLOSE</b> [{name}]\n"
+        f"<b>CLOSE{mode_tag}</b> [{name}]\n"
         f"{title} — {outcome}\n"
         f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
     )
@@ -540,10 +540,29 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
             target_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in target_positions}
             to_close = []
 
-            for pos in my_positions:
-                pk = f"{pos['conditionId']}_{pos['outcomeIndex']}"
-                if pk in our and pk not in target_keys:
-                    to_close.append((pk, pos, our[pk]))
+            if DRY_RUN:
+                # In DRY RUN, check simulated positions against target exits
+                for pk, tracked in list(our.items()):
+                    if pk not in target_keys:
+                        # Build a fake pos dict with current price from target data
+                        cur_price = tracked.get("entry_price", 0)
+                        # Try to get current price from target's positions or activity
+                        for tp in target_positions:
+                            if f"{tp['conditionId']}_{tp['outcomeIndex']}" == pk:
+                                cur_price = float(tp.get("curPrice", tp.get("price", cur_price)))
+                                break
+                        fake_pos = {
+                            "size": tracked.get("bet_amount", 0) / tracked.get("entry_price", 1) if tracked.get("entry_price", 0) > 0 else 0,
+                            "curPrice": cur_price,
+                            "conditionId": pk.split("_")[0],
+                            "outcomeIndex": pk.split("_")[1] if "_" in pk else "0",
+                        }
+                        to_close.append((pk, fake_pos, tracked))
+            else:
+                for pos in my_positions:
+                    pk = f"{pos['conditionId']}_{pos['outcomeIndex']}"
+                    if pk in our and pk not in target_keys:
+                        to_close.append((pk, pos, our[pk]))
 
             for pk, pos, tracked in to_close:
                 await process_close(session, pos, tracked, name, risk)
