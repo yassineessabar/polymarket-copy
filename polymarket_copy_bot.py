@@ -542,20 +542,38 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
 
             if DRY_RUN:
                 # In DRY RUN, check simulated positions against target exits
+                # Get target's recent activity to find exit prices
+                try:
+                    target_activity = await get_recent_activity(session, target, limit=50)
+                except Exception:
+                    target_activity = []
+
                 for pk, tracked in list(our.items()):
                     if pk not in target_keys:
-                        # Build a fake pos dict with current price from target data
-                        cur_price = tracked.get("entry_price", 0)
-                        # Try to get current price from target's positions or activity
-                        for tp in target_positions:
-                            if f"{tp['conditionId']}_{tp['outcomeIndex']}" == pk:
-                                cur_price = float(tp.get("curPrice", tp.get("price", cur_price)))
+                        entry = tracked.get("entry_price", 0)
+                        cid = pk.split("_")[0] if "_" in pk else pk
+                        oi = pk.split("_")[1] if "_" in pk else "0"
+
+                        # Find exit price from target's sell activity
+                        cur_price = entry  # fallback
+                        for a in target_activity:
+                            if a.get("side") == "SELL" and a.get("conditionId") == cid:
+                                cur_price = float(a.get("price", entry))
                                 break
+                        # If market resolved, outcome tokens go to $1 (win) or $0 (lose)
+                        # Check if price moved significantly from entry
+                        if cur_price == entry:
+                            # No sell found — assume resolved: if entry was >50c, likely won ($1)
+                            # if entry was <50c, could go either way. Use $1 as proxy (target exited = resolved)
+                            cur_price = 1.0 if entry >= 0.5 else 0.0
+
+                        bet_amt = tracked.get("bet_amount", 0)
+                        shares = bet_amt / entry if entry > 0 else 0
                         fake_pos = {
-                            "size": tracked.get("bet_amount", 0) / tracked.get("entry_price", 1) if tracked.get("entry_price", 0) > 0 else 0,
+                            "size": shares,
                             "curPrice": cur_price,
-                            "conditionId": pk.split("_")[0],
-                            "outcomeIndex": pk.split("_")[1] if "_" in pk else "0",
+                            "conditionId": cid,
+                            "outcomeIndex": oi,
                         }
                         to_close.append((pk, fake_pos, tracked))
             else:
