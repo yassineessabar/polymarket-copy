@@ -387,12 +387,7 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
     slug = activity.get("eventSlug", "")
     pk = f"{cid}_{oi}"
 
-    # LIVE mode: skip if we already hold on-chain
-    if not DRY_RUN:
-        my_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in my_positions}
-        if pk in my_keys:
-            return False
-
+    # Check if we already track this position — allow ADD to existing
     existing = ts.get("our_positions", {}).get(pk)
 
     bet, conf, reject = risk_check(state, risk_state, pv, usdc_size, ts, cid, oi, slug, target)
@@ -539,7 +534,54 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                     if acted:
                         actions += 1
                 elif side == "SELL":
-                    log.info(f"[{name}] SELL {a.get('title','?')[:50]} | {a.get('outcome','?')}")
+                    # Detect partial or full sells — reduce our position proportionally
+                    sell_cid = a.get("conditionId", "")
+                    sell_oi = a.get("outcomeIndex", 0)
+                    sell_pk = f"{sell_cid}_{sell_oi}"
+                    sell_price = float(a.get("price", 0))
+                    sell_size = float(a.get("size", 0))
+                    our_pos = ts.get("our_positions", {}).get(sell_pk)
+                    if our_pos and sell_price > 0:
+                        entry = our_pos.get("entry_price", 0)
+                        our_bet = our_pos.get("bet_amount", 0)
+                        our_shares = our_bet / entry if entry > 0 else 0
+                        # Calculate what fraction of target's position was sold
+                        target_orig = our_pos.get("target_usdc_size", 0)
+                        sell_usdc = sell_size * sell_price
+                        if target_orig > 0:
+                            sell_frac = min(sell_usdc / target_orig, 1.0)
+                        else:
+                            sell_frac = 1.0
+                        close_bet = our_bet * sell_frac
+                        close_shares = our_shares * sell_frac
+                        pnl_usd = close_shares * (sell_price - entry)
+                        risk.get("daily_pnl", 0)
+                        risk["daily_pnl"] = risk.get("daily_pnl", 0) + pnl_usd
+                        pnl_pct = ((sell_price - entry) / entry * 100) if entry > 0 else 0
+                        result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+                        log.info(f"[{name}] PARTIAL SELL {a.get('title','?')[:40]} | {sell_frac*100:.0f}% | P&L: ${pnl_usd:+.2f}")
+                        # Reduce position
+                        our_pos["bet_amount"] = our_bet - close_bet
+                        our_pos["target_usdc_size"] = max(0, target_orig - sell_usdc)
+                        if our_pos["bet_amount"] <= 0.01:
+                            del ts["our_positions"][sell_pk]
+                        # Execute sell in LIVE mode
+                        if not DRY_RUN:
+                            try:
+                                sell_amt = close_shares * sell_price
+                                await asyncio.get_event_loop().run_in_executor(
+                                    None, place_sell_sync, our_pos.get("token_id", ""), sell_amt)
+                            except Exception as e:
+                                log.error(f"[{name}] Partial sell failed: {e}")
+                        mode_tag = " [DRY]" if DRY_RUN else ""
+                        await tg_send(session,
+                            f"<b>SELL{mode_tag}</b> [{name}] {result}\n"
+                            f"{a.get('title','?')[:50]}\n"
+                            f"Sold {sell_frac*100:.0f}% @ {sell_price*100:.1f}c\n"
+                            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})")
+                        actions += 1
+                    else:
+                        log.info(f"[{name}] SELL {a.get('title','?')[:50]} | {a.get('outcome','?')} (not tracked)")
                 else:
                     log.warning(f"[{name}] UNKNOWN side '{side}' for {a.get('title','?')[:30]}")
 
@@ -693,10 +735,43 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                     fake_pos = {"size": shares, "curPrice": cur_price, "conditionId": cid, "outcomeIndex": oi}
                     to_close.append((pk, fake_pos, tracked, close_reason))
             else:
-                for pos in my_positions:
-                    pk = f"{pos['conditionId']}_{pos['outcomeIndex']}"
-                    if pk in our and pk not in target_keys:
-                        to_close.append((pk, pos, our[pk], "TARGET EXITED"))
+                # LIVE: check all tracked positions, handle auto-redeemed (ghost) positions
+                my_keys = {f"{pos['conditionId']}_{pos['outcomeIndex']}" for pos in my_positions}
+                for pk, tracked in list(our.items()):
+                    if pk in target_keys:
+                        continue  # Target still holds — skip
+                    cid = pk.split("_")[0] if "_" in pk else pk
+                    oi = pk.split("_")[1] if "_" in pk else "0"
+                    entry = tracked.get("entry_price", 0)
+                    if pk in my_keys:
+                        # We still hold on-chain — use our position data
+                        for pos in my_positions:
+                            if f"{pos['conditionId']}_{pos['outcomeIndex']}" == pk:
+                                to_close.append((pk, pos, tracked, "TARGET EXITED"))
+                                break
+                    else:
+                        # Both positions gone — check resolution for correct P&L
+                        resolution = await check_condition_resolved(session, cid)
+                        if resolution.get("resolved"):
+                            wi = resolution.get("winning_index")
+                            if wi is not None and str(wi) == str(oi):
+                                cp = 1.0
+                                r = "RESOLVED WON"
+                            elif wi is not None:
+                                cp = 0.0
+                                r = "RESOLVED LOST"
+                            else:
+                                cp = 1.0 if entry >= 0.5 else 0.0
+                                r = "RESOLVED"
+                        elif resolution.get("api_error"):
+                            log.warning(f"[{name}] API error — retry next cycle")
+                            continue
+                        else:
+                            cp = 1.0 if entry >= 0.5 else 0.0
+                            r = "BOTH GONE"
+                        shares = tracked.get("bet_amount", 0) / entry if entry > 0 else 0
+                        fp = {"size": shares, "curPrice": cp, "conditionId": cid, "outcomeIndex": oi}
+                        to_close.append((pk, fp, tracked, r))
 
             async with state_lock:
                 for item in to_close:
