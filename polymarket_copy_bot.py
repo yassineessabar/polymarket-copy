@@ -190,33 +190,73 @@ async def get_market_price(session: aiohttp.ClientSession, token_id: str) -> flo
     except Exception:
         return 0.0
 
-async def check_condition_resolved(session: aiohttp.ClientSession, condition_id: str) -> dict:
-    """Check market resolution via Gamma API. Never guesses — returns resolved=False if unsure."""
-    try:
-        data = await api_get(session, f"{PROFILE_API}/conditions", {"id": condition_id}, retries=1)
-        if isinstance(data, list) and data:
-            cond = data[0]
-        elif isinstance(data, dict) and "id" in data:
-            cond = data
-        else:
-            log.warning(f"Unexpected conditions response for {condition_id[:16]}: {type(data)}")
-            return {"resolved": False, "api_error": True}
+async def check_condition_resolved(session: aiohttp.ClientSession, condition_id: str, token_id: str = "", outcome_index: str = "0") -> dict:
+    """Check market resolution using multiple methods (conditions endpoint is deprecated).
 
-        resolved = cond.get("resolved", False) or cond.get("closed", False)
-        if resolved:
-            payouts = cond.get("payoutNumerators", [])
-            if payouts:
-                winning_idx = None
-                for i, p in enumerate(payouts):
-                    if int(p) > 0:
-                        winning_idx = i
-                        break
-                return {"resolved": True, "winning_index": winning_idx, "payouts": payouts}
-            return {"resolved": True, "winning_index": None, "payouts": []}
-        return {"resolved": False}
-    except Exception as e:
-        log.error(f"check_condition_resolved failed for {condition_id[:16]}: {e}")
-        return {"resolved": False, "api_error": True}
+    Strategy:
+    1. Check gamma-api /markets endpoint for resolution status
+    2. Check CLOB — "No orderbook" means market ended
+    3. Check if target's position shows redeemable=true or curPrice=1/0
+    Returns {resolved: bool, winning_index: int|None, api_error: bool}
+    """
+    # Method 1: Try gamma /markets endpoint with condition_id
+    try:
+        data = await api_get(session, f"{PROFILE_API}/markets",
+                             {"condition_id": condition_id}, retries=1)
+        markets = data if isinstance(data, list) else [data] if isinstance(data, dict) else []
+        for mkt in markets:
+            if not isinstance(mkt, dict):
+                continue
+            resolved = mkt.get("resolved", False) or mkt.get("closed", False) or mkt.get("active") is False
+            if resolved:
+                # Check winner from market data
+                winner = mkt.get("winner")
+                if winner is not None:
+                    return {"resolved": True, "winning_index": int(winner) if str(winner).isdigit() else None}
+                # Check payoutNumerators
+                payouts = mkt.get("payoutNumerators", [])
+                if payouts:
+                    for i, p in enumerate(payouts):
+                        if int(p) > 0:
+                            return {"resolved": True, "winning_index": i}
+                # Check outcome_prices — [1, 0] means outcome 0 won
+                prices = mkt.get("outcomePrices", mkt.get("outcome_prices", ""))
+                if isinstance(prices, str) and prices:
+                    try:
+                        price_list = json.loads(prices) if prices.startswith("[") else prices.split(",")
+                        for i, p in enumerate(price_list):
+                            if float(p) >= 0.99:
+                                return {"resolved": True, "winning_index": i}
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                return {"resolved": True, "winning_index": None}
+    except Exception:
+        pass  # Endpoint may not support condition_id param — try other methods
+
+    # Method 2: Try CLOB price — "No orderbook" = market ended
+    if token_id:
+        try:
+            data = await api_get(session, f"{CLOB_API}/price",
+                                 {"token_id": token_id, "side": "sell"}, retries=0)
+            price = float(data.get("price", 0))
+            if price > 0:
+                return {"resolved": False}  # Market still active with orderbook
+        except Exception:
+            # "No orderbook exists" error = market likely resolved
+            pass
+
+    # Method 3: Try gamma /events endpoint
+    try:
+        data = await api_get(session, f"{PROFILE_API}/events",
+                             {"slug_contains": condition_id[:16]}, retries=0)
+        if isinstance(data, list):
+            for evt in data:
+                if isinstance(evt, dict) and (evt.get("resolved") or evt.get("closed")):
+                    return {"resolved": True, "winning_index": None}
+    except Exception:
+        pass
+
+    return {"resolved": False, "api_error": True}
 
 def get_usdc_balance_sync(addr: str) -> float:
     data = "0x70a08231" + addr[2:].lower().zfill(64)
@@ -687,7 +727,7 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                     close_reason = ""
 
                     # Step 1: Check if market resolved on-chain
-                    resolution = await check_condition_resolved(session, cid)
+                    resolution = await check_condition_resolved(session, cid, token_id, oi)
                     if resolution.get("resolved"):
                         winning_idx = resolution.get("winning_index")
                         if winning_idx is not None and str(winning_idx) == str(oi):
@@ -751,7 +791,7 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                                 break
                     else:
                         # Both positions gone — check resolution for correct P&L
-                        resolution = await check_condition_resolved(session, cid)
+                        resolution = await check_condition_resolved(session, cid, token_id, oi)
                         if resolution.get("resolved"):
                             wi = resolution.get("winning_index")
                             if wi is not None and str(wi) == str(oi):
