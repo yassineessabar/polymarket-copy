@@ -167,6 +167,44 @@ async def get_market_price(session: aiohttp.ClientSession, token_id: str) -> flo
     except Exception:
         return 0.0
 
+async def get_market_info(session: aiohttp.ClientSession, condition_id: str) -> dict:
+    """Get market resolution status from Gamma API."""
+    try:
+        data = await api_get(session, f"{PROFILE_API}/markets", {"clob_token_ids": condition_id})
+        if isinstance(data, list) and data:
+            return data[0]
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+async def check_condition_resolved(session: aiohttp.ClientSession, condition_id: str) -> dict:
+    """Check if a condition/market has resolved. Returns {resolved: bool, winning_outcome: str, payout: float}."""
+    try:
+        # Try the gamma API conditions endpoint
+        data = await api_get(session, f"{PROFILE_API}/conditions", {"id": condition_id})
+        if isinstance(data, list) and data:
+            cond = data[0]
+        elif isinstance(data, dict):
+            cond = data
+        else:
+            return {"resolved": False}
+
+        resolved = cond.get("resolved", False) or cond.get("closed", False)
+        if resolved:
+            # Find which outcome index won
+            payouts = cond.get("payoutNumerators", [])
+            if payouts:
+                winning_idx = None
+                for i, p in enumerate(payouts):
+                    if int(p) > 0:
+                        winning_idx = i
+                        break
+                return {"resolved": True, "winning_index": winning_idx, "payouts": payouts}
+            return {"resolved": True, "winning_index": None, "payouts": []}
+        return {"resolved": False}
+    except Exception:
+        return {"resolved": False}
+
 def get_usdc_balance_sync(addr: str) -> float:
     data = "0x70a08231" + addr[2:].lower().zfill(64)
     try:
@@ -434,10 +472,12 @@ async def process_close(session, pos, tracked, name, risk_state):
 
     risk_state["daily_pnl"] = risk_state.get("daily_pnl", 0) + pnl_usd
     mode_tag = " [DRY]" if DRY_RUN else ""
+    result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
     await tg_send(session,
-        f"<b>CLOSE{mode_tag}</b> [{name}]\n"
+        f"<b>CLOSE{mode_tag}</b> [{name}] {result}\n"
         f"{title} — {outcome}\n"
-        f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
+        f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
+        f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
     )
 
 
@@ -578,44 +618,68 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
             to_close = []
 
             if DRY_RUN:
-                # In DRY RUN, check simulated positions against target exits
-                # Get target's recent activity to find exit prices
+                # In DRY RUN, check simulated positions for:
+                # 1. Target sold (position gone from target's list)
+                # 2. Market resolved (condition resolved on-chain)
                 try:
                     target_activity = await get_recent_activity(session, target, limit=100)
                 except Exception:
                     target_activity = []
 
                 for pk, tracked in list(our.items()):
+                    entry = tracked.get("entry_price", 0)
+                    cid = pk.split("_")[0] if "_" in pk else pk
+                    oi = pk.split("_")[1] if "_" in pk else "0"
+                    token_id = tracked.get("token_id", "")
+                    bet_amt = tracked.get("bet_amount", 0)
+                    shares = bet_amt / entry if entry > 0 else 0
+                    should_close = False
+                    cur_price = entry  # default: no change
+                    close_reason = ""
+
+                    # Case 1: Target no longer holds this position (sold or redeemed)
                     if pk not in target_keys:
-                        entry = tracked.get("entry_price", 0)
-                        cid = pk.split("_")[0] if "_" in pk else pk
-                        oi = pk.split("_")[1] if "_" in pk else "0"
-                        token_id = tracked.get("token_id", "")
+                        should_close = True
 
-                        # Try to get current market price from CLOB
-                        cur_price = 0
-                        if token_id:
-                            cur_price = await get_market_price(session, token_id)
-
-                        # Fallback: find exit price from target's sell activity
-                        if cur_price <= 0:
+                        # Check if market resolved
+                        resolution = await check_condition_resolved(session, cid)
+                        if resolution.get("resolved"):
+                            winning_idx = resolution.get("winning_index")
+                            if winning_idx is not None and str(winning_idx) == str(oi):
+                                cur_price = 1.0  # Our outcome WON
+                                close_reason = "RESOLVED (WON)"
+                            elif winning_idx is not None:
+                                cur_price = 0.0  # Our outcome LOST
+                                close_reason = "RESOLVED (LOST)"
+                            else:
+                                cur_price = 1.0 if entry >= 0.5 else 0.0
+                                close_reason = "RESOLVED"
+                        else:
+                            # Target sold manually — try to get sell price
                             for a in target_activity:
                                 if a.get("side") == "SELL" and a.get("conditionId") == cid:
                                     cur_price = float(a.get("price", 0))
+                                    close_reason = "TARGET SOLD"
                                     break
+                            # Fallback: try CLOB price
+                            if close_reason == "" and token_id:
+                                clob_price = await get_market_price(session, token_id)
+                                if clob_price > 0:
+                                    cur_price = clob_price
+                                    close_reason = "TARGET EXITED"
+                            if close_reason == "":
+                                # Position gone, no price found — assume resolved
+                                cur_price = 1.0 if entry >= 0.5 else 0.0
+                                close_reason = "POSITION GONE"
 
-                        # Final fallback: market resolved
-                        if cur_price <= 0:
-                            cur_price = 1.0 if entry >= 0.5 else 0.0
-
-                        bet_amt = tracked.get("bet_amount", 0)
-                        shares = bet_amt / entry if entry > 0 else 0
+                    if should_close:
                         fake_pos = {
                             "size": shares,
                             "curPrice": cur_price,
                             "conditionId": cid,
                             "outcomeIndex": oi,
                         }
+                        log.info(f"[{name}] Close reason: {close_reason} | {tracked.get('title','?')[:40]} | exit: {cur_price*100:.1f}c")
                         to_close.append((pk, fake_pos, tracked))
             else:
                 for pos in my_positions:
