@@ -562,6 +562,7 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
 
             new_trades = 0
             for a in activity:
+              try:
                 if a.get("type") != "TRADE":
                     continue
                 tid = make_trade_id(a)
@@ -627,6 +628,10 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
 
                 processed.add(tid)
                 new_trades += 1
+              except Exception as e:
+                import traceback
+                log.error(f"[{name}] Error processing trade: {e}\n{traceback.format_exc()}")
+                continue
 
             pl = list(processed)
             if len(pl) > 2000:
