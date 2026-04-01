@@ -240,10 +240,10 @@ def place_sell_sync(token_id: str, amount: float):
 
 # ── HELPERS ──
 def make_trade_id(a: dict) -> str:
-    """Create a unique trade ID using transaction hash + condition + side + size.
-    FIX: include transactionHash to distinguish repeat trades on the same market."""
-    tx = a.get("transactionHash", a.get("proxyWalletAddress", ""))
-    return f"{a.get('conditionId','?')}_{a.get('side','?')}_{a.get('size','?')}_{a.get('outcome','?')}_{tx[:16]}_{a.get('title','?')[:30]}"
+    """Create a unique trade ID. Uses transactionHash + timestamp for uniqueness."""
+    tx = a.get("transactionHash") or a.get("proxyWalletAddress") or a.get("id") or ""
+    ts = a.get("createdAt") or a.get("timestamp") or ""
+    return f"{a.get('conditionId','?')}_{a.get('side','?')}_{a.get('size','?')}_{a.get('outcomeIndex','?')}_{tx[:20]}_{ts[:20]}"
 
 
 # ── CONFIDENCE SCORING ──
@@ -482,7 +482,7 @@ async def process_close(session, pos, tracked, name, risk_state):
 
 
 # ── FAST POLL LOOP: Trade detection (every 5s) ──
-async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
+async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_lock):
     """Polls target activity every FAST_POLL_INTERVAL seconds for new trades."""
     log.info(f"[FAST] Trade detection started ({FAST_POLL_INTERVAL}s interval)")
     cycle = 0
@@ -528,6 +528,8 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
                         actions += 1
                 elif side == "SELL":
                     log.info(f"[{name}] SELL {a.get('title','?')[:50]} | {a.get('outcome','?')}")
+                else:
+                    log.warning(f"[{name}] UNKNOWN side '{side}' for {a.get('title','?')[:30]} — skipped")
 
                 processed.add(tid)
                 new_trades += 1
@@ -541,9 +543,9 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
             if new_trades > 0:
                 log.info(f"[{name}] Processed {new_trades} new trades this cycle")
 
-        # FIX: Always save state every cycle to persist processed trade IDs
-        # This prevents re-processing trades after restart
-        save_state(state)
+        # Save state with lock to prevent concurrent writes
+        async with state_lock:
+            save_state(state)
 
         # Periodic heartbeat
         if cycle % 60 == 0:  # Every 5 min
@@ -574,7 +576,7 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
 
 
 # ── SLOW POLL LOOP: Position close detection (every 30s) ──
-async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
+async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_lock):
     """Checks for positions to close and refreshes portfolio value."""
     log.info(f"[SLOW] Close detection started ({SLOW_POLL_INTERVAL}s interval)")
     cycle = 0
@@ -655,9 +657,10 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
                                 cur_price = 1.0 if entry >= 0.5 else 0.0
                                 close_reason = "RESOLVED"
                         else:
-                            # Target sold manually — try to get sell price
+                            # Target sold manually — try to get sell price (must match outcomeIndex)
                             for a in target_activity:
-                                if a.get("side") == "SELL" and a.get("conditionId") == cid:
+                                if (a.get("side") == "SELL" and a.get("conditionId") == cid
+                                        and str(a.get("outcomeIndex", -1)) == str(oi)):
                                     cur_price = float(a.get("price", 0))
                                     close_reason = "TARGET SOLD"
                                     break
@@ -687,16 +690,14 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
                     if pk in our and pk not in target_keys:
                         to_close.append((pk, pos, our[pk]))
 
-            for pk, pos, tracked in to_close:
-                await process_close(session, pos, tracked, name, risk)
-                del our[pk]
+            async with state_lock:
+                for pk, pos, tracked in to_close:
+                    await process_close(session, pos, tracked, name, risk)
+                    del our[pk]
 
-        # Update unrealized P&L for DRY RUN using simulated positions
-        total_pnl = risk.get("daily_pnl", 0)  # Keep realized P&L from closes
-        # Note: unrealized P&L would require fetching current prices for all positions
-        # which is expensive. For now, just track realized P&L from closes.
-
-        save_state(state)
+        # Save state with lock
+        async with state_lock:
+            save_state(state)
         await asyncio.sleep(SLOW_POLL_INTERVAL)
 
 
@@ -763,10 +764,13 @@ async def main():
         log.info(f"\n  Running... (Ctrl+C to stop)\n")
         save_state(state)
 
+        # Lock to prevent race conditions between loops modifying state
+        state_lock = asyncio.Lock()
+
         # Run both loops concurrently
         await asyncio.gather(
-            fast_poll_loop(session, state, risk_state, portfolio_value_ref),
-            slow_poll_loop(session, state, risk_state, portfolio_value_ref),
+            fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_lock),
+            slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_lock),
         )
 
 
