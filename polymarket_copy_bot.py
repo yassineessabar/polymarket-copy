@@ -899,4 +899,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         log.info("\nBot stopped.")
     except Exception as e:
-        log.error(f"Fatal: {e}")
+        import traceback
+        log.error(f"Fatal: {e}\n{traceback.format_exc()}")
