@@ -155,8 +155,17 @@ async def get_profile_name(session: aiohttp.ClientSession, addr: str) -> str:
 async def get_positions(session: aiohttp.ClientSession, addr: str) -> list:
     return await api_get(session, f"{DATA_API}/positions", {"user": addr, "sizeThreshold": 0})
 
-async def get_recent_activity(session: aiohttp.ClientSession, addr: str, limit: int = 30) -> list:
+async def get_recent_activity(session: aiohttp.ClientSession, addr: str, limit: int = 100) -> list:
+    """Fetch recent activity. Use limit=100 to catch high-frequency traders."""
     return await api_get(session, f"{DATA_API}/activity", {"user": addr, "limit": limit})
+
+async def get_market_price(session: aiohttp.ClientSession, token_id: str) -> float:
+    """Get current price for a token from the CLOB API."""
+    try:
+        data = await api_get(session, f"{CLOB_API}/price", {"token_id": token_id, "side": "sell"})
+        return float(data.get("price", 0))
+    except Exception:
+        return 0.0
 
 def get_usdc_balance_sync(addr: str) -> float:
     data = "0x70a08231" + addr[2:].lower().zfill(64)
@@ -193,7 +202,10 @@ def place_sell_sync(token_id: str, amount: float):
 
 # ── HELPERS ──
 def make_trade_id(a: dict) -> str:
-    return f"{a.get('conditionId','?')}_{a.get('side','?')}_{a.get('size','?')}_{a.get('outcome','?')}_{a.get('title','?')[:30]}"
+    """Create a unique trade ID using transaction hash + condition + side + size.
+    FIX: include transactionHash to distinguish repeat trades on the same market."""
+    tx = a.get("transactionHash", a.get("proxyWalletAddress", ""))
+    return f"{a.get('conditionId','?')}_{a.get('side','?')}_{a.get('size','?')}_{a.get('outcome','?')}_{tx[:16]}_{a.get('title','?')[:30]}"
 
 
 # ── CONFIDENCE SCORING ──
@@ -319,10 +331,16 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
     slug = activity.get("eventSlug", "")
     pk = f"{cid}_{oi}"
 
-    # Skip if already in this position
-    my_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in my_positions}
-    if pk in my_keys:
-        return False
+    # FIX: In DRY RUN, don't check my_positions (we have none on-chain).
+    # Instead, check if we already track this position in our_positions.
+    # Allow adding to existing positions (Sharky adds to positions frequently).
+    if not DRY_RUN:
+        my_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in my_positions}
+        if pk in my_keys:
+            return False
+
+    # Check if we already have this exact position — if so, ADD to it instead of skipping
+    existing = ts.get("our_positions", {}).get(pk)
 
     bet, conf, reject = risk_check(state, risk_state, pv, usdc_size, ts, cid, oi, slug, target)
     cl = "LOW" if conf < 0.3 else "MED" if conf < 0.6 else "HIGH" if conf < 0.85 else "MAX"
@@ -333,14 +351,15 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
 
     op = count_all_open(state)
     exp = total_exposure(state)
+    action = "ADD" if existing else "BUY"
     log.info(
-        f"[{name}] BUY {title} | {outcome} @ {price*100:.1f}c | "
+        f"[{name}] {action} {title} | {outcome} @ {price*100:.1f}c | "
         f"target: ${usdc_size:.1f} | conf: {conf:.0%} ({cl}) | bet: ${bet:.2f} | "
         f"pos:{op}/{MAX_OPEN_POSITIONS} | exp:{exp/pv*100:.0f}%"
     )
 
     if DRY_RUN:
-        log.info(f"[{name}]     DRY RUN — would buy ${bet:.2f}")
+        log.info(f"[{name}]     DRY RUN — would {action.lower()} ${bet:.2f}")
     else:
         try:
             await asyncio.get_event_loop().run_in_executor(None, place_buy_sync, token_id, bet)
@@ -349,12 +368,22 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
             log.error(f"[{name}]     Buy failed: {e}")
             return False
 
-    ts["our_positions"][pk] = {
-        "title": title, "outcome": outcome, "token_id": token_id,
-        "entry_price": price, "bet_amount": bet, "confidence": conf,
-        "target_usdc_size": usdc_size, "event_slug": slug,
-        "copied_at": datetime.utcnow().isoformat(),
-    }
+    if existing:
+        # Add to existing position
+        existing["bet_amount"] = existing.get("bet_amount", 0) + bet
+        existing["target_usdc_size"] = existing.get("target_usdc_size", 0) + usdc_size
+        # Update entry price to weighted average
+        old_bet = existing["bet_amount"] - bet
+        if old_bet + bet > 0:
+            existing["entry_price"] = (old_bet * existing.get("entry_price", price) + bet * price) / (old_bet + bet)
+    else:
+        ts["our_positions"][pk] = {
+            "title": title, "outcome": outcome, "token_id": token_id,
+            "entry_price": price, "bet_amount": bet, "confidence": conf,
+            "target_usdc_size": usdc_size, "event_slug": slug,
+            "copied_at": datetime.utcnow().isoformat(),
+        }
+
     risk_state["daily_bets_placed"] = risk_state.get("daily_bets_placed", 0) + 1
     risk_state["daily_amount_wagered"] = risk_state.get("daily_amount_wagered", 0) + bet
 
@@ -368,12 +397,13 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
 
     # Telegram alert
     mode_tag = " [DRY]" if DRY_RUN else ""
+    total_pos = existing["bet_amount"] if existing else bet
     await tg_send(session,
-        f"<b>BUY{mode_tag}</b> [{name}]\n"
+        f"<b>{action}{mode_tag}</b> [{name}]\n"
         f"{title}\n"
         f"{outcome} @ {price*100:.1f}c\n"
         f"Target: ${usdc_size:.1f} | Conf: {conf:.0%} ({cl})\n"
-        f"<b>Bet: ${bet:.2f}</b>"
+        f"<b>Bet: ${bet:.2f}</b> (pos total: ${total_pos:.2f})"
     )
     return True
 
@@ -437,11 +467,13 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
             name = ts.get("name", target[:10])
 
             try:
-                activity = await get_recent_activity(session, target, limit=15)
+                # FIX: fetch 100 trades instead of 15 — Sharky can do 98 trades in 30 min
+                activity = await get_recent_activity(session, target, limit=100)
             except Exception as e:
                 log.error(f"[{name}] Activity fetch failed: {e}")
                 continue
 
+            new_trades = 0
             for a in activity:
                 if a.get("type") != "TRADE":
                     continue
@@ -458,15 +490,20 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
                     log.info(f"[{name}] SELL {a.get('title','?')[:50]} | {a.get('outcome','?')}")
 
                 processed.add(tid)
+                new_trades += 1
 
-            # Trim processed
+            # Trim processed list
             pl = list(processed)
-            if len(pl) > 500:
-                pl = pl[-500:]
+            if len(pl) > 2000:  # FIX: increased from 500 to 2000 for high-frequency traders
+                pl = pl[-2000:]
             ts["processed_trades"] = pl
 
-        if actions > 0:
-            save_state(state)
+            if new_trades > 0:
+                log.info(f"[{name}] Processed {new_trades} new trades this cycle")
+
+        # FIX: Always save state every cycle to persist processed trade IDs
+        # This prevents re-processing trades after restart
+        save_state(state)
 
         # Periodic heartbeat
         if cycle % 60 == 0:  # Every 5 min
@@ -484,7 +521,7 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref):
             bets = risk.get("daily_bets_placed", 0)
             pv = portfolio_value_ref[0]
             await tg_send(session,
-                f"<b>📊 Hourly Summary</b>\n"
+                f"<b>Hourly Summary</b>\n"
                 f"Portfolio: ${pv:.2f}\n"
                 f"Daily P&L: ${pnl:+.2f}\n"
                 f"Positions: {op}/{MAX_OPEN_POSITIONS}\n"
@@ -544,7 +581,7 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
                 # In DRY RUN, check simulated positions against target exits
                 # Get target's recent activity to find exit prices
                 try:
-                    target_activity = await get_recent_activity(session, target, limit=50)
+                    target_activity = await get_recent_activity(session, target, limit=100)
                 except Exception:
                     target_activity = []
 
@@ -553,18 +590,22 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
                         entry = tracked.get("entry_price", 0)
                         cid = pk.split("_")[0] if "_" in pk else pk
                         oi = pk.split("_")[1] if "_" in pk else "0"
+                        token_id = tracked.get("token_id", "")
 
-                        # Find exit price from target's sell activity
-                        cur_price = entry  # fallback
-                        for a in target_activity:
-                            if a.get("side") == "SELL" and a.get("conditionId") == cid:
-                                cur_price = float(a.get("price", entry))
-                                break
-                        # If market resolved, outcome tokens go to $1 (win) or $0 (lose)
-                        # Check if price moved significantly from entry
-                        if cur_price == entry:
-                            # No sell found — assume resolved: if entry was >50c, likely won ($1)
-                            # if entry was <50c, could go either way. Use $1 as proxy (target exited = resolved)
+                        # Try to get current market price from CLOB
+                        cur_price = 0
+                        if token_id:
+                            cur_price = await get_market_price(session, token_id)
+
+                        # Fallback: find exit price from target's sell activity
+                        if cur_price <= 0:
+                            for a in target_activity:
+                                if a.get("side") == "SELL" and a.get("conditionId") == cid:
+                                    cur_price = float(a.get("price", 0))
+                                    break
+
+                        # Final fallback: market resolved
+                        if cur_price <= 0:
                             cur_price = 1.0 if entry >= 0.5 else 0.0
 
                         bet_amt = tracked.get("bet_amount", 0)
@@ -586,21 +627,10 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref):
                 await process_close(session, pos, tracked, name, risk)
                 del our[pk]
 
-        # Update unrealized P&L
-        total_pnl = 0.0
-        for target in TARGET_WALLETS:
-            ts = get_target_state(state, target)
-            for pk, tracked in ts.get("our_positions", {}).items():
-                ep = tracked.get("entry_price", 0)
-                ba = tracked.get("bet_amount", 0)
-                if ep <= 0 or ba <= 0:
-                    continue
-                for p in my_positions:
-                    if f"{p['conditionId']}_{p['outcomeIndex']}" == pk:
-                        cp = float(p.get("curPrice", p.get("price", 0)))
-                        total_pnl += ba * ((cp - ep) / ep) if ep > 0 else 0
-                        break
-        risk["daily_pnl"] = round(total_pnl, 2)
+        # Update unrealized P&L for DRY RUN using simulated positions
+        total_pnl = risk.get("daily_pnl", 0)  # Keep realized P&L from closes
+        # Note: unrealized P&L would require fetching current prices for all positions
+        # which is expensive. For now, just track realized P&L from closes.
 
         save_state(state)
         await asyncio.sleep(SLOW_POLL_INTERVAL)
