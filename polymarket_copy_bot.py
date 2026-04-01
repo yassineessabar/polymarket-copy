@@ -117,8 +117,19 @@ def load_state() -> dict:
     return {}
 
 def save_state(state: dict):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f, indent=2)
+    """Atomic save — write to temp file then rename to prevent corruption."""
+    import tempfile
+    temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(STATE_FILE), prefix='.tmp_state_')
+    try:
+        with os.fdopen(temp_fd, 'w') as f:
+            json.dump(state, f, indent=2)
+        os.replace(temp_path, STATE_FILE)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
 
 def get_target_state(state: dict, target: str) -> dict:
     key = target.lower()
@@ -407,13 +418,14 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
             return False
 
     if existing:
-        # Add to existing position
-        existing["bet_amount"] = existing.get("bet_amount", 0) + bet
+        # Add to existing position — calculate weighted avg BEFORE updating amounts
+        old_bet = existing.get("bet_amount", 0)
+        old_price = existing.get("entry_price", price)
+        total_bet = old_bet + bet
+        if total_bet > 0:
+            existing["entry_price"] = (old_bet * old_price + bet * price) / total_bet
+        existing["bet_amount"] = total_bet
         existing["target_usdc_size"] = existing.get("target_usdc_size", 0) + usdc_size
-        # Update entry price to weighted average
-        old_bet = existing["bet_amount"] - bet
-        if old_bet + bet > 0:
-            existing["entry_price"] = (old_bet * existing.get("entry_price", price) + bet * price) / (old_bet + bet)
     else:
         ts["our_positions"][pk] = {
             "title": title, "outcome": outcome, "token_id": token_id,
@@ -613,7 +625,8 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
 
             try:
                 target_positions = await get_positions(session, target)
-            except Exception:
+            except Exception as e:
+                log.error(f"[{name}] Failed to get target positions: {e}")
                 continue
 
             target_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in target_positions}
