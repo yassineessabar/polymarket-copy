@@ -78,7 +78,22 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "stop_copy":
             await stop_copy_command(update, context)
         elif data == "copy_activity":
-            await query.answer("Activity coming soon")
+            await query.answer()
+            db: Database = context.application.bot_data["db"]
+            tid = update.effective_user.id
+            closed = await db.get_closed_positions(tid, limit=10)
+            if not closed:
+                text = "📋 <b>Copy Trade Activity</b>\n\nNo activity yet. Start copy trading to see trades here."
+            else:
+                text = "📋 <b>Copy Trade Activity</b>\n\n"
+                for p in closed:
+                    icon = "✅" if (p.get("pnl_usd") or 0) >= 0 else "❌"
+                    text += f"{icon} {p.get('title','?')[:35]} | ${p.get('pnl_usd',0):+.2f}\n"
+            from .keyboards import back_and_home
+            try:
+                await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=back_and_home("copy"))
+            except Exception:
+                await query.message.reply_text(text=text, parse_mode="HTML", reply_markup=back_and_home("copy"))
 
         # Portfolio
         elif data == "portfolio":

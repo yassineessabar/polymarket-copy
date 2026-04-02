@@ -2,14 +2,12 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def welcome_keyboard() -> InlineKeyboardMarkup:
-    """Welcome screen — single Start button."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Start", callback_data="home")],
     ])
 
 
 def home_keyboard() -> InlineKeyboardMarkup:
-    """Home screen — exact PolyGun 5x2 grid layout."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 Markets", callback_data="markets"),
          InlineKeyboardButton("🎯 Copy Trade", callback_data="copy")],
@@ -25,16 +23,15 @@ def home_keyboard() -> InlineKeyboardMarkup:
 
 
 def wallet_keyboard() -> InlineKeyboardMarkup:
-    """Wallet overview — matches PolyGun deposit screen."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💰 Deposit SOL", callback_data="deposit"),
+        [InlineKeyboardButton("💰 Deposit", callback_data="deposit"),
          InlineKeyboardButton("🔧 Import Wallet", callback_data="import_wallet")],
-        [InlineKeyboardButton("📋 Refresh", callback_data="refresh_wallet")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_wallet")],
+        [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
     ])
 
 
 def deposit_keyboard() -> InlineKeyboardMarkup:
-    """Deposit detail — matches PolyGun wallet detail screen."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("👤 Profile ↗", callback_data="profile"),
          InlineKeyboardButton("📈 Portfolio", callback_data="portfolio"),
@@ -44,7 +41,6 @@ def deposit_keyboard() -> InlineKeyboardMarkup:
 
 
 def copy_trading_keyboard() -> InlineKeyboardMarkup:
-    """Copy trading — no targets yet. Matches PolyGun exactly."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Add Copy Trade", callback_data="add_copy")],
         [InlineKeyboardButton("📋 Activity", callback_data="copy_activity"),
@@ -53,7 +49,6 @@ def copy_trading_keyboard() -> InlineKeyboardMarkup:
 
 
 def copy_trading_with_targets_keyboard(is_running: bool) -> InlineKeyboardMarkup:
-    """Copy trading — has targets, can start/stop."""
     buttons = [[InlineKeyboardButton("➕ Add Copy Trade", callback_data="add_copy")]]
     if is_running:
         buttons.append([InlineKeyboardButton("⏹ Stop Copy Trading", callback_data="stop_copy")])
@@ -67,7 +62,6 @@ def copy_trading_with_targets_keyboard(is_running: bool) -> InlineKeyboardMarkup
 
 
 def portfolio_keyboard() -> InlineKeyboardMarkup:
-    """Portfolio — matches PolyGun exactly with Full/Op..osition/Close tabs."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Full [0]", callback_data="port_full"),
          InlineKeyboardButton("Op..osition", callback_data="port_open"),
@@ -78,7 +72,6 @@ def portfolio_keyboard() -> InlineKeyboardMarkup:
 
 
 def settings_keyboard(trade_mode: str = "standard") -> InlineKeyboardMarkup:
-    """Settings — matches PolyGun exactly with all sections."""
     modes = {"cautious": "Cautious", "standard": "Standard", "expert": "Expert"}
     mode_buttons = []
     for key, label in modes.items():
@@ -105,7 +98,6 @@ def settings_keyboard(trade_mode: str = "standard") -> InlineKeyboardMarkup:
 
 
 def referral_keyboard() -> InlineKeyboardMarkup:
-    """Referral Hub — matches PolyGun exactly."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💸 Withdraw (Min $5)", callback_data="ref_withdraw")],
         [InlineKeyboardButton("📋 Copy Link", callback_data="ref_copy"),
@@ -114,19 +106,21 @@ def referral_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def smart_wallets_keyboard(page: int = 0) -> InlineKeyboardMarkup:
-    """Smart Wallets — paginated with Next button."""
-    buttons = []
+def smart_wallets_keyboard(page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+    nav = []
     if page > 0:
-        buttons.append([InlineKeyboardButton("⬅️ Prev", callback_data=f"sw_page_{page-1}")])
-    buttons.append([InlineKeyboardButton("Next ➡️", callback_data=f"sw_page_{page+1}")])
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"sw_page_{page-1}"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"sw_page_{page+1}"))
+    buttons = []
+    if nav:
+        buttons.append(nav)
     buttons.append([InlineKeyboardButton("🔍 Find Wallets: PolymarketAnalytics", url="https://polymarketanalytics.com")])
     buttons.append([InlineKeyboardButton("🏠 Home", callback_data="home")])
     return InlineKeyboardMarkup(buttons)
 
 
 def feature_unavailable_keyboard() -> InlineKeyboardMarkup:
-    """Feature gate — no wallet funded yet."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💰 Wallet", callback_data="wallet")],
         [InlineKeyboardButton("🔑 Import Wallet", callback_data="import_wallet")],
@@ -140,8 +134,14 @@ def main_menu_button() -> InlineKeyboardMarkup:
     ])
 
 
+def back_and_home(back_to: str, back_label: str = "⬅️ Back") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(back_label, callback_data=back_to),
+         InlineKeyboardButton("🏠 Home", callback_data="home")],
+    ])
+
+
 def markets_keyboard() -> InlineKeyboardMarkup:
-    """Markets — category filter. Matches PolyGun exactly."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("Politics", callback_data="mkt_politics"),
          InlineKeyboardButton("Sports", callback_data="mkt_sports")],
