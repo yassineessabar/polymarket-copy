@@ -519,7 +519,7 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
             log.info(f"[{name}]     Bought ${bet:.2f}")
         except Exception as e:
             log.error(f"[{name}]     Buy failed: {e}")
-            return False
+            return None  # transient failure — should retry
 
     if existing:
         old_bet = existing.get("bet_amount", 0)
@@ -655,8 +655,10 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
 
                 side = a.get("side", "")
                 if side == "BUY":
-                    acted = await process_buy(session, a, target, ts, state, risk, pv, my_positions)
-                    if acted:
+                    result_buy = await process_buy(session, a, target, ts, state, risk, pv, my_positions)
+                    if result_buy is None:
+                        continue  # transient failure — don't mark processed, retry next cycle
+                    if result_buy:
                         actions += 1
                 elif side == "SELL":
                     # Detect partial or full sells — reduce our position proportionally
@@ -680,7 +682,6 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                         close_bet = our_bet * sell_frac
                         close_shares = our_shares * sell_frac
                         pnl_usd = close_shares * (sell_price - entry)
-                        risk.get("daily_pnl", 0)
                         risk["daily_pnl"] = risk.get("daily_pnl", 0) + pnl_usd
                         pnl_pct = ((sell_price - entry) / entry * 100) if entry > 0 else 0
                         result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
@@ -704,12 +705,13 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                             f"{a.get('title','?')[:50]}\n"
                             f"Sold {sell_frac*100:.0f}% @ {sell_price*100:.1f}c\n"
                             f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
-                            + pnl_summary(risk_state, state, portfolio_value_ref[0]))
+                            + pnl_summary(risk, state, portfolio_value_ref[0]))
                         actions += 1
                     else:
                         log.info(f"[{name}] SELL {a.get('title','?')[:50]} | {a.get('outcome','?')} (not tracked)")
                 else:
                     log.warning(f"[{name}] UNKNOWN side '{side}' for {a.get('title','?')[:30]}")
+                    risk["daily_trades_skipped"] = risk.get("daily_trades_skipped", 0) + 1
 
                 processed.add(tid)
                 new_trades += 1
@@ -853,12 +855,13 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                             cur_price = 0.0
                             close_reason = "RESOLVED LOST"
                         else:
-                            # Resolved but can't determine winner — use CLOB
+                            # Resolved but can't determine winner — try CLOB
                             if token_id:
                                 cur_price = await get_market_price(session, token_id)
                             if cur_price <= 0:
-                                cur_price = 1.0 if entry >= 0.5 else 0.0
-                            close_reason = "RESOLVED (UNKNOWN WINNER)"
+                                log.warning(f"[{name}] Resolved but no winner/price for {tracked.get('title','?')[:30]} — retry next cycle")
+                                continue
+                            close_reason = "RESOLVED (CLOB PRICE)"
 
                     # Step 2: Not resolved — target sold manually
                     if not close_reason:
