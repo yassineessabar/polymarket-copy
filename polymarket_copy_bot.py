@@ -848,15 +848,10 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                             cur_price = clob_price
                             close_reason = "TARGET EXITED"
 
-                    # Step 4: API error — do NOT close, wait for next cycle
+                    # Step 4: No real price — do NOT close, wait for next cycle
                     if not close_reason:
-                        if resolution.get("api_error"):
-                            log.warning(f"[{name}] API error checking {tracked.get('title','?')[:30]} — skipping close, will retry")
-                            continue
-                        # Position truly gone with no explanation — force close
-                        cur_price = 1.0 if entry >= 0.5 else 0.0
-                        close_reason = "POSITION GONE (estimated)"
-                        log.warning(f"[{name}] No price data for {tracked.get('title','?')[:30]} — estimating")
+                        log.warning(f"[{name}] No real price for {tracked.get('title','?')[:30]} — skipping close, will retry next cycle")
+                        continue
 
                     fake_pos = {"size": shares, "curPrice": cur_price, "conditionId": cid, "outcomeIndex": oi}
                     to_close.append((pk, fake_pos, tracked, close_reason))
@@ -868,6 +863,7 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                         continue  # Target still holds — skip
                     cid = pk.split("_")[0] if "_" in pk else pk
                     oi = pk.split("_")[1] if "_" in pk else "0"
+                    token_id = tracked.get("token_id", "")
                     entry = tracked.get("entry_price", 0)
                     if pk in my_keys:
                         # We still hold on-chain — use our position data
@@ -887,14 +883,11 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                                 cp = 0.0
                                 r = "RESOLVED LOST"
                             else:
-                                cp = 1.0 if entry >= 0.5 else 0.0
-                                r = "RESOLVED"
-                        elif resolution.get("api_error"):
-                            log.warning(f"[{name}] API error — retry next cycle")
-                            continue
+                                log.warning(f"[{name}] Resolved but no winner data — retry next cycle")
+                                continue
                         else:
-                            cp = 1.0 if entry >= 0.5 else 0.0
-                            r = "BOTH GONE"
+                            log.warning(f"[{name}] No real price for {tracked.get('title','?')[:30]} — retry next cycle")
+                            continue
                         shares = tracked.get("bet_amount", 0) / entry if entry > 0 else 0
                         fp = {"size": shares, "curPrice": cp, "conditionId": cid, "outcomeIndex": oi}
                         to_close.append((pk, fp, tracked, r))
