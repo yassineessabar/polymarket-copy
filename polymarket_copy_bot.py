@@ -48,7 +48,7 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY", "")
 SIGNATURE_TYPE = int(os.getenv("SIGNATURE_TYPE", "0"))
 
 FAST_POLL_INTERVAL = int(os.getenv("FAST_POLL_INTERVAL", "5"))
-SLOW_POLL_INTERVAL = int(os.getenv("SLOW_POLL_INTERVAL", "30"))
+SLOW_POLL_INTERVAL = int(os.getenv("SLOW_POLL_INTERVAL", "10"))
 BET_AMOUNT = float(os.getenv("BET_AMOUNT", "2.0"))
 PORTFOLIO_BALANCE = float(os.getenv("PORTFOLIO_BALANCE", "0"))
 
@@ -110,17 +110,47 @@ async def tg_send(session: aiohttp.ClientSession, msg: str):
     except Exception:
         pass
 
+# Shared unrealized P&L ref — updated by slow poll
+_unrealized_pnl = [0.0]
+
 def pnl_summary(risk_state, state, portfolio_value=0):
-    pnl = risk_state.get("daily_pnl", 0)
-    bets = risk_state.get("daily_bets_placed", 0)
-    exp = total_exposure(state)
+    realized = risk_state.get("daily_pnl", 0)
+    unrealized = _unrealized_pnl[0]
+    total = realized + unrealized
     pos = count_all_open(state)
-    line = f"\n\n📊 <b>P&L:</b> ${pnl:+.2f} | Pos: {pos} | Exp: ${exp:.0f}"
+    exp = total_exposure(state)
     if portfolio_value > 0:
-        pnl_pct = pnl / portfolio_value * 100
-        exp_pct = exp / portfolio_value * 100
-        line = f"\n\n📊 <b>P&L:</b> ${pnl:+.2f} ({pnl_pct:+.1f}%) | Pos: {pos} | Exp: ${exp:.0f} ({exp_pct:.0f}%)"
+        total_pct = total / portfolio_value * 100
+        portfolio_now = portfolio_value + total
+        line = (f"\n\n📊 <b>P&L:</b> ${total:+.2f} ({total_pct:+.1f}%) "
+                f"[r: ${realized:+.2f} | u: ${unrealized:+.2f}]\n"
+                f"💰 Portfolio: ${portfolio_now:.2f} | Pos: {pos} | Exp: ${exp:.0f}")
+    else:
+        line = (f"\n\n📊 <b>P&L:</b> ${total:+.2f} "
+                f"[r: ${realized:+.2f} | u: ${unrealized:+.2f}] | Pos: {pos}")
     return line
+
+async def compute_unrealized_pnl(session, state):
+    """Fetch live prices for all open positions and compute unrealized P&L."""
+    total_upnl = 0.0
+    for target in TARGET_WALLETS:
+        ts = get_target_state(state, target)
+        for pk, pos in ts.get("our_positions", {}).items():
+            token_id = pos.get("token_id", "")
+            entry = pos.get("entry_price", 0)
+            bet_amt = pos.get("bet_amount", 0)
+            if not token_id or entry <= 0 or bet_amt <= 0:
+                continue
+            try:
+                live_price = await get_market_price(session, token_id)
+                if live_price > 0:
+                    shares = bet_amt / entry
+                    upnl = shares * (live_price - entry)
+                    total_upnl += upnl
+            except Exception:
+                continue
+    _unrealized_pnl[0] = total_upnl
+    return total_upnl
 
 
 # ── STATE (atomic save) ──
@@ -901,6 +931,16 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
 
         async with state_lock:
             save_state(state)
+
+        # Update unrealized P&L with live prices
+        try:
+            upnl = await compute_unrealized_pnl(session, state)
+            if cycle % 3 == 0:  # log every ~30s
+                rpnl = risk.get("daily_pnl", 0)
+                log.info(f"[SLOW] P&L: realized=${rpnl:+.2f} unrealized=${upnl:+.2f} total=${rpnl+upnl:+.2f}")
+        except Exception as e:
+            log.error(f"[SLOW] Unrealized P&L calc failed: {e}")
+
         await asyncio.sleep(SLOW_POLL_INTERVAL)
 
 
