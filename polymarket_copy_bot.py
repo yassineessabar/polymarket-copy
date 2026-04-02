@@ -102,6 +102,18 @@ async def tg_send(session: aiohttp.ClientSession, msg: str):
     except Exception:
         pass
 
+def pnl_summary(risk_state, state, portfolio_value=0):
+    pnl = risk_state.get("daily_pnl", 0)
+    bets = risk_state.get("daily_bets_placed", 0)
+    exp = total_exposure(state)
+    pos = count_all_open(state)
+    line = f"\n\n📊 <b>P&L:</b> ${pnl:+.2f} | Pos: {pos} | Exp: ${exp:.0f}"
+    if portfolio_value > 0:
+        pnl_pct = pnl / portfolio_value * 100
+        exp_pct = exp / portfolio_value * 100
+        line = f"\n\n📊 <b>P&L:</b> ${pnl:+.2f} ({pnl_pct:+.1f}%) | Pos: {pos} | Exp: ${exp:.0f} ({exp_pct:.0f}%)"
+    return line
+
 
 # ── STATE (atomic save) ──
 def load_state() -> dict:
@@ -486,12 +498,13 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
         f"{outcome} @ {price*100:.1f}c\n"
         f"Target: ${usdc_size:.1f} | Conf: {conf:.0%} ({cl})\n"
         f"<b>Bet: ${bet:.2f}</b> (pos total: ${total_pos:.2f})"
+        + pnl_summary(risk_state, state, pv)
     )
     return True
 
 
 # ── PROCESS CLOSE ──
-async def process_close(session, pos, tracked, name, risk_state, close_reason=""):
+async def process_close(session, pos, tracked, name, risk_state, state, close_reason=""):
     title = tracked.get("title", "?")
     outcome = tracked.get("outcome", "?")
     token_id = tracked.get("token_id", "")
@@ -527,6 +540,7 @@ async def process_close(session, pos, tracked, name, risk_state, close_reason=""
         f"Reason: {close_reason}\n"
         f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
         f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
+        + pnl_summary(risk_state, state)
     )
 
 
@@ -619,7 +633,8 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                             f"<b>SELL{mode_tag}</b> [{name}] {result}\n"
                             f"{a.get('title','?')[:50]}\n"
                             f"Sold {sell_frac*100:.0f}% @ {sell_price*100:.1f}c\n"
-                            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})")
+                            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
+                            + pnl_summary(risk_state, state, portfolio_value_ref[0]))
                         actions += 1
                     else:
                         log.info(f"[{name}] SELL {a.get('title','?')[:50]} | {a.get('outcome','?')} (not tracked)")
@@ -822,7 +837,7 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                 for item in to_close:
                     pk, pos, tracked = item[0], item[1], item[2]
                     reason = item[3] if len(item) > 3 else ""
-                    await process_close(session, pos, tracked, name, risk, reason)
+                    await process_close(session, pos, tracked, name, risk, state, reason)
                     del our[pk]
 
         async with state_lock:
@@ -886,6 +901,7 @@ async def main():
             f"Targets: {len(TARGET_WALLETS)}\n"
             f"Portfolio: ${pv:.2f}\n"
             f"Mode: {'DRY RUN' if DRY_RUN else 'LIVE'}"
+            + pnl_summary(risk, state, pv)
         )
 
         log.info(f"\n  Running... (Ctrl+C to stop)\n")
