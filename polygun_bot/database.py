@@ -1,0 +1,366 @@
+import aiosqlite
+import os
+from datetime import date, datetime
+
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "polygun.db")
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    telegram_id     INTEGER PRIMARY KEY,
+    username        TEXT,
+    wallet_address  TEXT,
+    private_key_enc TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    is_active       INTEGER NOT NULL DEFAULT 1,
+    referral_code   TEXT UNIQUE NOT NULL,
+    referred_by     INTEGER,
+    total_fees_paid REAL NOT NULL DEFAULT 0.0
+);
+
+CREATE TABLE IF NOT EXISTS user_settings (
+    telegram_id          INTEGER PRIMARY KEY REFERENCES users(telegram_id),
+    trade_mode           TEXT NOT NULL DEFAULT 'standard',
+    quickbuy_amount      REAL NOT NULL DEFAULT 25.0,
+    max_risk_pct         REAL NOT NULL DEFAULT 10.0,
+    min_bet              REAL NOT NULL DEFAULT 1.0,
+    max_open_positions   INTEGER NOT NULL DEFAULT 20,
+    max_per_event        INTEGER NOT NULL DEFAULT 2,
+    max_exposure_pct     REAL NOT NULL DEFAULT 50.0,
+    daily_loss_limit_pct REAL NOT NULL DEFAULT 15.0,
+    drawdown_scale_start REAL NOT NULL DEFAULT 5.0,
+    correlation_penalty  REAL NOT NULL DEFAULT 0.5,
+    dry_run              INTEGER NOT NULL DEFAULT 1,
+    notifications_on     INTEGER NOT NULL DEFAULT 1,
+    copy_trading_active  INTEGER NOT NULL DEFAULT 0,
+    two_factor_enabled   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS targets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER NOT NULL REFERENCES users(telegram_id),
+    wallet_addr TEXT NOT NULL,
+    display_name TEXT,
+    description TEXT,
+    added_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    is_active   INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(telegram_id, wallet_addr)
+);
+
+CREATE TABLE IF NOT EXISTS positions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id     INTEGER NOT NULL REFERENCES users(telegram_id),
+    target_wallet   TEXT,
+    condition_id    TEXT NOT NULL,
+    outcome_index   INTEGER NOT NULL,
+    token_id        TEXT NOT NULL,
+    title           TEXT,
+    outcome         TEXT,
+    entry_price     REAL NOT NULL,
+    bet_amount      REAL NOT NULL,
+    target_usdc_size REAL,
+    event_slug      TEXT,
+    opened_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    is_open         INTEGER NOT NULL DEFAULT 1,
+    closed_at       TEXT,
+    exit_price      REAL,
+    pnl_usd         REAL,
+    close_reason    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS trades (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id  INTEGER NOT NULL REFERENCES users(telegram_id),
+    position_id  INTEGER REFERENCES positions(id),
+    side         TEXT NOT NULL,
+    token_id     TEXT NOT NULL,
+    amount_usdc  REAL NOT NULL,
+    price        REAL NOT NULL,
+    fee_usdc     REAL NOT NULL DEFAULT 0.0,
+    is_copy      INTEGER NOT NULL DEFAULT 0,
+    source_wallet TEXT,
+    executed_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    dry_run      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS daily_risk (
+    telegram_id        INTEGER NOT NULL REFERENCES users(telegram_id),
+    date               TEXT NOT NULL,
+    daily_pnl          REAL NOT NULL DEFAULT 0.0,
+    daily_bets_placed  INTEGER NOT NULL DEFAULT 0,
+    daily_amount_wagered REAL NOT NULL DEFAULT 0.0,
+    halted             INTEGER NOT NULL DEFAULT 0,
+    trades_copied      INTEGER NOT NULL DEFAULT 0,
+    trades_blocked     INTEGER NOT NULL DEFAULT 0,
+    trades_skipped     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (telegram_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS processed_trades (
+    telegram_id   INTEGER NOT NULL,
+    target_wallet TEXT NOT NULL,
+    trade_id      TEXT NOT NULL,
+    processed_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (telegram_id, target_wallet, trade_id)
+);
+
+CREATE TABLE IF NOT EXISTS bet_history (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_wallet TEXT NOT NULL,
+    trade_id      TEXT NOT NULL UNIQUE,
+    usdc_size     REAL NOT NULL,
+    recorded_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS referral_rewards (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    referrer_id  INTEGER NOT NULL REFERENCES users(telegram_id),
+    referee_id   INTEGER NOT NULL REFERENCES users(telegram_id),
+    trade_id     INTEGER REFERENCES trades(id),
+    tier         INTEGER NOT NULL DEFAULT 1,
+    reward_usdc  REAL NOT NULL,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS fees (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id  INTEGER NOT NULL REFERENCES users(telegram_id),
+    trade_id     INTEGER REFERENCES trades(id),
+    fee_usdc     REAL NOT NULL,
+    collected_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+class Database:
+    def __init__(self, path=None):
+        self.path = path or DB_PATH
+
+    async def init(self):
+        async with aiosqlite.connect(self.path) as db:
+            await db.executescript(SCHEMA)
+            await db.execute("PRAGMA journal_mode=WAL")
+            await db.commit()
+
+    async def _conn(self):
+        return await aiosqlite.connect(self.path)
+
+    # ── Users ──
+    async def get_user(self, telegram_id: int) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM users WHERE telegram_id=?", (telegram_id,)) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def create_user(self, telegram_id: int, username: str, wallet_address: str,
+                          private_key_enc: str, referral_code: str, referred_by: int = None):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT INTO users (telegram_id, username, wallet_address, private_key_enc, referral_code, referred_by) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (telegram_id, username, wallet_address, private_key_enc, referral_code, referred_by))
+            await db.execute(
+                "INSERT INTO user_settings (telegram_id) VALUES (?)", (telegram_id,))
+            await db.commit()
+
+    async def update_user_wallet(self, telegram_id: int, wallet_address: str, private_key_enc: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE users SET wallet_address=?, private_key_enc=? WHERE telegram_id=?",
+                (wallet_address, private_key_enc, telegram_id))
+            await db.commit()
+
+    # ── Settings ──
+    async def get_settings(self, telegram_id: int) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM user_settings WHERE telegram_id=?", (telegram_id,)) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def update_setting(self, telegram_id: int, key: str, value):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(f"UPDATE user_settings SET {key}=? WHERE telegram_id=?", (value, telegram_id))
+            await db.commit()
+
+    # ── Targets ──
+    async def get_targets(self, telegram_id: int) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM targets WHERE telegram_id=? AND is_active=1", (telegram_id,)) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def add_target(self, telegram_id: int, wallet_addr: str, display_name: str = "", description: str = ""):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT OR IGNORE INTO targets (telegram_id, wallet_addr, display_name, description) VALUES (?,?,?,?)",
+                (telegram_id, wallet_addr.lower(), display_name, description))
+            await db.commit()
+
+    async def remove_target(self, telegram_id: int, wallet_addr: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE targets SET is_active=0 WHERE telegram_id=? AND wallet_addr=?",
+                (telegram_id, wallet_addr.lower()))
+            await db.commit()
+
+    # ── Positions ──
+    async def get_open_positions(self, telegram_id: int) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM positions WHERE telegram_id=? AND is_open=1", (telegram_id,)) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def get_closed_positions(self, telegram_id: int, limit: int = 20) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM positions WHERE telegram_id=? AND is_open=0 ORDER BY closed_at DESC LIMIT ?",
+                (telegram_id, limit)) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def open_position(self, telegram_id: int, target_wallet: str, condition_id: str,
+                            outcome_index: int, token_id: str, title: str, outcome: str,
+                            entry_price: float, bet_amount: float, target_usdc_size: float,
+                            event_slug: str) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "INSERT INTO positions (telegram_id, target_wallet, condition_id, outcome_index, "
+                "token_id, title, outcome, entry_price, bet_amount, target_usdc_size, event_slug) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (telegram_id, target_wallet, condition_id, outcome_index, token_id,
+                 title, outcome, entry_price, bet_amount, target_usdc_size, event_slug))
+            await db.commit()
+            return cur.lastrowid
+
+    async def update_position(self, position_id: int, **kwargs):
+        async with aiosqlite.connect(self.path) as db:
+            sets = ", ".join(f"{k}=?" for k in kwargs)
+            vals = list(kwargs.values()) + [position_id]
+            await db.execute(f"UPDATE positions SET {sets} WHERE id=?", vals)
+            await db.commit()
+
+    async def close_position(self, position_id: int, exit_price: float, pnl_usd: float, reason: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE positions SET is_open=0, closed_at=datetime('now'), exit_price=?, pnl_usd=?, close_reason=? WHERE id=?",
+                (exit_price, pnl_usd, reason, position_id))
+            await db.commit()
+
+    # ── Trades ──
+    async def record_trade(self, telegram_id: int, position_id: int, side: str, token_id: str,
+                           amount: float, price: float, fee: float, is_copy: bool,
+                           source_wallet: str = "", dry_run: bool = False) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "INSERT INTO trades (telegram_id, position_id, side, token_id, amount_usdc, price, "
+                "fee_usdc, is_copy, source_wallet, dry_run) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (telegram_id, position_id, side, token_id, amount, price, fee,
+                 1 if is_copy else 0, source_wallet, 1 if dry_run else 0))
+            await db.commit()
+            return cur.lastrowid
+
+    # ── Daily Risk ──
+    async def get_daily_risk(self, telegram_id: int) -> dict:
+        today = str(date.today())
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM daily_risk WHERE telegram_id=? AND date=?", (telegram_id, today)) as cur:
+                row = await cur.fetchone()
+                if row:
+                    return dict(row)
+            await db.execute(
+                "INSERT OR IGNORE INTO daily_risk (telegram_id, date) VALUES (?,?)", (telegram_id, today))
+            await db.commit()
+            return {"telegram_id": telegram_id, "date": today, "daily_pnl": 0.0,
+                    "daily_bets_placed": 0, "daily_amount_wagered": 0.0, "halted": 0,
+                    "trades_copied": 0, "trades_blocked": 0, "trades_skipped": 0}
+
+    async def update_daily_risk(self, telegram_id: int, **kwargs):
+        today = str(date.today())
+        async with aiosqlite.connect(self.path) as db:
+            sets = ", ".join(f"{k}=?" for k in kwargs)
+            vals = list(kwargs.values()) + [telegram_id, today]
+            await db.execute(f"UPDATE daily_risk SET {sets} WHERE telegram_id=? AND date=?", vals)
+            await db.commit()
+
+    # ── Processed Trades ──
+    async def is_trade_processed(self, telegram_id: int, target_wallet: str, trade_id: str) -> bool:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT 1 FROM processed_trades WHERE telegram_id=? AND target_wallet=? AND trade_id=?",
+                (telegram_id, target_wallet.lower(), trade_id)) as cur:
+                return await cur.fetchone() is not None
+
+    async def mark_trade_processed(self, telegram_id: int, target_wallet: str, trade_id: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT OR IGNORE INTO processed_trades (telegram_id, target_wallet, trade_id) VALUES (?,?,?)",
+                (telegram_id, target_wallet.lower(), trade_id))
+            await db.commit()
+
+    # ── Referrals ──
+    async def get_user_by_referral(self, code: str) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM users WHERE referral_code=?", (code,)) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def get_referral_stats(self, telegram_id: int) -> dict:
+        async with aiosqlite.connect(self.path) as db:
+            # Tier 1: direct referrals
+            async with db.execute(
+                "SELECT COUNT(*) FROM users WHERE referred_by=?", (telegram_id,)) as cur:
+                tier1 = (await cur.fetchone())[0]
+            # Tier 2: referrals of referrals
+            async with db.execute(
+                "SELECT COUNT(*) FROM users WHERE referred_by IN (SELECT telegram_id FROM users WHERE referred_by=?)",
+                (telegram_id,)) as cur:
+                tier2 = (await cur.fetchone())[0]
+            # Tier 3
+            async with db.execute(
+                "SELECT COUNT(*) FROM users WHERE referred_by IN "
+                "(SELECT telegram_id FROM users WHERE referred_by IN "
+                "(SELECT telegram_id FROM users WHERE referred_by=?))",
+                (telegram_id,)) as cur:
+                tier3 = (await cur.fetchone())[0]
+            # Earnings
+            async with db.execute(
+                "SELECT COALESCE(SUM(reward_usdc), 0) FROM referral_rewards WHERE referrer_id=?",
+                (telegram_id,)) as cur:
+                total_earned = (await cur.fetchone())[0]
+            return {
+                "tier1": tier1, "tier2": tier2, "tier3": tier3,
+                "total_reach": tier1 + tier2 + tier3,
+                "total_earned": total_earned,
+                "claimable": total_earned,  # simplified
+            }
+
+    # ── Portfolio stats ──
+    async def get_portfolio_stats(self, telegram_id: int) -> dict:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT COALESCE(SUM(bet_amount), 0) FROM positions WHERE telegram_id=? AND is_open=1",
+                (telegram_id,)) as cur:
+                positions_value = (await cur.fetchone())[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM positions WHERE telegram_id=? AND is_open=1",
+                (telegram_id,)) as cur:
+                position_count = (await cur.fetchone())[0]
+            risk = await self.get_daily_risk(telegram_id)
+            return {
+                "positions_value": positions_value,
+                "position_count": position_count,
+                "daily_pnl": risk.get("daily_pnl", 0),
+            }
+
+    # ── Active copy traders ──
+    async def get_active_copy_traders(self) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT telegram_id FROM user_settings WHERE copy_trading_active=1") as cur:
+                return [r[0] for r in await cur.fetchall()]
