@@ -158,13 +158,19 @@ def get_target_state(state: dict, target: str) -> dict:
     return state[key]
 
 def get_risk_state(state: dict) -> dict:
+    defaults = {"date": str(date.today()), "daily_pnl": 0.0, "daily_bets_placed": 0,
+                "daily_amount_wagered": 0.0, "starting_portfolio": 0.0, "halted": False,
+                "daily_trades_copied": 0, "daily_trades_blocked": 0, "daily_trades_skipped": 0}
     if "_risk" not in state:
-        state["_risk"] = {"date": str(date.today()), "daily_pnl": 0.0, "daily_bets_placed": 0, "daily_amount_wagered": 0.0, "starting_portfolio": 0.0, "halted": False}
+        state["_risk"] = defaults
     if state["_risk"]["date"] != str(date.today()):
         prev = state["_risk"]
         if prev["daily_pnl"] != 0 or prev["daily_bets_placed"] > 0:
             log.info(f"[RISK] Day ended — P&L: ${prev['daily_pnl']:+.2f} | Bets: {prev['daily_bets_placed']}")
-        state["_risk"] = {"date": str(date.today()), "daily_pnl": 0.0, "daily_bets_placed": 0, "daily_amount_wagered": 0.0, "starting_portfolio": 0.0, "halted": False}
+        state["_risk"] = defaults
+    # Ensure new counters exist in old state files
+    for k in ("daily_trades_copied", "daily_trades_blocked", "daily_trades_skipped"):
+        state["_risk"].setdefault(k, 0)
     return state["_risk"]
 
 
@@ -447,6 +453,7 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
     price = float(activity.get("price", 0))
     if price <= 0:
         log.warning(f"[{name}] Skipping trade with price=0: {title}")
+        risk_state["daily_trades_skipped"] = risk_state.get("daily_trades_skipped", 0) + 1
         return False
     token_id = activity.get("asset", "")
     cid = activity.get("conditionId", "")
@@ -462,6 +469,7 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
 
     if reject:
         log.warning(f"[{name}] BLOCKED {title} | {reject}")
+        risk_state["daily_trades_blocked"] = risk_state.get("daily_trades_blocked", 0) + 1
         return False
 
     action = "ADD" if existing else "BUY"
@@ -500,6 +508,7 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
 
     risk_state["daily_bets_placed"] = risk_state.get("daily_bets_placed", 0) + 1
     risk_state["daily_amount_wagered"] = risk_state.get("daily_amount_wagered", 0) + bet
+    risk_state["daily_trades_copied"] = risk_state.get("daily_trades_copied", 0) + 1
 
     tid = make_trade_id(activity)
     bh = ts.get("bet_history", [])
@@ -552,12 +561,25 @@ async def process_close(session, pos, tracked, name, risk_state, state, close_re
     risk_state["daily_pnl"] = risk_state.get("daily_pnl", 0) + pnl_usd
     mode_tag = " [DRY]" if DRY_RUN else ""
     result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+
+    # ── REVIEWER 3: P&L sanity check ──
+    warnings = []
+    if entry <= 0 or entry > 1.0:
+        warnings.append(f"bad entry: {entry:.4f}")
+    if cur_price < 0 or cur_price > 1.0:
+        warnings.append(f"bad exit: {cur_price:.4f}")
+    if bet_amt > 0 and abs(pnl_usd) > bet_amt * 2:
+        warnings.append(f"P&L ${pnl_usd:+.2f} exceeds 2x bet ${bet_amt:.2f}")
+    if "ESTIMATE" in close_reason.upper():
+        warnings.append("exit price estimated")
+    warn_line = f"\n⚠️ {' | '.join(warnings)}" if warnings else ""
+
     await tg_send(session,
         f"<b>CLOSE{mode_tag}</b> [{name}] {result}\n"
         f"{title} — {outcome}\n"
         f"Reason: {close_reason}\n"
         f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
-        f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})"
+        f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){warn_line}"
         + pnl_summary(risk_state, state)
     )
 
@@ -689,14 +711,20 @@ async def fast_poll_loop(session, state, risk_state, portfolio_value_ref, state_
             exp = total_exposure(state)
             pnl = risk.get("daily_pnl", 0)
             bets = risk.get("daily_bets_placed", 0)
+            copied = risk.get("daily_trades_copied", 0)
+            blocked = risk.get("daily_trades_blocked", 0)
+            skipped = risk.get("daily_trades_skipped", 0)
+            total_seen = copied + blocked + skipped
+            copy_rate = (copied / total_seen * 100) if total_seen > 0 else 0
             pv = portfolio_value_ref[0]
             await tg_send(session,
-                f"<b>Hourly Summary</b>\n"
+                f"<b>📊 Hourly Summary</b>\n"
                 f"Portfolio: ${pv:.2f}\n"
                 f"Daily P&L: ${pnl:+.2f}\n"
                 f"Positions: {op}/{MAX_OPEN_POSITIONS}\n"
                 f"Exposure: ${exp:.0f} ({exp/pv*100:.0f}%)\n"
                 f"Bets today: {bets}\n"
+                f"Copy rate: {copy_rate:.0f}% ({copied}/{total_seen}) | Blocked: {blocked} | Skipped: {skipped}\n"
                 f"Mode: {'DRY RUN' if DRY_RUN else 'LIVE'}"
             )
 
@@ -743,11 +771,26 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
                 log.error(f"[{name}] Failed to get target positions: {e}")
                 target_positions = []
 
+            target_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in target_positions}
             our = ts.get("our_positions", {})
+
+            # ── REVIEWER 1: Sync check every ~5 min ──
+            if cycle % 10 == 1 and target_positions:
+                our_keys = set(our.keys())
+                missed = target_keys - our_keys
+                stale = our_keys - target_keys
+                if missed or stale:
+                    msg = f"⚠️ <b>SYNC CHECK</b> [{name}]\n"
+                    if missed:
+                        msg += f"Missed: {len(missed)} target positions we don't track\n"
+                    if stale:
+                        msg += f"Stale: {len(stale)} we track but target exited\n"
+                    msg += f"Target: {len(target_keys)} | Ours: {len(our_keys)}"
+                    await tg_send(session, msg)
+                    log.info(f"[SYNC] [{name}] missed={len(missed)} stale={len(stale)} target={len(target_keys)} ours={len(our_keys)}")
+
             if not our:
                 continue
-
-            target_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in target_positions}
             to_close = []
 
             if DRY_RUN:
