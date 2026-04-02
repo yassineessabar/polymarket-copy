@@ -901,7 +901,7 @@ async def main():
             f"Targets: {len(TARGET_WALLETS)}\n"
             f"Portfolio: ${pv:.2f}\n"
             f"Mode: {'DRY RUN' if DRY_RUN else 'LIVE'}"
-            + pnl_summary(risk, state, pv)
+            + pnl_summary(risk_state, state, pv)
         )
 
         log.info(f"\n  Running... (Ctrl+C to stop)\n")
