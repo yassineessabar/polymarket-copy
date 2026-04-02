@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from ..database import Database
 from ..wallet import generate_wallet, encrypt_key, get_usdc_balance
-from ..keyboards import home_keyboard
+from ..keyboards import home_keyboard, welcome_keyboard
 from ..config import BOT_USERNAME
 
 
@@ -16,7 +16,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check for referral code in /start payload
     referred_by = None
     if context.args and context.args[0].startswith("REF_"):
-        ref_code = context.args[0][4:]  # strip REF_ prefix
+        ref_code = context.args[0][4:]
         referrer = await db.get_user_by_referral(ref_code)
         if referrer and referrer["telegram_id"] != telegram_id:
             referred_by = referrer["telegram_id"]
@@ -39,19 +39,34 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         existing = await db.get_user(telegram_id)
 
-    # Build home screen
+        # Show welcome screen for new users
+        welcome_text = (
+            "PolyGun is a Telegram-native trading\n"
+            "bot for Polymarket\n\n"
+            "Trade on Polymarket directly from\n"
+            "Telegram\n\n"
+            "Copy trades from selected wallets\n\n"
+            "Manage positions inside Telegram\n\n"
+            "Built for users who want fast, seamless\n"
+            "Polymarket trading without leaving\n"
+            "Telegram."
+        )
+        await update.message.reply_text(
+            text=welcome_text, reply_markup=welcome_keyboard())
+        return
+
+    # Existing user — show home
     await send_home(update, context, existing)
 
 
 async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: dict = None):
-    """Send the home screen with portfolio stats."""
+    """Send the home screen with portfolio stats — matches PolyGun exactly."""
     db: Database = context.application.bot_data["db"]
     telegram_id = update.effective_user.id
 
     if not user:
         user = await db.get_user(telegram_id)
 
-    # Get stats
     balance = get_usdc_balance(user["wallet_address"]) if user.get("wallet_address") else 0.0
     stats = await db.get_portfolio_stats(telegram_id)
 
@@ -65,14 +80,20 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
         f"💰 Available Balance: ${balance:.2f}\n"
         f"📋 Active Orders: $0.00\n"
         f"💎 Total Net Worth: ${net_worth:.2f}\n\n"
+        f"You have 0 Ammo. What's this?\n\n"
         f"If bot is slow, use backup bots:\n"
         f"Alpha · Beta · Sigma · Delta\n\n"
-        f"Copy top traders, snipe odds, and trade like a pro."
+        f"Copy top traders, snipe odds, and trade like a\n"
+        f"pro."
     )
 
     if update.callback_query:
-        await update.callback_query.edit_message_text(
-            text=text, reply_markup=home_keyboard(), parse_mode=None)
+        try:
+            await update.callback_query.edit_message_text(
+                text=text, reply_markup=home_keyboard())
+        except Exception:
+            await update.callback_query.message.reply_text(
+                text=text, reply_markup=home_keyboard())
     else:
         await update.message.reply_text(
             text=text, reply_markup=home_keyboard())

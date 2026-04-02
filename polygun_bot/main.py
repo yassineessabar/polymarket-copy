@@ -125,9 +125,20 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Refreshing...")
             await referral_command(update, context)
 
-        # Markets & Limit Orders (placeholders)
+        # Markets
         elif data == "markets":
-            await query.answer("Markets browser coming soon")
+            await query.answer()
+            from .keyboards import markets_keyboard
+            text = (
+                "🔍 <b>Market Search — Choose a filter</b>\n\n"
+                "Choose a category below or type in a custom\n"
+                "search keywords (e.g. \"bitcoin\", \"trump\",\n"
+                "\"earnings\")"
+            )
+            await query.edit_message_text(text=text, parse_mode="HTML",
+                                          reply_markup=markets_keyboard())
+        elif data.startswith("mkt_"):
+            await query.answer("Market category coming soon")
         elif data == "limit_orders":
             text = (
                 "📋 <b>Limit Orders</b>\n\n"
