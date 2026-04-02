@@ -196,12 +196,20 @@ async def post_init(application):
         log.info(f"Resumed copy trading for {len(active)} users")
 
 
+async def post_shutdown(application):
+    """Graceful shutdown — stop all copy trading tasks."""
+    manager = application.bot_data.get("copy_manager")
+    if manager:
+        await manager.stop_all()
+        log.info("All copy trading tasks stopped")
+
+
 def main():
     if not BOT_TOKEN:
         print("ERROR: Set BOT_TOKEN in .env")
         return
 
-    app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).post_shutdown(post_shutdown).build()
 
     # Import wallet conversation
     import_conv = ConversationHandler(

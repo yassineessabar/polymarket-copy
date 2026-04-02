@@ -17,6 +17,7 @@ from .api_helpers import (
     get_profile_name, check_condition_resolved, make_trade_id,
 )
 from .config import FEE_RATE
+from .fees import distribute_referral_rewards
 
 log = logging.getLogger("polygun")
 
@@ -225,11 +226,17 @@ class CopyTradeManager:
             title=title, outcome=outcome, entry_price=price,
             bet_amount=bet, target_usdc_size=usdc_size, event_slug=slug)
 
-        # Record trade
-        await self.db.record_trade(
+        # Record trade + fee + referral
+        trade_id = await self.db.record_trade(
             telegram_id=telegram_id, position_id=pos_id, side="BUY",
             token_id=token_id, amount=bet, price=price, fee=fee,
             is_copy=True, source_wallet=target, dry_run=bool(dry_run))
+
+        if fee > 0 and not dry_run:
+            try:
+                await distribute_referral_rewards(self.db, telegram_id, trade_id, fee)
+            except Exception as e:
+                log.error(f"[Copy:{telegram_id}] Referral reward failed: {e}")
 
         # Update daily risk
         await self.db.update_daily_risk(
