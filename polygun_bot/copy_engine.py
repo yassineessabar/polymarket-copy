@@ -94,7 +94,10 @@ class CopyTradeManager:
                             continue
 
                         # Get portfolio value
-                        usdc_balance = get_usdc_balance(wallet)
+                        try:
+                            usdc_balance = get_usdc_balance(wallet)
+                        except Exception:
+                            usdc_balance = 0.0
                         open_pos = await self.db.get_open_positions(telegram_id)
                         pos_value = sum(p.get("bet_amount", 0) for p in open_pos)
                         portfolio_value = usdc_balance + pos_value
@@ -181,8 +184,8 @@ class CopyTradeManager:
         event_count = sum(1 for p in open_pos if p.get("event_slug") == slug)
         target_portfolio = self.get_target_portfolio(target)
 
-        # Get bet history for confidence
-        bet_history = []  # TODO: fetch from bet_history table
+        # Get bet history for confidence scoring
+        bet_history = await self.db.get_bet_history(target)
 
         bet, conf, reject = risk_check(
             usdc_size=usdc_size,
@@ -237,6 +240,10 @@ class CopyTradeManager:
                 await distribute_referral_rewards(self.db, telegram_id, trade_id, fee)
             except Exception as e:
                 log.error(f"[Copy:{telegram_id}] Referral reward failed: {e}")
+
+        # Record bet history for confidence scoring
+        tid = make_trade_id(activity)
+        await self.db.add_bet_history(target, tid, usdc_size)
 
         # Update daily risk
         await self.db.update_daily_risk(
@@ -308,9 +315,8 @@ class CopyTradeManager:
                 bet_amount=new_bet,
                 target_usdc_size=max(0, target_orig - sell_usdc))
 
-        # Update daily risk P&L
-        rpnl = risk.get("daily_pnl", 0) + pnl_usd
-        await self.db.update_daily_risk(telegram_id, daily_pnl=rpnl)
+        # Update daily risk P&L (atomic increment)
+        await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
         # Notify
         mode_tag = " [DRY]" if dry_run else ""
@@ -415,9 +421,8 @@ class CopyTradeManager:
                 # Close in DB
                 await self.db.close_position(pos["id"], cur_price, pnl_usd, close_reason)
 
-                # Update daily P&L
-                rpnl = risk.get("daily_pnl", 0) + pnl_usd
-                await self.db.update_daily_risk(telegram_id, daily_pnl=rpnl)
+                # Update daily P&L (atomic increment)
+                await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
                 # Notify
                 mode_tag = " [DRY]" if dry_run else ""

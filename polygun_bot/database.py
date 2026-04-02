@@ -281,10 +281,38 @@ class Database:
 
     async def update_daily_risk(self, telegram_id: int, **kwargs):
         today = str(date.today())
+        # Ensure row exists
+        await self.get_daily_risk(telegram_id)
         async with aiosqlite.connect(self.path) as db:
             sets = ", ".join(f"{k}=?" for k in kwargs)
             vals = list(kwargs.values()) + [telegram_id, today]
             await db.execute(f"UPDATE daily_risk SET {sets} WHERE telegram_id=? AND date=?", vals)
+            await db.commit()
+
+    async def increment_daily_pnl(self, telegram_id: int, pnl_delta: float):
+        """Atomic increment — avoids read-then-write race condition."""
+        today = str(date.today())
+        await self.get_daily_risk(telegram_id)
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE daily_risk SET daily_pnl = daily_pnl + ? WHERE telegram_id=? AND date=?",
+                (pnl_delta, telegram_id, today))
+            await db.commit()
+
+    # ── Bet History ──
+    async def get_bet_history(self, target_wallet: str, limit: int = 200) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM bet_history WHERE target_wallet=? ORDER BY recorded_at DESC LIMIT ?",
+                (target_wallet.lower(), limit)) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def add_bet_history(self, target_wallet: str, trade_id: str, usdc_size: float):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT OR IGNORE INTO bet_history (target_wallet, trade_id, usdc_size) VALUES (?,?,?)",
+                (target_wallet.lower(), trade_id, usdc_size))
             await db.commit()
 
     # ── Processed Trades ──

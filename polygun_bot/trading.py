@@ -6,7 +6,7 @@ from py_clob_client.client import ClobClient
 from py_clob_client.clob_types import MarketOrderArgs, OrderType
 from py_clob_client.order_builder.constants import BUY, SELL
 
-from .config import CLOB_API, FEE_RATE
+from .config import CLOB_API
 
 log = logging.getLogger("polygun")
 
@@ -51,8 +51,8 @@ def place_sell(client: ClobClient, token_id: str, amount: float):
     return client.post_order(signed, OrderType.FOK)
 
 
-def calculate_fee(amount: float) -> tuple[float, float]:
+def calculate_fee(amount: float, fee_rate: float = 0.01) -> tuple[float, float]:
     """Calculate fee. Returns (net_amount, fee_amount)."""
-    fee = round(amount * FEE_RATE, 6)
+    fee = round(amount * fee_rate, 6)
     net = amount - fee
     return net, fee

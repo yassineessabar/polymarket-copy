@@ -58,17 +58,13 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "refresh_wallet":
             await query.answer("Refreshing...")
             await wallet_command(update, context)
-        elif data == "import_wallet":
-            await query.answer()
-            await import_wallet_start(update, context)
+        # import_wallet handled by ConversationHandler — do NOT handle here
 
         # Copy Trading
         elif data == "copy":
             await query.answer()
             await copy_command(update, context)
-        elif data == "add_copy":
-            await query.answer()
-            await add_copy_start(update, context)
+        # add_copy handled by ConversationHandler — do NOT handle here
         elif data == "smart_wallets":
             await query.answer()
             await smart_wallets_command(update, context)
@@ -146,9 +142,9 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "3. Select 📋 Limit Sell.\n"
                 "4. Enter your price and amount."
             )
-            from ..keyboards import main_menu_button
+            from .keyboards import main_menu_button as mm_btn
             await query.edit_message_text(text=text, parse_mode="HTML",
-                                          reply_markup=main_menu_button())
+                                          reply_markup=mm_btn())
 
         # Help
         elif data == "help":

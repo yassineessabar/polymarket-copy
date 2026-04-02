@@ -50,6 +50,8 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     total_pnl = realized_pnl + unrealized
     exposure = sum(p.get("bet_amount", 0) for p in positions)
+    # balance = available USDC, exposure = capital deployed in positions
+    # unrealized = live price change on deployed capital
     net_worth = balance + exposure + unrealized
 
     text += (
