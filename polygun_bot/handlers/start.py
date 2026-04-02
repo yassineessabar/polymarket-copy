@@ -41,7 +41,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Show welcome screen for new users
         welcome_text = (
-            "PolyGun is a Telegram-native trading\n"
+            "PolySync is a Telegram-native trading\n"
             "bot for Polymarket\n\n"
             "Trade on Polymarket directly from\n"
             "Telegram\n\n"
@@ -60,7 +60,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: dict = None):
-    """Send the home screen with portfolio stats — matches PolyGun exactly."""
+    """Send the home screen with portfolio stats — matches PolySync exactly."""
     db: Database = context.application.bot_data["db"]
     telegram_id = update.effective_user.id
 
@@ -74,7 +74,7 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
     net_worth = balance + positions_val
 
     text = (
-        f"Welcome to PolyGun 🏠\n"
+        f"Welcome to PolySync 🏠\n"
         f"Your secure companion for rapid Polymarket trades.\n\n"
         f"📊 Current Positions: ${positions_val:.2f}\n"
         f"💰 Available Balance: ${balance:.2f}\n"

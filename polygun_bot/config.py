@@ -16,7 +16,7 @@ POLYGON_RPC = "https://polygon-rpc.com"
 USDC_CONTRACT = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
 
 # Bot name (for referral links)
-BOT_USERNAME = os.getenv("BOT_USERNAME", "PolyGunSniperBot_Bot")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "PolySyncBot")
 
 # Copy trading defaults
 DEFAULT_SETTINGS = {

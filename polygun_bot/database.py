@@ -2,7 +2,7 @@ import aiosqlite
 import os
 from datetime import date, datetime
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "polygun.db")
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "polysync.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (

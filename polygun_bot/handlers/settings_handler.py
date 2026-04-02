@@ -15,7 +15,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
         "⚙️ <b>Settings</b>\n"
-        "Fine tune how PolyGun behaves when you trade.\n\n"
+        "Fine tune how PolySync behaves when you trade.\n\n"
         "🔧 <b>Trading Modes</b>\n"
         "• Cautious, requires confirmation for every market order\n"
         "• Standard, only orders above $100 need confirmation\n"
@@ -29,7 +29,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔐 <b>Two-Factor Authentication</b> (Disabled)\n"
         "Protect withdrawals and key exports with a TOTP code from your authenticator app.\n\n"
         "👥 <b>Referrals</b>\n"
-        "Invite friends to PolyGun and earn rewards from their activity.\n\n"
+        "Invite friends to PolySync and earn rewards from their activity.\n\n"
         "Select an option below to manage its settings."
     )
 

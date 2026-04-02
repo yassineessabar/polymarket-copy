@@ -10,7 +10,7 @@ import logging
 
 from .config import DATA_API, CLOB_API, GAMMA_API, POLYGON_RPC, USDC_CONTRACT
 
-log = logging.getLogger("polygun")
+log = logging.getLogger("polysync")
 
 # ── DNS RESOLUTION WITH FALLBACK ──
 _POLYMARKET_HOSTS = {

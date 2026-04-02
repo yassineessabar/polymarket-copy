@@ -19,7 +19,7 @@ from .api_helpers import (
 from .config import FEE_RATE
 from .fees import distribute_referral_rewards
 
-log = logging.getLogger("polygun")
+log = logging.getLogger("polysync")
 
 FAST_INTERVAL = 5   # seconds
 SLOW_INTERVAL = 10  # seconds

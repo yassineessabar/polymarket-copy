@@ -5,7 +5,7 @@ from ..keyboards import main_menu_button
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
-        "❓ <b>Help — PolyGun Bot</b>\n\n"
+        "❓ <b>Help — PolySync Bot</b>\n\n"
         "<b>Commands:</b>\n"
         "/start — Launch the bot\n"
         "/wallet — View wallet & balance\n"

@@ -140,7 +140,7 @@ async def smart_wallets_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     text = (
         "<b>Smart Wallet Research (DYOR)</b>\n\n"
-        "These are the three most-copied wallets on PolyGun currently.\n"
+        "These are the three most-copied wallets on PolySync currently.\n"
         "Use the research tools below to analyze performance and risk, then "
         "choose the wallet you want to copy and enable it in Settings.\n"
     )
