@@ -62,6 +62,7 @@ MAX_TOTAL_EXPOSURE_PCT = float(os.getenv("MAX_TOTAL_EXPOSURE_PCT", "50.0"))
 DAILY_LOSS_LIMIT_PCT = float(os.getenv("DAILY_LOSS_LIMIT_PCT", "15.0"))
 DRAWDOWN_SCALE_START = float(os.getenv("DRAWDOWN_SCALE_START", "5.0"))
 CORRELATION_PENALTY = float(os.getenv("CORRELATION_PENALTY", "0.5"))
+TARGET_PORTFOLIO_ESTIMATE = float(os.getenv("TARGET_PORTFOLIO_ESTIMATE", "0"))
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
@@ -72,6 +73,13 @@ TARGET_WALLETS = [w.strip() for w in _multi.split(",") if w.strip()] if _multi e
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".bot_state.json")
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot.log")
+
+# ── TARGET PORTFOLIO CACHE ──
+_target_portfolio_cache = {}
+
+def get_target_portfolio(target: str) -> float:
+    val = _target_portfolio_cache.get(target.lower(), 0)
+    return val if val > 0 else TARGET_PORTFOLIO_ESTIMATE
 
 DATA_API = "https://data-api.polymarket.com"
 CLOB_API = "https://clob.polymarket.com"
@@ -408,7 +416,14 @@ def risk_check(state, risk_state, pv, usdc_size, ts, cid, oi, slug, target):
 
     conf = calculate_confidence(usdc_size, ts.get("bet_history", []))
     max_bet = (MAX_RISK_PCT / 100) * pv if pv > 0 else BET_AMOUNT
-    bet = conf * max_bet * dd
+
+    # Proportional mimic: bet same % of our portfolio as target bets of theirs
+    target_portfolio = get_target_portfolio(target)
+    if target_portfolio > 0:
+        target_pct = usdc_size / target_portfolio
+        bet = target_pct * pv * dd
+    else:
+        bet = BET_AMOUNT * dd
 
     ag = sum(1 for t in TARGET_WALLETS if t.lower() != target.lower()
              and f"{cid}_{oi}" in get_target_state(state, t).get("our_positions", {}))
@@ -450,9 +465,12 @@ async def process_buy(session, activity, target, ts, state, risk_state, pv, my_p
         return False
 
     action = "ADD" if existing else "BUY"
+    target_portfolio = get_target_portfolio(target)
+    target_pct = (usdc_size / target_portfolio * 100) if target_portfolio > 0 else 0
     log.info(
         f"[{name}] {action} {title} | {outcome} @ {price*100:.1f}c | "
-        f"target: ${usdc_size:.1f} | conf: {conf:.0%} ({cl}) | bet: ${bet:.2f}"
+        f"target: ${usdc_size:.1f} ({target_pct:.1f}% of ${target_portfolio:.0f}) | "
+        f"bet: ${bet:.2f} ({bet/pv*100:.1f}% of ${pv:.0f})"
     )
 
     if DRY_RUN:
@@ -714,14 +732,19 @@ async def slow_poll_loop(session, state, risk_state, portfolio_value_ref, state_
         for target in TARGET_WALLETS:
             ts = get_target_state(state, target)
             name = ts.get("name", target[:10])
-            our = ts.get("our_positions", {})
-            if not our:
-                continue
 
             try:
                 target_positions = await get_positions(session, target)
+                # Cache target portfolio value for proportional sizing
+                tpv = sum(float(p.get("currentValue", 0)) for p in target_positions)
+                if tpv > 0:
+                    _target_portfolio_cache[target.lower()] = tpv
             except Exception as e:
                 log.error(f"[{name}] Failed to get target positions: {e}")
+                target_positions = []
+
+            our = ts.get("our_positions", {})
+            if not our:
                 continue
 
             target_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in target_positions}
@@ -877,6 +900,17 @@ async def main():
                 sizes = [x["usdc_size"] for x in h]
                 s = sorted(sizes)
                 log.info(f"  [{ts['name']}] {len(h)} trades | median: ${statistics.median(sizes):.1f} | P90: ${s[int(len(s)*0.9)]:.1f}")
+            # Prime target portfolio cache
+            try:
+                target_pos = await get_positions(session, target)
+                tpv = sum(float(p.get("currentValue", 0)) for p in target_pos)
+                if tpv > 0:
+                    _target_portfolio_cache[target.lower()] = tpv
+                    log.info(f"  [{ts['name']}] Portfolio: ${tpv:,.0f}")
+                else:
+                    log.info(f"  [{ts['name']}] Portfolio: unknown (no positions)")
+            except Exception:
+                log.info(f"  [{ts['name']}] Portfolio: unknown (API error)")
 
         my_positions = await get_positions(session, FUNDER_ADDRESS)
         if PORTFOLIO_BALANCE > 0:
