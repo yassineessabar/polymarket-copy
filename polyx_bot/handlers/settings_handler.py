@@ -15,16 +15,18 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     demo_bal = settings.get("demo_balance", 0) if settings else 0
     copy_active = bool(settings and settings.get("copy_trading_active", 0))
 
+    mode_label = f"🎮 DEMO (${demo_bal:,.0f})" if demo_mode else "🟢 LIVE"
+
     text = (
         "⚙️ <b>Settings</b>\n\n"
-        f"🎮 Demo Mode: <b>{'ON ($%s)' % '{:,.0f}'.format(demo_bal) if demo_mode else 'OFF'}</b>\n"
+        f"📍 Mode: <b>{mode_label}</b>\n"
         f"🤖 Copy Trading: <b>{'🟢 Running' if copy_active else '🔴 Stopped'}</b>\n\n"
-        "🎮 <b>Demo Mode</b> — Trade with simulated funds\n"
+        "📊 <b>Risk & Sizing</b> — Adjust risk parameters\n"
         "🔑 <b>Export Key</b> — Export your wallet private key\n"
         "👥 <b>Referral Hub</b> — Invite friends & earn rewards"
     )
 
-    await respond(update, context, text, reply_markup=settings_keyboard())
+    await respond(update, context, text, reply_markup=settings_keyboard(demo_mode))
 
 
 async def set_trade_mode(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str):
@@ -137,8 +139,8 @@ async def demo_disable(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if copy_mgr:
         await copy_mgr.stop_user(telegram_id)
 
-    await update.callback_query.answer("Demo mode disabled")
-    await demo_mode_command(update, context)
+    await update.callback_query.answer("Switched to Live Mode")
+    await settings_command(update, context)
 
 
 async def wallet_security(update: Update, context: ContextTypes.DEFAULT_TYPE):
