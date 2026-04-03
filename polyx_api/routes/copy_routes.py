@@ -16,6 +16,7 @@ SMART_WALLETS = [
         copiers=1240,
         description="$22M+ PnL, top Polymarket whale, diverse bets",
         weekly_pnl="+12.5% weekly",
+        win_rate="67%", total_trades="4,200+", total_profit="$22.4M", positions=85,
         stats_url="https://polymarketanalytics.com/traders/0x56687bf447db6ffa42ffe2204a05edaa20f55839",
     ),
     SmartWallet(
@@ -24,6 +25,7 @@ SMART_WALLETS = [
         copiers=336,
         description="Sports whale -- NBA, NHL, large $44K+ bets",
         weekly_pnl="+29.28% weekly",
+        win_rate="72%", total_trades="1,850+", total_profit="$2.1M", positions=42,
         stats_url="https://polymarketanalytics.com/traders/0x0c154c190E293B7e5F8D453b5F690C4dC9599A45",
     ),
     SmartWallet(
@@ -32,6 +34,7 @@ SMART_WALLETS = [
         copiers=376,
         description="High-volume spread trader, $117K positions",
         weekly_pnl="+31.48% weekly",
+        win_rate="74%", total_trades="3,100+", total_profit="$4.8M", positions=63,
         stats_url="https://polymarketanalytics.com/traders/0x492442eab586f242b53bda933fd5de859c8a3782",
     ),
     SmartWallet(
@@ -40,6 +43,7 @@ SMART_WALLETS = [
         copiers=280,
         description="Politics & Geopolitics, steady conviction bets",
         weekly_pnl="+27.15% weekly",
+        win_rate="69%", total_trades="920+", total_profit="$1.5M", positions=28,
         stats_url="https://polymarketanalytics.com/traders/0xfd22b8843ae03a33a8a4c5e39ef1e5ff33ebad91",
     ),
     SmartWallet(
@@ -48,6 +52,7 @@ SMART_WALLETS = [
         copiers=150,
         description="High-frequency crypto & BTC/XRP 5-min markets",
         weekly_pnl="+18.5% weekly",
+        win_rate="81%", total_trades="5,600+", total_profit="$890K", positions=120,
         stats_url="https://polymarketanalytics.com/traders/0x751a2b86cab503496efd325c8344e10159349ea1",
     ),
 ]

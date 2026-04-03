@@ -108,6 +108,10 @@ class SmartWallet(BaseModel):
     copiers: int
     description: str
     weekly_pnl: str
+    win_rate: str = ""
+    total_trades: str = ""
+    total_profit: str = ""
+    positions: int = 0
     stats_url: Optional[str] = None
 
 
