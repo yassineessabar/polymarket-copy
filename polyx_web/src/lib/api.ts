@@ -23,6 +23,11 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
       localStorage.removeItem('polyx_token');
       window.location.href = '/';
     }
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`API ${res.status}: ${text}`);
   }
   return res;
 }

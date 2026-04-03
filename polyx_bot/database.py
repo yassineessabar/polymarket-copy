@@ -594,8 +594,11 @@ class Database:
                     return
                 telegram_id = row[0]
             await db.execute(
-                "INSERT OR IGNORE INTO targets (telegram_id, wallet_addr, display_name, "
-                "description, user_id) VALUES (?,?,?,?,?)",
+                "INSERT INTO targets (telegram_id, wallet_addr, display_name, "
+                "description, user_id) VALUES (?,?,?,?,?) "
+                "ON CONFLICT(telegram_id, wallet_addr) DO UPDATE SET "
+                "is_active=1, display_name=excluded.display_name, "
+                "description=excluded.description",
                 (telegram_id, wallet_addr.lower(), display_name, description, user_id))
             await db.commit()
 

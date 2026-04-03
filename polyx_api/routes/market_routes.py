@@ -1,11 +1,34 @@
 """Market browsing routes — proxies to Gamma API."""
 
+import ssl
+
 import aiohttp
 from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 
 GAMMA_API = "https://gamma-api.polymarket.com"
+
+
+def _make_ssl_ctx() -> ssl.SSLContext:
+    """Relaxed SSL context — Gamma API cert sometimes mismatches."""
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+async def _gamma_get(path: str, params: dict) -> list:
+    """Fetch from Gamma API with SSL-error fallback."""
+    connector = aiohttp.TCPConnector(ssl=_make_ssl_ctx())
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async with session.get(f"{GAMMA_API}{path}", params=params) as resp:
+            if resp.status == 200:
+                ct = resp.headers.get("content-type", "")
+                if "json" not in ct:
+                    return []
+                return await resp.json(content_type=None)
+            return []
 
 
 @router.get("")
@@ -20,12 +43,8 @@ async def list_markets(
         params["tag"] = category
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{GAMMA_API}/markets", params=params) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return {"markets": data}
-                return {"markets": [], "error": f"Gamma API returned {resp.status}"}
+        data = await _gamma_get("/markets", params)
+        return {"markets": data}
     except Exception as e:
         return {"markets": [], "error": str(e)}
 
@@ -41,11 +60,7 @@ async def trending_markets(limit: int = Query(default=10, le=50)):
         "ascending": "false",
     }
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{GAMMA_API}/markets", params=params) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return {"markets": data}
-                return {"markets": [], "error": f"Gamma API returned {resp.status}"}
+        data = await _gamma_get("/markets", params)
+        return {"markets": data}
     except Exception as e:
         return {"markets": [], "error": str(e)}

@@ -49,6 +49,13 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Auto-trigger login once wallet connects (so user doesn't have to click twice)
+  useEffect(() => {
+    if (isConnected && !isAuthenticated && !isLoading) {
+      login();
+    }
+  }, [isConnected, isAuthenticated, isLoading, login]);
+
   async function handleCTA() {
     if (isConnected) {
       await login();
@@ -62,7 +69,13 @@ export default function LandingPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/demo`, {
         method: 'POST',
       });
+      if (!res.ok) {
+        throw new Error(`Demo login returned ${res.status}`);
+      }
       const data = await res.json();
+      if (!data?.token) {
+        throw new Error('No token in demo response');
+      }
       localStorage.setItem('polyx_token', data.token);
       window.location.href = '/dashboard';
     } catch (err) {

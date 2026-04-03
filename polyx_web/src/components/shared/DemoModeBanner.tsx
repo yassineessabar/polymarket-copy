@@ -1,9 +1,24 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { api } from '../../lib/api';
+import type { Settings } from '../../types';
+
 export default function DemoModeBanner() {
-  // In a real app this would check settings context
-  // For now, always hidden. Set to true to test.
-  const isDemoMode = false;
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  useEffect(() => {
+    api
+      .get<Settings>('/api/user/settings')
+      .then((s) => {
+        if (s && s.demo_mode) {
+          setIsDemoMode(true);
+        }
+      })
+      .catch(() => {
+        // Not logged in or API down — don't show banner
+      });
+  }, []);
 
   if (!isDemoMode) return null;
 
