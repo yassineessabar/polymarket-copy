@@ -385,11 +385,15 @@ def main():
         states={
             WAITING_WALLET_ADDRESS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_copy_receive),
+                # Allow quick_copy buttons to work even during conversation
+                CallbackQueryHandler(
+                    lambda u, c: quick_copy(u, c, int(u.callback_query.data.replace("quick_copy_", ""))),
+                    pattern="^quick_copy_"),
             ],
         },
         fallbacks=[
             CommandHandler("cancel", add_copy_cancel),
-            CallbackQueryHandler(add_copy_cancel_cb, pattern=".*"),
+            CallbackQueryHandler(add_copy_cancel_cb, pattern="^(home|copy|back_.*)$"),
         ],
         per_message=False,
         allow_reentry=True,
