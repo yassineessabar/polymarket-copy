@@ -1,0 +1,15 @@
+[Unit]
+Description=PolyX API (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/polyx_bot_new
+ExecStart=/usr/bin/python3 -m uvicorn polyx_api.app:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+EnvironmentFile=/home/ubuntu/polyx_bot_new/.env
+
+[Install]
+WantedBy=multi-user.target

@@ -18,6 +18,10 @@ USDC_CONTRACT = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
 # Bot name (for referral links)
 BOT_USERNAME = os.getenv("BOT_USERNAME", "PolyXBot")
 
+# Web API
+JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-production")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+
 # Copy trading defaults
 DEFAULT_SETTINGS = {
     "trade_mode": "standard",       # cautious / standard / expert

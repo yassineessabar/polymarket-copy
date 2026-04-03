@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS users (
     is_active       INTEGER NOT NULL DEFAULT 1,
     referral_code   TEXT UNIQUE NOT NULL,
     referred_by     INTEGER,
-    total_fees_paid REAL NOT NULL DEFAULT 0.0
+    total_fees_paid REAL NOT NULL DEFAULT 0.0,
+    user_id         INTEGER,
+    auth_provider   TEXT DEFAULT 'telegram',
+    nonce           TEXT
 );
 
 CREATE TABLE IF NOT EXISTS user_settings (
@@ -34,7 +37,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
     copy_trading_active  INTEGER NOT NULL DEFAULT 0,
     two_factor_enabled   INTEGER NOT NULL DEFAULT 0,
     demo_mode            INTEGER NOT NULL DEFAULT 0,
-    demo_balance         REAL NOT NULL DEFAULT 0.0
+    demo_balance         REAL NOT NULL DEFAULT 0.0,
+    user_id              INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS targets (
@@ -45,6 +49,7 @@ CREATE TABLE IF NOT EXISTS targets (
     description TEXT,
     added_at    TEXT NOT NULL DEFAULT (datetime('now')),
     is_active   INTEGER NOT NULL DEFAULT 1,
+    user_id     INTEGER,
     UNIQUE(telegram_id, wallet_addr)
 );
 
@@ -66,7 +71,8 @@ CREATE TABLE IF NOT EXISTS positions (
     closed_at       TEXT,
     exit_price      REAL,
     pnl_usd         REAL,
-    close_reason    TEXT
+    close_reason    TEXT,
+    user_id         INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS trades (
@@ -81,7 +87,8 @@ CREATE TABLE IF NOT EXISTS trades (
     is_copy      INTEGER NOT NULL DEFAULT 0,
     source_wallet TEXT,
     executed_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    dry_run      INTEGER NOT NULL DEFAULT 0
+    dry_run      INTEGER NOT NULL DEFAULT 0,
+    user_id      INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS daily_risk (
@@ -94,6 +101,7 @@ CREATE TABLE IF NOT EXISTS daily_risk (
     trades_copied      INTEGER NOT NULL DEFAULT 0,
     trades_blocked     INTEGER NOT NULL DEFAULT 0,
     trades_skipped     INTEGER NOT NULL DEFAULT 0,
+    user_id            INTEGER,
     PRIMARY KEY (telegram_id, date)
 );
 
@@ -102,6 +110,7 @@ CREATE TABLE IF NOT EXISTS processed_trades (
     target_wallet TEXT NOT NULL,
     trade_id      TEXT NOT NULL,
     processed_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    user_id       INTEGER,
     PRIMARY KEY (telegram_id, target_wallet, trade_id)
 );
 
@@ -120,7 +129,8 @@ CREATE TABLE IF NOT EXISTS referral_rewards (
     trade_id     INTEGER REFERENCES trades(id),
     tier         INTEGER NOT NULL DEFAULT 1,
     reward_usdc  REAL NOT NULL,
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    user_id      INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS fees (
@@ -128,7 +138,17 @@ CREATE TABLE IF NOT EXISTS fees (
     telegram_id  INTEGER NOT NULL REFERENCES users(telegram_id),
     trade_id     INTEGER REFERENCES trades(id),
     fee_usdc     REAL NOT NULL,
-    collected_at TEXT NOT NULL DEFAULT (datetime('now'))
+    collected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    user_id      INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL,
+    type       TEXT NOT NULL,
+    payload    TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    read       INTEGER DEFAULT 0
 );
 """
 
@@ -151,6 +171,18 @@ class Database:
             except Exception:
                 pass
             await db.commit()
+        # Run user_id migration (idempotent)
+        try:
+            import importlib.util, sys
+            mig_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "..", "migrations", "001_add_user_id.py")
+            if os.path.exists(mig_path):
+                spec = importlib.util.spec_from_file_location("mig_001", mig_path)
+                mig = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mig)
+                await mig.run(self.path)
+        except Exception:
+            pass  # migration may not be available in all contexts
 
     async def _conn(self):
         return await aiosqlite.connect(self.path)
@@ -434,3 +466,223 @@ class Database:
             async with db.execute(
                 "SELECT telegram_id FROM user_settings WHERE copy_trading_active=1") as cur:
                 return [r[0] for r in await cur.fetchall()]
+
+    # ══════════════════════════════════════════════════════════════════
+    # WEB / user_id-based methods (for polyx_api)
+    # ══════════════════════════════════════════════════════════════════
+
+    async def get_user_by_wallet(self, wallet_address: str) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM users WHERE LOWER(wallet_address)=?",
+                (wallet_address.lower(),)
+            ) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def create_web_user(self, wallet_address: str, referral_code: str,
+                              private_key_enc: str | None = None,
+                              referred_by: int | None = None) -> int:
+        """Create a web-only user (no telegram_id). Returns user_id."""
+        async with aiosqlite.connect(self.path) as db:
+            # Use a large negative telegram_id to avoid collisions with real Telegram IDs
+            # This is a pragmatic workaround since telegram_id is the PK.
+            async with db.execute("SELECT MIN(telegram_id) FROM users") as cur:
+                row = await cur.fetchone()
+                min_id = row[0] if row and row[0] is not None else 0
+            fake_tg_id = min(min_id, 0) - 1
+
+            await db.execute(
+                "INSERT INTO users (telegram_id, username, wallet_address, private_key_enc, "
+                "referral_code, referred_by, auth_provider) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'web')",
+                (fake_tg_id, None, wallet_address.lower(), private_key_enc,
+                 referral_code, referred_by))
+            # Set user_id = rowid
+            await db.execute(
+                "UPDATE users SET user_id = rowid WHERE telegram_id=? AND user_id IS NULL",
+                (fake_tg_id,))
+            # Create default settings
+            await db.execute(
+                "INSERT INTO user_settings (telegram_id) VALUES (?)", (fake_tg_id,))
+            # Backfill user_id on settings
+            async with db.execute(
+                "SELECT user_id FROM users WHERE telegram_id=?", (fake_tg_id,)
+            ) as cur:
+                uid_row = await cur.fetchone()
+                user_id = uid_row[0]
+            await db.execute(
+                "UPDATE user_settings SET user_id=? WHERE telegram_id=?",
+                (user_id, fake_tg_id))
+            await db.commit()
+            return user_id
+
+    async def get_user_id_for_telegram(self, telegram_id: int) -> int | None:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT user_id FROM users WHERE telegram_id=?", (telegram_id,)
+            ) as cur:
+                row = await cur.fetchone()
+                return row[0] if row else None
+
+    async def get_user_by_user_id(self, user_id: int) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM users WHERE user_id=?", (user_id,)
+            ) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def update_nonce(self, user_id: int, nonce: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE users SET nonce=? WHERE user_id=?", (nonce, user_id))
+            await db.commit()
+
+    async def get_settings_by_user_id(self, user_id: int) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM user_settings WHERE user_id=?", (user_id,)
+            ) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def update_setting_by_user_id(self, user_id: int, key: str, value):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                f"UPDATE user_settings SET {key}=? WHERE user_id=?", (value, user_id))
+            await db.commit()
+
+    async def get_open_positions_by_user_id(self, user_id: int) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM positions WHERE user_id=? AND is_open=1", (user_id,)
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def get_closed_positions_by_user_id(self, user_id: int, limit: int = 50) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM positions WHERE user_id=? AND is_open=0 "
+                "ORDER BY closed_at DESC LIMIT ?",
+                (user_id, limit)
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def get_targets_by_user_id(self, user_id: int) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM targets WHERE user_id=? AND is_active=1", (user_id,)
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def add_target_by_user_id(self, user_id: int, wallet_addr: str,
+                                     display_name: str = "", description: str = ""):
+        async with aiosqlite.connect(self.path) as db:
+            # Get telegram_id for this user_id (needed for existing FK/unique constraints)
+            async with db.execute(
+                "SELECT telegram_id FROM users WHERE user_id=?", (user_id,)
+            ) as cur:
+                row = await cur.fetchone()
+                if not row:
+                    return
+                telegram_id = row[0]
+            await db.execute(
+                "INSERT OR IGNORE INTO targets (telegram_id, wallet_addr, display_name, "
+                "description, user_id) VALUES (?,?,?,?,?)",
+                (telegram_id, wallet_addr.lower(), display_name, description, user_id))
+            await db.commit()
+
+    async def remove_target_by_user_id(self, user_id: int, wallet_addr: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE targets SET is_active=0 WHERE user_id=? AND wallet_addr=?",
+                (user_id, wallet_addr.lower()))
+            await db.commit()
+
+    async def get_portfolio_stats_by_user_id(self, user_id: int) -> dict:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT COALESCE(SUM(bet_amount), 0) FROM positions "
+                "WHERE user_id=? AND is_open=1", (user_id,)
+            ) as cur:
+                positions_value = (await cur.fetchone())[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM positions WHERE user_id=? AND is_open=1",
+                (user_id,)
+            ) as cur:
+                position_count = (await cur.fetchone())[0]
+            # Total realized P&L
+            async with db.execute(
+                "SELECT COALESCE(SUM(pnl_usd), 0) FROM positions "
+                "WHERE user_id=? AND is_open=0", (user_id,)
+            ) as cur:
+                total_pnl = (await cur.fetchone())[0]
+            # Win rate
+            async with db.execute(
+                "SELECT COUNT(*) FROM positions WHERE user_id=? AND is_open=0",
+                (user_id,)
+            ) as cur:
+                total_closed = (await cur.fetchone())[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM positions WHERE user_id=? AND is_open=0 AND pnl_usd > 0",
+                (user_id,)
+            ) as cur:
+                wins = (await cur.fetchone())[0]
+            win_rate = (wins / total_closed * 100) if total_closed > 0 else 0.0
+
+            risk = await self.get_daily_risk_by_user_id(user_id)
+            return {
+                "positions_value": positions_value,
+                "position_count": position_count,
+                "daily_pnl": risk.get("daily_pnl", 0),
+                "total_pnl": total_pnl,
+                "win_rate": win_rate,
+            }
+
+    async def get_daily_risk_by_user_id(self, user_id: int) -> dict:
+        today = str(date.today())
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM daily_risk WHERE user_id=? AND date=?",
+                (user_id, today)
+            ) as cur:
+                row = await cur.fetchone()
+                if row:
+                    return dict(row)
+        return {
+            "date": today, "daily_pnl": 0.0,
+            "daily_bets_placed": 0, "daily_amount_wagered": 0.0, "halted": 0,
+            "trades_copied": 0, "trades_blocked": 0, "trades_skipped": 0,
+        }
+
+    async def reset_demo_by_user_id(self, user_id: int, new_balance: float):
+        """Close all open positions, clear processed trades, reset daily risk, set new demo balance."""
+        async with aiosqlite.connect(self.path) as db:
+            # Get telegram_id
+            async with db.execute(
+                "SELECT telegram_id FROM users WHERE user_id=?", (user_id,)
+            ) as cur:
+                row = await cur.fetchone()
+                if not row:
+                    return
+                telegram_id = row[0]
+            await db.execute(
+                "UPDATE positions SET is_open=0, closed_at=datetime('now'), "
+                "exit_price=entry_price, pnl_usd=0, close_reason='DEMO RESET' "
+                "WHERE user_id=? AND is_open=1", (user_id,))
+            await db.execute(
+                "DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
+            await db.execute(
+                "DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+            await db.execute(
+                "UPDATE user_settings SET demo_balance=?, demo_mode=1 WHERE user_id=?",
+                (new_balance, user_id))
+            await db.commit()

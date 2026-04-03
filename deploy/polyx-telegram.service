@@ -1,0 +1,15 @@
+[Unit]
+Description=PolyX Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/polyx_bot_new
+ExecStart=/usr/bin/python3 -m polyx_bot.main
+Restart=always
+RestartSec=5
+EnvironmentFile=/home/ubuntu/polyx_bot_new/.env
+
+[Install]
+WantedBy=multi-user.target
