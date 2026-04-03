@@ -87,12 +87,22 @@ class CopyTradeManager:
             net_worth = balance + positions_val
             mode_badge = f"<b>🎮 DEMO MODE</b>\n" if demo_mode else ""
 
+            targets = await self.db.get_targets(telegram_id)
+            if targets:
+                copy_section = "\n🎯 <b>Copying:</b>\n"
+                for t in targets:
+                    name = t.get("display_name") or t["wallet_addr"][:10] + "..."
+                    copy_section += f"  • {name}\n"
+            else:
+                copy_section = "\n🎯 No traders copied yet — tap Copy Trade to start!\n"
+
             menu_text = (
                 f"Welcome to PolyX 🏠\n{mode_badge}"
                 f"Your secure companion for rapid Polymarket trades.\n\n"
                 f"📊 Current Positions: ${positions_val:.2f} ({open_count} open)\n"
                 f"💰 Available Balance: ${balance:,.2f}\n"
-                f"💎 Total Net Worth: ${net_worth:,.2f}\n\n"
+                f"💎 Total Net Worth: ${net_worth:,.2f}\n"
+                f"{copy_section}\n"
                 f"Copy top traders, snipe odds, and trade like a pro."
             )
             menu_msg = await self.bot.send_message(
