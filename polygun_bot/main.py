@@ -1,5 +1,5 @@
 """
-PolySync Bot — Multi-user Polymarket copy trading Telegram bot.
+PolyX Bot — Multi-user Polymarket copy trading Telegram bot.
 """
 import asyncio
 import logging
@@ -35,7 +35,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
-log = logging.getLogger("polysync")
+log = logging.getLogger("polyx")
 
 
 async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -408,7 +408,7 @@ def main():
     # Callback query router (catch-all for inline buttons)
     app.add_handler(CallbackQueryHandler(button_router))
 
-    log.info("PolySync Bot starting...")
+    log.info("PolyX Bot starting...")
     app.run_polling()
 
 

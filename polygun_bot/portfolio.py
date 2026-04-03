@@ -5,7 +5,7 @@ import logging
 import aiohttp
 from .api_helpers import get_market_price
 
-log = logging.getLogger("polysync")
+log = logging.getLogger("polyx")
 
 
 async def compute_unrealized_pnl(session: aiohttp.ClientSession, positions: list) -> float:

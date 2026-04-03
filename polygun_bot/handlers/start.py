@@ -40,7 +40,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         existing = await db.get_user(telegram_id)
 
         welcome_text = (
-            "PolySync is a Telegram-native trading\n"
+            "PolyX is a Telegram-native trading\n"
             "bot for Polymarket\n\n"
             "Trade on Polymarket directly from\n"
             "Telegram\n\n"
@@ -82,7 +82,7 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
         net_worth = balance + positions_val
         mode_badge = ""
 
-    header = f"Welcome to PolySync 🏠\n"
+    header = f"Welcome to PolyX 🏠\n"
     if mode_badge:
         header += f"<b>{mode_badge}</b>\n"
     header += "Your secure companion for rapid Polymarket trades.\n"

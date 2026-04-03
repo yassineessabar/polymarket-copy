@@ -11,7 +11,7 @@ async def respond(update: Update, context: ContextTypes.DEFAULT_TYPE,
     so callers don't need to remember query.answer() separately.
     """
     import logging
-    _log = logging.getLogger("polysync.respond")
+    _log = logging.getLogger("polyx.respond")
 
     kwargs = {"text": text, "reply_markup": reply_markup,
               "parse_mode": parse_mode, "disable_web_page_preview": disable_web_page_preview}

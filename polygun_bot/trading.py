@@ -8,7 +8,7 @@ from py_clob_client.order_builder.constants import BUY, SELL
 
 from .config import CLOB_API
 
-log = logging.getLogger("polysync")
+log = logging.getLogger("polyx")
 
 # Per-user CLOB client cache: {telegram_id: ClobClient}
 _client_cache: dict[int, ClobClient] = {}

@@ -5,7 +5,7 @@ All checks read from database instead of global state.
 import statistics
 import logging
 
-log = logging.getLogger("polysync")
+log = logging.getLogger("polyx")
 
 
 def calculate_confidence(usdc_size: float, bet_history: list) -> float:
