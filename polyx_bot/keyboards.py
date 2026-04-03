@@ -136,11 +136,11 @@ def copy_trading_with_targets_keyboard(is_running: bool, targets: list = None) -
     return InlineKeyboardMarkup(buttons)
 
 
-def portfolio_keyboard() -> InlineKeyboardMarkup:
+def portfolio_keyboard(total: int = 0, open_count: int = 0, closed_count: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📊 Full", callback_data="port_full"),
-         InlineKeyboardButton("📈 Open", callback_data="port_open"),
-         InlineKeyboardButton("📕 Closed", callback_data="port_close")],
+        [InlineKeyboardButton(f"📊 Full ({total})", callback_data="port_full"),
+         InlineKeyboardButton(f"📈 Open ({open_count})", callback_data="port_open"),
+         InlineKeyboardButton(f"📕 Closed ({closed_count})", callback_data="port_close")],
         [InlineKeyboardButton("🔄 Refresh", callback_data="refresh_portfolio")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
     ])

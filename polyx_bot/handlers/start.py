@@ -74,6 +74,7 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
     demo_mode = bool(settings and settings.get("demo_mode", 0))
     stats = await db.get_portfolio_stats(telegram_id)
     positions_val = stats["positions_value"]
+    open_count = stats.get("position_count", 0)
 
     if demo_mode:
         balance = settings.get("demo_balance", 0)
@@ -91,9 +92,8 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
 
     text = (
         f"{header}\n"
-        f"📊 Current Positions: ${positions_val:.2f}\n"
+        f"📊 Current Positions: ${positions_val:.2f} ({open_count} open)\n"
         f"💰 Available Balance: ${balance:,.2f}\n"
-        f"📋 Active Orders: $0.00\n"
         f"💎 Total Net Worth: ${net_worth:,.2f}\n\n"
         f"Copy top traders, snipe odds, and trade like a\n"
         f"pro."

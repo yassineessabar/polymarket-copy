@@ -22,7 +22,7 @@ from .handlers.copy_handler import (
     start_copy_command, stop_copy_command, quick_copy, remove_target,
     WAITING_WALLET_ADDRESS,
 )
-from .handlers.portfolio_handler import portfolio_command, portfolio_closed
+from .handlers.portfolio_handler import portfolio_command, portfolio_full, portfolio_closed
 from .handlers.settings_handler import (
     settings_command, set_trade_mode, set_quickbuy, wallet_security,
     demo_mode_command, demo_set_balance, demo_disable,
@@ -121,7 +121,10 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "portfolio":
             await query.answer()
             await portfolio_command(update, context)
-        elif data == "port_full" or data == "port_open":
+        elif data == "port_full":
+            await query.answer()
+            await portfolio_full(update, context)
+        elif data == "port_open":
             await query.answer()
             await portfolio_command(update, context)
         elif data == "port_close":

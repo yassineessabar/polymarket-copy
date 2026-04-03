@@ -7,6 +7,15 @@ from ..portfolio import get_position_with_pnl
 from ..keyboards import portfolio_keyboard, respond
 
 
+async def _get_counts(db: Database, telegram_id: int) -> tuple:
+    """Return (open_count, closed_count, total)."""
+    open_pos = await db.get_open_positions(telegram_id)
+    closed_pos = await db.get_closed_positions(telegram_id, limit=9999)
+    open_count = len(open_pos)
+    closed_count = len(closed_pos)
+    return open_count, closed_count, open_count + closed_count
+
+
 async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show portfolio — open positions with live P&L."""
     db: Database = context.application.bot_data["db"]
@@ -24,7 +33,9 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         balance = get_usdc_balance(user["wallet_address"]) if user and user.get("wallet_address") else 0.0
 
-    text = "📊 <b>Open Positions</b>\n\n"
+    open_count, closed_count, total = await _get_counts(db, telegram_id)
+
+    text = f"📊 <b>Open Positions ({open_count})</b>\n\n"
 
     if not positions:
         text += (
@@ -69,7 +80,46 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Net Worth: ${net_worth:,.2f}"
         )
 
-    await respond(update, context, text, reply_markup=portfolio_keyboard())
+    await respond(update, context, text, reply_markup=portfolio_keyboard(total, open_count, closed_count))
+
+
+async def portfolio_full(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show full portfolio summary — both open and closed counts."""
+    db: Database = context.application.bot_data["db"]
+    telegram_id = update.effective_user.id
+    user = await db.get_user(telegram_id)
+
+    open_pos = await db.get_open_positions(telegram_id)
+    closed_pos = await db.get_closed_positions(telegram_id, limit=9999)
+    open_count = len(open_pos)
+    closed_count = len(closed_pos)
+    total = open_count + closed_count
+
+    risk = await db.get_daily_risk(telegram_id)
+    realized_pnl = risk.get("daily_pnl", 0)
+
+    settings = await db.get_settings(telegram_id)
+    demo_mode = bool(settings and settings.get("demo_mode", 0))
+    if demo_mode:
+        balance = settings.get("demo_balance", 0)
+    else:
+        balance = get_usdc_balance(user["wallet_address"]) if user and user.get("wallet_address") else 0.0
+
+    exposure = sum(p.get("bet_amount", 0) for p in open_pos)
+    total_realized = sum((p.get("pnl_usd", 0) or 0) for p in closed_pos)
+
+    text = (
+        f"📊 <b>Portfolio Overview ({total} trades)</b>\n\n"
+        f"📈 Open Positions: <b>{open_count}</b>\n"
+        f"📕 Closed Positions: <b>{closed_count}</b>\n\n"
+        f"💰 Available Balance: ${balance:,.2f}\n"
+        f"📊 Current Exposure: ${exposure:.2f}\n"
+        f"📈 Realized P&L (today): ${realized_pnl:+.2f}\n"
+        f"📈 Total Realized P&L: ${total_realized:+.2f}\n"
+        f"💎 Net Worth: ${balance + exposure:,.2f}"
+    )
+
+    await respond(update, context, text, reply_markup=portfolio_keyboard(total, open_count, closed_count))
 
 
 async def portfolio_closed(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -78,8 +128,9 @@ async def portfolio_closed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
 
     positions = await db.get_closed_positions(telegram_id)
+    open_count, closed_count, total = await _get_counts(db, telegram_id)
 
-    text = "📊 <b>Closed Positions</b>\n\n"
+    text = f"📊 <b>Closed Positions ({closed_count})</b>\n\n"
 
     if not positions:
         text += "No closed positions yet."
@@ -100,4 +151,4 @@ async def portfolio_closed(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text += f"\n━━━━━━━━━━━━━━\nTotal Realized P&L: ${total_pnl:+.2f}"
 
-    await respond(update, context, text, reply_markup=portfolio_keyboard())
+    await respond(update, context, text, reply_markup=portfolio_keyboard(total, open_count, closed_count))
