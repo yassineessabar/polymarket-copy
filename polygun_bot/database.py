@@ -32,7 +32,9 @@ CREATE TABLE IF NOT EXISTS user_settings (
     dry_run              INTEGER NOT NULL DEFAULT 1,
     notifications_on     INTEGER NOT NULL DEFAULT 1,
     copy_trading_active  INTEGER NOT NULL DEFAULT 0,
-    two_factor_enabled   INTEGER NOT NULL DEFAULT 0
+    two_factor_enabled   INTEGER NOT NULL DEFAULT 0,
+    demo_mode            INTEGER NOT NULL DEFAULT 0,
+    demo_balance         REAL NOT NULL DEFAULT 0.0
 );
 
 CREATE TABLE IF NOT EXISTS targets (
@@ -139,6 +141,15 @@ class Database:
         async with aiosqlite.connect(self.path) as db:
             await db.executescript(SCHEMA)
             await db.execute("PRAGMA journal_mode=WAL")
+            # Migrate: add demo columns if missing
+            try:
+                await db.execute("ALTER TABLE user_settings ADD COLUMN demo_mode INTEGER NOT NULL DEFAULT 0")
+            except Exception:
+                pass
+            try:
+                await db.execute("ALTER TABLE user_settings ADD COLUMN demo_balance REAL NOT NULL DEFAULT 0.0")
+            except Exception:
+                pass
             await db.commit()
 
     async def _conn(self):
@@ -182,6 +193,22 @@ class Database:
         async with aiosqlite.connect(self.path) as db:
             await db.execute(f"UPDATE user_settings SET {key}=? WHERE telegram_id=?", (value, telegram_id))
             await db.commit()
+
+    # ── Demo Mode ──
+    async def adjust_demo_balance(self, telegram_id: int, delta: float):
+        """Atomic increment/decrement of demo balance."""
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE user_settings SET demo_balance = MAX(0, demo_balance + ?) WHERE telegram_id=?",
+                (delta, telegram_id))
+            await db.commit()
+
+    async def get_demo_balance(self, telegram_id: int) -> float:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT demo_balance FROM user_settings WHERE telegram_id=?", (telegram_id,)) as cur:
+                row = await cur.fetchone()
+                return row[0] if row else 0.0
 
     # ── Targets ──
     async def get_targets(self, telegram_id: int) -> list:
@@ -247,6 +274,21 @@ class Database:
             await db.execute(
                 "UPDATE positions SET is_open=0, closed_at=datetime('now'), exit_price=?, pnl_usd=?, close_reason=? WHERE id=?",
                 (exit_price, pnl_usd, reason, position_id))
+            await db.commit()
+
+    async def reset_demo(self, telegram_id: int, new_balance: float):
+        """Close all open positions, clear processed trades, reset daily risk, set new demo balance."""
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE positions SET is_open=0, closed_at=datetime('now'), exit_price=entry_price, pnl_usd=0, close_reason='DEMO RESET' "
+                "WHERE telegram_id=? AND is_open=1", (telegram_id,))
+            await db.execute(
+                "DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
+            await db.execute(
+                "DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+            await db.execute(
+                "UPDATE user_settings SET demo_balance=?, demo_mode=1 WHERE telegram_id=?",
+                (new_balance, telegram_id))
             await db.commit()
 
     # ── Trades ──

@@ -135,7 +135,64 @@ async def check_condition_resolved(session: aiohttp.ClientSession, condition_id:
     return {"resolved": False, "api_error": True}
 
 
+async def browse_markets(session: aiohttp.ClientSession, category: str = "", limit: int = 8) -> list:
+    """Fetch active markets, optionally filtered by keyword category."""
+    try:
+        params = {"active": "true", "closed": "false", "limit": "50",
+                  "order": "volume24hr", "ascending": "false"}
+        events = await api_get(session, f"{GAMMA_API}/events", params)
+        if not isinstance(events, list):
+            return []
+
+        # Category keyword mapping
+        keywords = {
+            "politics": ["election", "president", "democrat", "republican", "congress", "vote", "nominee", "presidential"],
+            "sports": ["vs.", "nba", "nfl", "mlb", "nhl", "fifa", "champion", "winner", "spread", "lakers", "celtics"],
+            "crypto": ["bitcoin", "btc", "ethereum", "eth", "crypto", "solana", "token", "coin"],
+            "trump": ["trump"],
+            "finance": ["stock", "sp500", "nasdaq", "fed", "rate", "gdp", "recession", "ipo", "revenue"],
+            "geopolitics": ["war", "iran", "china", "russia", "ceasefire", "nato", "sanction", "tariff", "forces"],
+            "volume": [],  # just return by volume
+            "trending": [],  # same, by volume
+        }
+
+        kw_list = keywords.get(category, [])
+        if not kw_list:
+            # No filter — return top by volume
+            results = []
+            for e in events[:limit]:
+                mkts = e.get("markets", [])
+                results.append({
+                    "title": e.get("title", "?"),
+                    "slug": e.get("slug", ""),
+                    "markets_count": len(mkts),
+                    "volume": sum(float(m.get("volume24hr", 0) or 0) for m in mkts),
+                })
+            return results
+
+        # Filter by keywords in title
+        filtered = []
+        for e in events:
+            title_lower = e.get("title", "").lower()
+            slug_lower = e.get("slug", "").lower()
+            if any(kw in title_lower or kw in slug_lower for kw in kw_list):
+                mkts = e.get("markets", [])
+                filtered.append({
+                    "title": e.get("title", "?"),
+                    "slug": e.get("slug", ""),
+                    "markets_count": len(mkts),
+                    "volume": sum(float(m.get("volume24hr", 0) or 0) for m in mkts),
+                })
+                if len(filtered) >= limit:
+                    break
+        return filtered
+    except Exception as e:
+        log.error(f"browse_markets error: {e}")
+        return []
+
+
 def make_trade_id(a: dict) -> str:
-    tx = str(a.get("transactionHash") or a.get("proxyWalletAddress") or a.get("id") or "")
+    tx = str(a.get("transactionHash") or a.get("proxyWallet") or a.get("proxyWalletAddress") or a.get("id") or "")
     ts = str(a.get("createdAt") or a.get("timestamp") or "")
-    return f"{a.get('conditionId', '?')}_{a.get('side', '?')}_{a.get('size', '?')}_{a.get('outcomeIndex', '?')}_{tx[:20]}_{ts[:20]}"
+    size = str(a.get("size", "?"))
+    return f"{a.get('conditionId', '?')}_{a.get('side', '?')}_{size}_{a.get('outcomeIndex', '?')}_{tx[:20]}_{ts[:20]}"

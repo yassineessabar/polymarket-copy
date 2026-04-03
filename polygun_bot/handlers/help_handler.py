@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from ..keyboards import main_menu_button
+from ..keyboards import main_menu_button, respond
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -22,9 +22,4 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>Support:</b>\n"
         "Contact @support for help"
     )
-
-    kb = main_menu_button()
-    if update.callback_query:
-        await update.callback_query.edit_message_text(text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=main_menu_button())

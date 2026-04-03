@@ -65,20 +65,39 @@ class CopyTradeManager:
         """Main loop for a single user's copy trading."""
         try:
             user = await self.db.get_user(telegram_id)
-            if not user or not user.get("private_key_enc"):
+            settings = await self.db.get_settings(telegram_id)
+            demo_mode = settings.get("demo_mode", 0)
+            demo_balance = settings.get("demo_balance", 0)
+            dry_run = settings.get("dry_run", 1)
+
+            if not demo_mode and (not user or not user.get("private_key_enc")):
                 log.error(f"[CopyEngine] User {telegram_id} has no wallet")
                 return
 
-            settings = await self.db.get_settings(telegram_id)
-            dry_run = settings.get("dry_run", 1)
-            private_key = decrypt_key(user["private_key_enc"])
-            wallet = user["wallet_address"]
+            if demo_mode:
+                private_key = ""
+                wallet = user.get("wallet_address", "") if user else ""
+            else:
+                private_key = decrypt_key(user["private_key_enc"])
+                wallet = user["wallet_address"]
+
+            demo_mode = settings.get("demo_mode", 0)
+            demo_balance = settings.get("demo_balance", 0)
+
+            if demo_mode:
+                mode_label = f"DEMO (${demo_balance:,.2f})"
+            elif dry_run:
+                mode_label = "DRY RUN"
+            else:
+                mode_label = "LIVE"
 
             await self._notify(telegram_id,
                 f"🤖 <b>Copy Trading Started</b>\n"
-                f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
+                f"Mode: {mode_label}")
 
             cycle = 0
+            api_fail_count = 0
+            first_run = True
             async with aiohttp.ClientSession() as session:
                 while True:
                     cycle += 1
@@ -87,6 +106,8 @@ class CopyTradeManager:
                         if cycle % 30 == 1:
                             settings = await self.db.get_settings(telegram_id)
                             dry_run = settings.get("dry_run", 1)
+                            demo_mode = settings.get("demo_mode", 0)
+                            demo_balance = settings.get("demo_balance", 0)
 
                         targets = await self.db.get_targets(telegram_id)
                         if not targets:
@@ -94,13 +115,18 @@ class CopyTradeManager:
                             continue
 
                         # Get portfolio value
-                        try:
-                            usdc_balance = get_usdc_balance(wallet)
-                        except Exception:
-                            usdc_balance = 0.0
                         open_pos = await self.db.get_open_positions(telegram_id)
                         pos_value = sum(p.get("bet_amount", 0) for p in open_pos)
-                        portfolio_value = usdc_balance + pos_value
+
+                        if demo_mode:
+                            portfolio_value = demo_balance + pos_value
+                        else:
+                            try:
+                                usdc_balance = get_usdc_balance(wallet)
+                            except Exception:
+                                usdc_balance = 0.0
+                            portfolio_value = usdc_balance + pos_value
+
                         if portfolio_value <= 0:
                             portfolio_value = settings.get("quickbuy_amount", 25.0) * 10
 
@@ -111,7 +137,15 @@ class CopyTradeManager:
                             target = target_info["wallet_addr"]
                             try:
                                 activity = await get_recent_activity(session, target, limit=100)
-                            except Exception:
+                                api_fail_count = 0  # reset on success
+                            except Exception as e:
+                                api_fail_count += 1
+                                log.warning(f"[Copy:{telegram_id}] API fail #{api_fail_count} for {target[:10]}: {e}")
+                                if api_fail_count == 30:  # ~2.5 min of failures
+                                    await self._notify(telegram_id,
+                                        "⚠️ <b>Warning:</b> Unable to reach Polymarket API.\n"
+                                        "Copy trading is still running but cannot detect new trades.\n"
+                                        "Will keep retrying...")
                                 continue
 
                             # Cache target portfolio
@@ -120,8 +154,17 @@ class CopyTradeManager:
                                 tpv = sum(float(p.get("currentValue", 0)) for p in tgt_pos)
                                 if tpv > 0:
                                     self._target_portfolio_cache[target.lower()] = tpv
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                log.warning(f"[Copy:{telegram_id}] get_positions failed for {target[:10]}: {e}")
+
+                            # On first run, mark existing trades as processed (don't copy history)
+                            if first_run:
+                                trades_in_batch = [a for a in activity if a.get("type") == "TRADE"]
+                                for a in trades_in_batch:
+                                    tid = make_trade_id(a)
+                                    await self.db.mark_trade_processed(telegram_id, target, tid)
+                                log.info(f"[Copy:{telegram_id}] First run: marked {len(trades_in_batch)} existing trades for {target[:10]}")
+                                continue  # skip to next target, will copy new trades next cycle
 
                             for a in activity:
                                 if a.get("type") != "TRADE":
@@ -131,22 +174,28 @@ class CopyTradeManager:
                                     continue
 
                                 side = a.get("side", "")
+                                log.info(f"[Copy:{telegram_id}] New trade detected: {side} {a.get('title', '?')[:40]}")
+
                                 if side == "BUY":
                                     await self._process_buy(
                                         session, telegram_id, a, target, settings,
-                                        portfolio_value, risk, dry_run, private_key, wallet)
+                                        portfolio_value, risk, dry_run, private_key, wallet,
+                                        demo_mode=demo_mode)
                                 elif side == "SELL":
                                     await self._process_sell(
                                         session, telegram_id, a, target, risk, dry_run,
-                                        private_key, wallet)
+                                        private_key, wallet, demo_mode=demo_mode)
 
                                 await self.db.mark_trade_processed(telegram_id, target, tid)
+
+                        first_run = False
 
                         # ── SLOW POLL: detect closes (every 2 fast cycles = ~10s) ──
                         if cycle % 2 == 0:
                             await self._check_closes(
                                 session, telegram_id, targets, settings,
-                                risk, dry_run, private_key, wallet)
+                                risk, dry_run, private_key, wallet,
+                                demo_mode=demo_mode)
 
                     except asyncio.CancelledError:
                         raise
@@ -162,7 +211,8 @@ class CopyTradeManager:
             await self._notify(telegram_id, f"❌ Copy trading error: {e}")
 
     async def _process_buy(self, session, telegram_id, activity, target,
-                           settings, portfolio_value, risk, dry_run, private_key, wallet):
+                           settings, portfolio_value, risk, dry_run, private_key, wallet,
+                           demo_mode=False):
         """Process a BUY trade from target — mirror it."""
         title = activity.get("title", "?")[:50]
         outcome = activity.get("outcome", "?")
@@ -204,6 +254,10 @@ class CopyTradeManager:
             log.info(f"[Copy:{telegram_id}] BLOCKED {title} | {reject}")
             return
 
+        log.info(f"[Copy:{telegram_id}] SIZING: target_portfolio=${target_portfolio:.0f} "
+                 f"our_portfolio=${portfolio_value:.0f} target_bet=${usdc_size:.2f} "
+                 f"our_bet=${bet:.2f} conf={conf:.0%}")
+
         # Apply fee
         net_bet, fee = calculate_fee(bet)
 
@@ -212,8 +266,11 @@ class CopyTradeManager:
 
         log.info(f"[Copy:{telegram_id}] BUY {title} | ${bet:.2f} ({target_pct:.1f}%)")
 
-        # Execute
-        if not dry_run:
+        # Execute (skip for demo and dry_run)
+        if demo_mode:
+            # Deduct from demo balance
+            await self.db.adjust_demo_balance(telegram_id, -bet)
+        elif not dry_run:
             try:
                 client = get_user_clob_client(telegram_id, private_key, wallet)
                 await asyncio.get_event_loop().run_in_executor(
@@ -253,18 +310,27 @@ class CopyTradeManager:
             trades_copied=risk.get("trades_copied", 0) + 1)
 
         # Notify
-        mode_tag = " [DRY]" if dry_run else ""
+        if demo_mode:
+            mode_tag = " [DEMO]"
+        elif dry_run:
+            mode_tag = " [DRY]"
+        else:
+            mode_tag = ""
         rpnl = risk.get("daily_pnl", 0)
+        demo_bal_text = ""
+        if demo_mode:
+            cur_demo = await self.db.get_demo_balance(telegram_id)
+            demo_bal_text = f"\n💰 Demo Balance: ${cur_demo:,.2f}"
         await self._notify(telegram_id,
             f"<b>BUY{mode_tag}</b>\n"
             f"{title}\n"
             f"{outcome} @ {price*100:.1f}c\n"
             f"Target: ${usdc_size:.1f} | Conf: {conf:.0%} ({cl})\n"
             f"<b>Bet: ${bet:.2f}</b> (fee: ${fee:.2f})\n\n"
-            f"📊 P&L: ${rpnl:+.2f} | Pos: {len(open_pos)+1}")
+            f"📊 P&L: ${rpnl:+.2f} | Pos: {len(open_pos)+1}{demo_bal_text}")
 
     async def _process_sell(self, session, telegram_id, activity, target,
-                            risk, dry_run, private_key, wallet):
+                            risk, dry_run, private_key, wallet, demo_mode=False):
         """Process a SELL trade from target — mirror proportionally."""
         cid = activity.get("conditionId", "")
         oi = activity.get("outcomeIndex", 0)
@@ -296,13 +362,15 @@ class CopyTradeManager:
         shares = (our_bet / entry) * sell_frac if entry > 0 else 0
         pnl_usd = shares * (sell_price - entry)
 
-        # Execute
-        if not dry_run:
+        # Execute (skip for demo and dry_run)
+        proceeds = shares * sell_price
+        if demo_mode:
+            await self.db.adjust_demo_balance(telegram_id, proceeds)
+        elif not dry_run:
             try:
                 client = get_user_clob_client(telegram_id, private_key, wallet)
-                sell_amt = shares * sell_price
                 await asyncio.get_event_loop().run_in_executor(
-                    None, place_sell, client, our_pos.get("token_id", ""), sell_amt)
+                    None, place_sell, client, our_pos.get("token_id", ""), proceeds)
             except Exception as e:
                 log.error(f"[Copy:{telegram_id}] Sell failed: {e}")
 
@@ -319,23 +387,112 @@ class CopyTradeManager:
         await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
         # Notify
-        mode_tag = " [DRY]" if dry_run else ""
+        if demo_mode:
+            mode_tag = " [DEMO]"
+        elif dry_run:
+            mode_tag = " [DRY]"
+        else:
+            mode_tag = ""
         result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
         pnl_pct = ((sell_price - entry) / entry * 100) if entry > 0 else 0
+        demo_bal_text = ""
+        if demo_mode:
+            cur_demo = await self.db.get_demo_balance(telegram_id)
+            demo_bal_text = f"\n💰 Demo Balance: ${cur_demo:,.2f}"
         await self._notify(telegram_id,
             f"<b>SELL{mode_tag}</b> {result}\n"
             f"{our_pos.get('title', '?')[:50]}\n"
             f"Sold {sell_frac*100:.0f}% @ {sell_price*100:.1f}c\n"
-            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})")
+            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){demo_bal_text}")
 
     async def _check_closes(self, session, telegram_id, targets, settings,
-                            risk, dry_run, private_key, wallet):
-        """Check if target exited positions — close ours."""
+                            risk, dry_run, private_key, wallet, demo_mode=False):
+        """Check if target exited positions — close ours.
+        Also monitors positions from removed targets until they resolve."""
         open_pos = await self.db.get_open_positions(telegram_id)
         if not open_pos:
             return
 
-        for target_info in targets:
+        # Build list of wallets to check: active targets + any wallets with open positions
+        active_addrs = {t["wallet_addr"].lower() for t in targets}
+        orphan_addrs = {p["target_wallet"].lower() for p in open_pos
+                        if p.get("target_wallet", "").lower() not in active_addrs}
+
+        all_targets = list(targets)
+        for addr in orphan_addrs:
+            all_targets.append({"wallet_addr": addr})
+
+        # Step A: Check ALL open positions for resolution (regardless of target holding)
+        # This catches resolved markets where target still shows the position (unclaimed)
+        checked_resolved = set()  # pos IDs already closed via resolution
+        for pos in open_pos:
+            cid = pos["condition_id"]
+            oi = str(pos["outcome_index"])
+            token_id = pos.get("token_id", "")
+            entry = pos.get("entry_price", 0)
+
+            resolution = await check_condition_resolved(session, cid, token_id, oi)
+            if not resolution.get("resolved"):
+                continue
+
+            wi = resolution.get("winning_index")
+            if wi is not None and str(wi) == oi:
+                cur_price = 1.0
+                close_reason = "RESOLVED WON"
+            elif wi is not None:
+                cur_price = 0.0
+                close_reason = "RESOLVED LOST"
+            else:
+                # Resolved but winner unknown — try CLOB for residual price
+                cur_price = await get_market_price(session, token_id) if token_id else 0.0
+                if cur_price <= 0:
+                    # Resolved with no price info — likely fully settled, use 0
+                    # (if we won, price would be ~1.0; if lost, ~0.0)
+                    continue  # retry next cycle when winner is known
+                close_reason = "RESOLVED (CLOB)"
+
+            # Close the position
+            bet_amt = pos.get("bet_amount", 0)
+            shares = bet_amt / entry if entry > 0 else 0
+            pnl_usd = shares * (cur_price - entry)
+            pnl_pct = ((cur_price - entry) / entry * 100) if entry > 0 else 0
+
+            close_proceeds = shares * cur_price
+            if demo_mode:
+                await self.db.adjust_demo_balance(telegram_id, close_proceeds)
+            elif not dry_run and token_id:
+                try:
+                    client = get_user_clob_client(telegram_id, private_key, wallet)
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, place_sell, client, token_id, close_proceeds)
+                except Exception as e:
+                    log.error(f"[Copy:{telegram_id}] Resolution close sell failed: {e}")
+
+            await self.db.close_position(pos["id"], cur_price, pnl_usd, close_reason)
+            await self.db.increment_daily_pnl(telegram_id, pnl_usd)
+
+            if demo_mode:
+                mode_tag = " [DEMO]"
+            elif dry_run:
+                mode_tag = " [DRY]"
+            else:
+                mode_tag = ""
+            result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+            demo_bal_text = ""
+            if demo_mode:
+                cur_demo = await self.db.get_demo_balance(telegram_id)
+                demo_bal_text = f"\n💰 Demo Balance: ${cur_demo:,.2f}"
+            await self._notify(telegram_id,
+                f"<b>CLOSE{mode_tag}</b> {result}\n"
+                f"{pos.get('title', '?')[:50]} — {pos.get('outcome', '?')}\n"
+                f"Reason: {close_reason}\n"
+                f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
+                f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){demo_bal_text}")
+
+            checked_resolved.add(pos["id"])
+
+        # Step B: Check if target exited non-resolved positions
+        for target_info in all_targets:
             target = target_info["wallet_addr"]
             try:
                 target_positions = await get_positions(session, target)
@@ -345,6 +502,8 @@ class CopyTradeManager:
             target_keys = {f"{p['conditionId']}_{p['outcomeIndex']}" for p in target_positions}
 
             for pos in open_pos:
+                if pos["id"] in checked_resolved:
+                    continue  # Already closed via resolution above
                 if pos.get("target_wallet", "").lower() != target.lower():
                     continue
                 pk = f"{pos['condition_id']}_{pos['outcome_index']}"
@@ -359,39 +518,21 @@ class CopyTradeManager:
                 cur_price = 0.0
                 close_reason = ""
 
-                # Step 1: Check resolution
-                resolution = await check_condition_resolved(session, cid, token_id, oi)
-                if resolution.get("resolved"):
-                    wi = resolution.get("winning_index")
-                    if wi is not None and str(wi) == oi:
-                        cur_price = 1.0
-                        close_reason = "RESOLVED WON"
-                    elif wi is not None:
-                        cur_price = 0.0
-                        close_reason = "RESOLVED LOST"
-                    else:
-                        if token_id:
-                            cur_price = await get_market_price(session, token_id)
-                        if cur_price <= 0:
-                            continue  # No real price — retry
-                        close_reason = "RESOLVED (CLOB)"
+                # Step 1: Try target activity for sell price
+                try:
+                    activity = await get_recent_activity(session, target, limit=50)
+                    for a in activity:
+                        if (a.get("side") == "SELL" and a.get("conditionId") == cid
+                                and str(a.get("outcomeIndex", -1)) == oi):
+                            p = float(a.get("price", 0))
+                            if p > 0:
+                                cur_price = p
+                                close_reason = "TARGET SOLD"
+                            break
+                except Exception:
+                    pass
 
-                # Step 2: Try target activity for sell price
-                if not close_reason:
-                    try:
-                        activity = await get_recent_activity(session, target, limit=50)
-                        for a in activity:
-                            if (a.get("side") == "SELL" and a.get("conditionId") == cid
-                                    and str(a.get("outcomeIndex", -1)) == oi):
-                                p = float(a.get("price", 0))
-                                if p > 0:
-                                    cur_price = p
-                                    close_reason = "TARGET SOLD"
-                                break
-                    except Exception:
-                        pass
-
-                # Step 3: CLOB price
+                # Step 2: CLOB price
                 if not close_reason and token_id:
                     clob = await get_market_price(session, token_id)
                     if clob > 0:
@@ -408,13 +549,15 @@ class CopyTradeManager:
                 pnl_usd = shares * (cur_price - entry)
                 pnl_pct = ((cur_price - entry) / entry * 100) if entry > 0 else 0
 
-                # Execute sell
-                if not dry_run and token_id:
+                # Execute sell (skip for demo and dry_run)
+                close_proceeds = shares * cur_price
+                if demo_mode:
+                    await self.db.adjust_demo_balance(telegram_id, close_proceeds)
+                elif not dry_run and token_id:
                     try:
                         client = get_user_clob_client(telegram_id, private_key, wallet)
-                        sell_amt = shares * cur_price
                         await asyncio.get_event_loop().run_in_executor(
-                            None, place_sell, client, token_id, sell_amt)
+                            None, place_sell, client, token_id, close_proceeds)
                     except Exception as e:
                         log.error(f"[Copy:{telegram_id}] Close sell failed: {e}")
 
@@ -425,11 +568,20 @@ class CopyTradeManager:
                 await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
                 # Notify
-                mode_tag = " [DRY]" if dry_run else ""
+                if demo_mode:
+                    mode_tag = " [DEMO]"
+                elif dry_run:
+                    mode_tag = " [DRY]"
+                else:
+                    mode_tag = ""
                 result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+                demo_bal_text = ""
+                if demo_mode:
+                    cur_demo = await self.db.get_demo_balance(telegram_id)
+                    demo_bal_text = f"\n💰 Demo Balance: ${cur_demo:,.2f}"
                 await self._notify(telegram_id,
                     f"<b>CLOSE{mode_tag}</b> {result}\n"
                     f"{pos.get('title', '?')[:50]} — {pos.get('outcome', '?')}\n"
                     f"Reason: {close_reason}\n"
                     f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
-                    f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f})")
+                    f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){demo_bal_text}")

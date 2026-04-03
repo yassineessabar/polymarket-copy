@@ -98,7 +98,10 @@ def risk_check(
         target_pct = usdc_size / target_portfolio
         bet = target_pct * portfolio_value * dd
     else:
-        bet = settings.get("quickbuy_amount", 2.0) * dd
+        # No target portfolio known — use confidence-scaled % of our portfolio
+        # Small trades (low conf) = 1-3%, large trades (high conf) = 5-10%
+        pct = 0.01 + conf * 0.09  # 1% to 10% based on confidence
+        bet = pct * portfolio_value * dd
 
     bet = round(min(bet, budget, max_bet), 2)
     if bet < min_bet:

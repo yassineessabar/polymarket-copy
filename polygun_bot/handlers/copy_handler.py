@@ -1,34 +1,45 @@
 import re
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from ..database import Database
 from ..keyboards import (copy_trading_keyboard, copy_trading_with_targets_keyboard,
-                          smart_wallets_keyboard, main_menu_button, back_and_home)
+                          smart_wallets_keyboard, main_menu_button, back_and_home, respond)
 
 WAITING_WALLET_ADDRESS = 1
 
-# Curated smart wallets
+# Curated smart wallets — suggested traders
 SMART_WALLETS = [
     {
-        "name": "🏒 Gretzky",
-        "address": "0x1234...example",
+        "name": "🐋 Theo4",
+        "address": "0x56687bf447db6ffa42ffe2204a05edaa20f55839",
+        "copiers": 1240,
+        "description": "$22M+ PnL, top Polymarket whale, diverse bets",
+        "weekly_pnl": "+12.5% weekly",
+        "stats_url": "https://polymarketanalytics.com/traders/0x56687bf447db6ffa42ffe2204a05edaa20f55839",
+    },
+    {
+        "name": "🏀 Sports-Whale",
+        "address": "0x0c154c190E293B7e5F8D453b5F690C4dC9599A45",
         "copiers": 336,
-        "description": "Multi-Sport wallet with a focus on NHL",
-        "weekly_pnl": "+29.28%",
+        "description": "Sports whale — NBA, NHL, large $44K+ bets",
+        "weekly_pnl": "+29.28% weekly",
+        "stats_url": "https://polymarketanalytics.com/traders/0x0c154c190E293B7e5F8D453b5F690C4dC9599A45",
     },
     {
-        "name": "🎮 E-Sports Guru",
-        "address": "0x5678...example",
+        "name": "⚡ Spread-Master",
+        "address": "0x492442eab586f242b53bda933fd5de859c8a3782",
         "copiers": 376,
-        "description": "All Esports, high probability wallet 69.2% win rate",
-        "weekly_pnl": "+31.48%",
+        "description": "High-volume spread trader, $117K positions",
+        "weekly_pnl": "+31.48% weekly",
+        "stats_url": "https://polymarketanalytics.com/traders/0x492442eab586f242b53bda933fd5de859c8a3782",
     },
     {
-        "name": "🍺 Barstool",
-        "address": "0x9abc...example",
+        "name": "🌍 Geopolitics-Pro",
+        "address": "0xfd22b8843ae03a33a8a4c5e39ef1e5ff33ebad91",
         "copiers": 280,
-        "description": "Trades all Sports",
-        "weekly_pnl": "+27.15%",
+        "description": "Politics & Geopolitics, steady conviction bets",
+        "weekly_pnl": "+27.15% weekly",
+        "stats_url": "https://polymarketanalytics.com/traders/0xfd22b8843ae03a33a8a4c5e39ef1e5ff33ebad91",
     },
 ]
 
@@ -45,10 +56,17 @@ async def copy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not targets:
         text = (
             "🎯 <b>Copy Trading</b>\n\n"
-            "You don't have any active copytrades yet.\n"
-            "Start by choosing a trader you want to follow."
+            "<b>🔥 Top Traders — tap to copy:</b>\n"
         )
-        kb = copy_trading_keyboard()
+        for w in SMART_WALLETS:
+            text += (
+                f"\n{w['name']}\n"
+                f"├ 👥 {w['copiers']} copying\n"
+                f"├ 📈 {w['description']}\n"
+                f"└ 💰 {w['weekly_pnl']}\n"
+            )
+        text += "\nOr enter a custom wallet address."
+        kb = copy_trading_keyboard(SMART_WALLETS)
     else:
         status = "🟢 Running" if is_running else "🔴 Stopped"
         text = f"🎯 <b>Copy Trading</b> — {status}\n\n<b>Active Targets:</b>\n"
@@ -56,34 +74,94 @@ async def copy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = t.get("display_name") or t["wallet_addr"][:10] + "..."
             text += f"\n{i}. {name}\n   <code>{t['wallet_addr']}</code>\n"
         text += f"\nTotal: {len(targets)} active copytrades"
-        kb = copy_trading_with_targets_keyboard(is_running)
+        kb = copy_trading_with_targets_keyboard(is_running, targets)
 
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(text=text, reply_markup=kb, parse_mode="HTML")
-        except Exception:
-            await update.callback_query.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=kb)
+
+
+async def quick_copy(update: Update, context: ContextTypes.DEFAULT_TYPE, index: int):
+    """One-tap copy a suggested trader."""
+    db: Database = context.application.bot_data["db"]
+    telegram_id = update.effective_user.id
+
+    if index < 0 or index >= len(SMART_WALLETS):
+        await update.callback_query.answer("Invalid trader")
+        return
+
+    w = SMART_WALLETS[index]
+    address = w["address"]
+    name = w["name"]
+
+    targets = await db.get_targets(telegram_id)
+    existing = [t for t in targets if t["wallet_addr"] == address.lower()]
+    if existing:
+        await update.callback_query.answer("Already copying this trader!")
+        return
+
+    await db.add_target(telegram_id, address, display_name=name)
+    await update.callback_query.answer(f"✅ Now copying {name}!")
+    await copy_command(update, context)
 
 
 async def add_copy_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start add copy trade flow."""
+    """Show suggested traders + current targets — one-tap to add."""
+    db: Database = context.application.bot_data["db"]
+    telegram_id = update.effective_user.id
+    targets = await db.get_targets(telegram_id)
+    following_addrs = {t["wallet_addr"] for t in targets}
+
+    text = "🎯 <b>Add Copy Trade</b>\n\n"
+
+    if targets:
+        text += "<b>✅ Currently Copying:</b>\n"
+        for t in targets:
+            name = t.get("display_name") or t["wallet_addr"][:10] + "..."
+            text += f"  • {name}\n"
+        text += "\n"
+
+    text += "<b>🔥 Suggested Traders:</b>\n"
+    for w in SMART_WALLETS:
+        already = " ✅" if w["address"].lower() in following_addrs else ""
+        text += (
+            f"\n{w['name']}{already}\n"
+            f"├ 👥 {w['copiers']} copying\n"
+            f"├ 📈 {w['description']}\n"
+            f"└ 💰 {w['weekly_pnl']}\n"
+        )
+
+    text += "\nTap a trader to copy, or enter a custom wallet."
+
+    buttons = []
+    for i, w in enumerate(SMART_WALLETS):
+        if w["address"].lower() in following_addrs:
+            buttons.append([
+                InlineKeyboardButton(f"✅ {w['name']} (copying)", callback_data="noop"),
+                InlineKeyboardButton("📊", url=w.get("stats_url", "#")),
+            ])
+        else:
+            buttons.append([
+                InlineKeyboardButton(f"📋 Copy {w['name']}", callback_data=f"quick_copy_{i}"),
+                InlineKeyboardButton("📊", url=w.get("stats_url", "#")),
+            ])
+    buttons.append([InlineKeyboardButton("✏️ Enter Custom Wallet", callback_data="custom_wallet")])
+    buttons.append([
+        InlineKeyboardButton("⬅️ Back", callback_data="copy"),
+        InlineKeyboardButton("🏠 Home", callback_data="home"),
+    ])
+    kb = InlineKeyboardMarkup(buttons)
+
+    await respond(update, context, text, reply_markup=kb)
+    return ConversationHandler.END
+
+
+async def custom_wallet_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Prompt user to paste a custom wallet address."""
     text = (
-        "🎯 <b>Add Copy Trade</b>\n\n"
-        "Please paste the wallet address of the trader you want to copy:\n\n"
-        "💡 You can find top traders at polymarketanalytics.com\n\n"
+        "✏️ <b>Custom Wallet</b>\n\n"
+        "Paste the 0x wallet address:\n\n"
         "Send /cancel to go back."
     )
-    kb = back_and_home("copy")
-    if update.callback_query:
-        await update.callback_query.answer()
-        try:
-            await update.callback_query.edit_message_text(text=text, parse_mode="HTML", reply_markup=kb)
-        except Exception:
-            await update.callback_query.message.reply_text(text=text, parse_mode="HTML", reply_markup=kb)
-    else:
-        await update.message.reply_text(text=text, parse_mode="HTML", reply_markup=kb)
+    await respond(update, context, text, reply_markup=back_and_home("add_copy"))
     return WAITING_WALLET_ADDRESS
 
 
@@ -93,38 +171,80 @@ async def add_copy_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     address = update.message.text.strip()
 
-    # Validate Ethereum address
     if not re.match(r"^0x[a-fA-F0-9]{40}$", address):
-        await update.message.reply_text(
+        await respond(update, context,
             "❌ Invalid wallet address. Must be a 0x... Ethereum address.\n"
             "Try again or send /cancel.",
-            reply_markup=back_and_home("copy"))
+            reply_markup=back_and_home("add_copy"))
         return WAITING_WALLET_ADDRESS
 
-    # Check if already following
     targets = await db.get_targets(telegram_id)
     existing = [t for t in targets if t["wallet_addr"] == address.lower()]
     if existing:
-        await update.message.reply_text(
+        await respond(update, context,
             "⚠️ You're already following this wallet.",
-            reply_markup=main_menu_button())
+            reply_markup=back_and_home("copy"))
         return ConversationHandler.END
 
     await db.add_target(telegram_id, address, display_name="")
 
-    await update.message.reply_text(
+    await respond(update, context,
         f"✅ <b>Copy trade added!</b>\n\n"
         f"Wallet: <code>{address}</code>\n\n"
         f"Go to 🎯 Copy Trade to start copying.",
-        parse_mode="HTML",
         reply_markup=back_and_home("copy", "🎯 Copy Trade"))
 
     return ConversationHandler.END
 
 
 async def add_copy_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Cancelled.", reply_markup=main_menu_button())
+    await respond(update, context, "Cancelled.", reply_markup=main_menu_button())
     return ConversationHandler.END
+
+
+async def add_copy_cancel_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel conversation when any button is pressed."""
+    return ConversationHandler.END
+
+
+async def remove_target(update: Update, context: ContextTypes.DEFAULT_TYPE, addr_prefix: str):
+    """Remove a copy target — stops new copies but keeps monitoring open positions."""
+    db: Database = context.application.bot_data["db"]
+    telegram_id = update.effective_user.id
+    targets = await db.get_targets(telegram_id)
+
+    matched = [t for t in targets if t["wallet_addr"].startswith(addr_prefix.lower())]
+    if not matched:
+        await update.callback_query.answer("Target not found")
+        return
+
+    t = matched[0]
+    name = t.get("display_name") or t["wallet_addr"][:10] + "..."
+    wallet_addr = t["wallet_addr"]
+
+    # Check for open positions from this target
+    open_pos = await db.get_open_positions(telegram_id)
+    target_positions = [p for p in open_pos if p.get("target_wallet", "").lower() == wallet_addr.lower()]
+
+    await db.remove_target(telegram_id, wallet_addr)
+
+    if target_positions:
+        text = (
+            f"⚠️ <b>Trader Removed</b>\n\n"
+            f"❌ Stopped copying <b>{name}</b>\n\n"
+            f"📊 You have <b>{len(target_positions)} open position(s)</b> from this trader.\n"
+            f"These will stay open and be monitored until they resolve.\n"
+            f"No new trades will be copied.\n\n"
+            f"Open positions:\n"
+        )
+        for p in target_positions:
+            text += f"  • {p.get('title', '?')[:40]} (${p.get('bet_amount', 0):.2f})\n"
+
+        await respond(update, context, text,
+            reply_markup=back_and_home("copy", "🎯 Copy Trade"))
+    else:
+        await update.callback_query.answer(f"Removed {name}")
+        await copy_command(update, context)
 
 
 async def smart_wallets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -140,32 +260,24 @@ async def smart_wallets_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     text = (
         "<b>Smart Wallet Research (DYOR)</b>\n\n"
-        "These are the three most-copied wallets on PolySync currently.\n"
-        "Use the research tools below to analyze performance and risk, then "
-        "choose the wallet you want to copy and enable it in Settings.\n"
+        "Top-performing wallets on Polymarket.\n"
+        "Tap Copy to start following, or View Stats to research first.\n"
     )
 
     start = page * 3
     wallets = SMART_WALLETS[start:start + 3]
     for w in wallets:
         text += (
-            f"\n{w['name']} — Tap To Copy Trade\n"
+            f"\n{w['name']}\n"
             f"├ 👥 {w['copiers']} People Copying\n"
             f"├ 📈 {w['description']}\n"
             f"├ 💰 Weekly P&L: {w['weekly_pnl']}\n"
-            f"└ 🔍 View on Polymarket\n"
+            f"└ 📋 <code>{w['address']}</code>\n"
         )
 
     text += f"\n📄 Page {page + 1}/{total_pages}"
 
-    kb = smart_wallets_keyboard(page, total_pages)
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(text=text, reply_markup=kb, parse_mode="HTML")
-        except Exception:
-            await update.callback_query.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=smart_wallets_keyboard(page, total_pages))
 
 
 async def start_copy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

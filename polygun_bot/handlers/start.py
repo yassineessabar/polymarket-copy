@@ -3,7 +3,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from ..database import Database
 from ..wallet import generate_wallet, encrypt_key, get_usdc_balance
-from ..keyboards import home_keyboard, welcome_keyboard
+from ..keyboards import home_keyboard, welcome_keyboard, respond
 from ..config import BOT_USERNAME
 
 
@@ -39,7 +39,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         existing = await db.get_user(telegram_id)
 
-        # Show welcome screen for new users
         welcome_text = (
             "PolySync is a Telegram-native trading\n"
             "bot for Polymarket\n\n"
@@ -51,8 +50,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Polymarket trading without leaving\n"
             "Telegram."
         )
-        await update.message.reply_text(
+        # For /start we always send a fresh message and track it
+        msg = await update.message.reply_text(
             text=welcome_text, reply_markup=welcome_keyboard())
+        context.user_data["last_bot_msg_id"] = msg.message_id
         return
 
     # Existing user — show home
@@ -60,40 +61,40 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: dict = None):
-    """Send the home screen with portfolio stats — matches PolySync exactly."""
+    """Send the home screen with portfolio stats."""
     db: Database = context.application.bot_data["db"]
     telegram_id = update.effective_user.id
 
     if not user:
         user = await db.get_user(telegram_id)
 
-    balance = get_usdc_balance(user["wallet_address"]) if user.get("wallet_address") else 0.0
+    settings = await db.get_settings(telegram_id)
+    demo_mode = bool(settings and settings.get("demo_mode", 0))
     stats = await db.get_portfolio_stats(telegram_id)
-
     positions_val = stats["positions_value"]
-    net_worth = balance + positions_val
+
+    if demo_mode:
+        balance = settings.get("demo_balance", 0)
+        net_worth = balance + positions_val
+        mode_badge = "🎮 DEMO MODE"
+    else:
+        balance = get_usdc_balance(user["wallet_address"]) if user.get("wallet_address") else 0.0
+        net_worth = balance + positions_val
+        mode_badge = ""
+
+    header = f"Welcome to PolySync 🏠\n"
+    if mode_badge:
+        header += f"<b>{mode_badge}</b>\n"
+    header += "Your secure companion for rapid Polymarket trades.\n"
 
     text = (
-        f"Welcome to PolySync 🏠\n"
-        f"Your secure companion for rapid Polymarket trades.\n\n"
+        f"{header}\n"
         f"📊 Current Positions: ${positions_val:.2f}\n"
-        f"💰 Available Balance: ${balance:.2f}\n"
+        f"💰 Available Balance: ${balance:,.2f}\n"
         f"📋 Active Orders: $0.00\n"
-        f"💎 Total Net Worth: ${net_worth:.2f}\n\n"
-        f"You have 0 Ammo. What's this?\n\n"
-        f"If bot is slow, use backup bots:\n"
-        f"Alpha · Beta · Sigma · Delta\n\n"
+        f"💎 Total Net Worth: ${net_worth:,.2f}\n\n"
         f"Copy top traders, snipe odds, and trade like a\n"
         f"pro."
     )
 
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(
-                text=text, reply_markup=home_keyboard())
-        except Exception:
-            await update.callback_query.message.reply_text(
-                text=text, reply_markup=home_keyboard())
-    else:
-        await update.message.reply_text(
-            text=text, reply_markup=home_keyboard())
+    await respond(update, context, text, reply_markup=home_keyboard())

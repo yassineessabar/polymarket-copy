@@ -1,8 +1,9 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from ..database import Database
 from ..wallet import get_usdc_balance, is_valid_private_key, address_from_key, encrypt_key
-from ..keyboards import wallet_keyboard, deposit_keyboard, main_menu_button, feature_unavailable_keyboard, back_and_home
+from ..keyboards import (wallet_keyboard, deposit_keyboard, main_menu_button,
+                          feature_unavailable_keyboard, back_and_home, respond)
 
 WAITING_PRIVATE_KEY = 1
 
@@ -19,33 +20,27 @@ async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Please fund your wallet and complete your first transaction, "
             "or connect an active wallet to begin trading."
         )
-        kb = feature_unavailable_keyboard()
-        if update.callback_query:
-            try:
-                await update.callback_query.edit_message_text(text=text, reply_markup=kb, parse_mode="HTML")
-            except Exception:
-                await update.callback_query.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
-        else:
-            await update.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
+        await respond(update, context, text, reply_markup=feature_unavailable_keyboard())
         return
 
     address = user["wallet_address"]
-    usdc = get_usdc_balance(address)
+    settings = await db.get_settings(telegram_id)
+    demo_mode = bool(settings and settings.get("demo_mode", 0))
+
+    if demo_mode:
+        usdc = settings.get("demo_balance", 0)
+        mode_tag = " 🎮 DEMO"
+    else:
+        usdc = get_usdc_balance(address)
+        mode_tag = ""
 
     text = (
-        f"Your Wallet: <code>{address}</code>\n\n"
-        f"Balance: {usdc:.2f} USDC (Pnl $0)\n\n"
+        f"Your Wallet:{mode_tag}\n"
+        f"<code>{address}</code>\n\n"
+        f"Balance: ${usdc:,.2f} USDC\n\n"
         f"Tap to copy the address and send USDC to deposit"
     )
-
-    kb = wallet_keyboard()
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(text=text, reply_markup=kb, parse_mode="HTML")
-        except Exception:
-            await update.callback_query.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=wallet_keyboard())
 
 
 async def deposit_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -73,15 +68,7 @@ async def deposit_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 Current Trading Balance: ${usdc:.2f}\n"
         f"⚠️ Minimum deposit amount is $100 worth of tokens."
     )
-
-    kb = deposit_keyboard()
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(text=text, reply_markup=kb, parse_mode="HTML")
-        except Exception:
-            await update.callback_query.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=deposit_keyboard())
 
 
 async def import_wallet_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -93,15 +80,7 @@ async def import_wallet_start(update: Update, context: ContextTypes.DEFAULT_TYPE
         "⚠️ Do not disclose your private key to others.\n\n"
         "Send /cancel to go back."
     )
-    kb = back_and_home("wallet")
-    if update.callback_query:
-        await update.callback_query.answer()
-        try:
-            await update.callback_query.edit_message_text(text=text, parse_mode="HTML", reply_markup=kb)
-        except Exception:
-            await update.callback_query.message.reply_text(text=text, parse_mode="HTML", reply_markup=kb)
-    else:
-        await update.message.reply_text(text=text, parse_mode="HTML", reply_markup=kb)
+    await respond(update, context, text, reply_markup=back_and_home("wallet"))
     return WAITING_PRIVATE_KEY
 
 
@@ -118,7 +97,7 @@ async def import_wallet_receive(update: Update, context: ContextTypes.DEFAULT_TY
         pass
 
     if not is_valid_private_key(key_input):
-        await update.effective_chat.send_message(
+        await respond(update, context,
             "❌ Invalid private key. Please try again or send /cancel.",
             reply_markup=back_and_home("wallet"))
         return WAITING_PRIVATE_KEY
@@ -132,16 +111,15 @@ async def import_wallet_receive(update: Update, context: ContextTypes.DEFAULT_TY
     await db.update_user_wallet(telegram_id, address, enc_key)
 
     usdc = get_usdc_balance(address)
-    await update.effective_chat.send_message(
+    await respond(update, context,
         f"✅ <b>Wallet imported successfully!</b>\n\n"
         f"Address: <code>{address}</code>\n"
         f"Balance: {usdc:.2f} USDC",
-        parse_mode="HTML",
         reply_markup=main_menu_button())
 
     return ConversationHandler.END
 
 
 async def import_wallet_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Import cancelled.", reply_markup=main_menu_button())
+    await respond(update, context, "Import cancelled.", reply_markup=main_menu_button())
     return ConversationHandler.END

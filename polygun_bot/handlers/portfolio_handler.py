@@ -4,11 +4,11 @@ from telegram.ext import ContextTypes
 from ..database import Database
 from ..wallet import get_usdc_balance
 from ..portfolio import get_position_with_pnl
-from ..keyboards import portfolio_keyboard
+from ..keyboards import portfolio_keyboard, respond
 
 
 async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show portfolio — matches PolyGun PORTFOLIO screen exactly."""
+    """Show portfolio — open positions with live P&L."""
     db: Database = context.application.bot_data["db"]
     telegram_id = update.effective_user.id
     user = await db.get_user(telegram_id)
@@ -17,16 +17,19 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     risk = await db.get_daily_risk(telegram_id)
     realized_pnl = risk.get("daily_pnl", 0)
 
-    balance = get_usdc_balance(user["wallet_address"]) if user and user.get("wallet_address") else 0.0
+    settings = await db.get_settings(telegram_id)
+    demo_mode = bool(settings and settings.get("demo_mode", 0))
+    if demo_mode:
+        balance = settings.get("demo_balance", 0)
+    else:
+        balance = get_usdc_balance(user["wallet_address"]) if user and user.get("wallet_address") else 0.0
 
-    # Header matches PolyGun exactly
     text = "📊 <b>Open Positions</b>\n\n"
 
     if not positions:
         text += (
             "✅ You have no open positions.\n\n"
-            "Paste a Polymarket link to open your first\n"
-            "trade."
+            "Go to 🎯 Copy Trade to start copying traders."
         )
         unrealized = 0.0
     else:
@@ -63,20 +66,10 @@ async def portfolio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Realized P&L (today): ${realized_pnl:+.2f}\n"
             f"Total P&L: ${total_pnl:+.2f}\n"
             f"Exposure: ${exposure:.2f}\n"
-            f"💰 Net Worth: ${net_worth:.2f}"
+            f"💰 Net Worth: ${net_worth:,.2f}"
         )
 
-    kb = portfolio_keyboard()
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(
-                text=text, reply_markup=kb, parse_mode="HTML")
-        except Exception:
-            await update.callback_query.message.reply_text(
-                text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(
-            text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=portfolio_keyboard())
 
 
 async def portfolio_closed(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,14 +100,4 @@ async def portfolio_closed(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text += f"\n━━━━━━━━━━━━━━\nTotal Realized P&L: ${total_pnl:+.2f}"
 
-    kb = portfolio_keyboard()
-    if update.callback_query:
-        try:
-            await update.callback_query.edit_message_text(
-                text=text, reply_markup=kb, parse_mode="HTML")
-        except Exception:
-            await update.callback_query.message.reply_text(
-                text=text, reply_markup=kb, parse_mode="HTML")
-    else:
-        await update.message.reply_text(
-            text=text, reply_markup=kb, parse_mode="HTML")
+    await respond(update, context, text, reply_markup=portfolio_keyboard())
