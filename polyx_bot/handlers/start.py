@@ -4,14 +4,14 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from ..database import Database
 from ..wallet import generate_wallet, encrypt_key, get_usdc_balance
-from ..keyboards import home_keyboard, welcome_keyboard, respond
+from ..keyboards import home_keyboard, respond
 from ..config import BOT_USERNAME
 
 WELCOME_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "welcome.png")
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command — onboarding + home screen."""
+    """Handle /start command — always show welcome banner + home menu."""
     db: Database = context.application.bot_data["db"]
     user = update.effective_user
     telegram_id = user.id
@@ -24,10 +24,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if referrer and referrer["telegram_id"] != telegram_id:
             referred_by = referrer["telegram_id"]
 
-    # Check if user exists
+    # Create user if new
     existing = await db.get_user(telegram_id)
     if not existing:
-        # Generate wallet and create user
         address, private_key = generate_wallet()
         enc_key = encrypt_key(private_key)
         referral_code = secrets.token_urlsafe(6)[:8]
@@ -42,24 +41,31 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         existing = await db.get_user(telegram_id)
 
-        welcome_text = (
-            "Copy Trade Polymarket on Telegram\n\n"
-            "Trade Smarter. Automatically."
-        )
-        # Send welcome image + text for new users
-        if os.path.exists(WELCOME_IMAGE):
-            with open(WELCOME_IMAGE, "rb") as img:
-                msg = await update.message.reply_photo(
-                    photo=img, caption=welcome_text,
-                    reply_markup=welcome_keyboard())
-        else:
-            msg = await update.message.reply_text(
-                text=welcome_text, reply_markup=welcome_keyboard())
-        context.user_data["last_bot_msg_id"] = msg.message_id
-        return
+    # Delete old messages
+    if update.message:
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+    last_msg_id = context.user_data.get("last_bot_msg_id")
+    if last_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=telegram_id, message_id=last_msg_id)
+        except Exception:
+            pass
 
-    # Existing user — show home
-    await send_home(update, context, existing)
+    # Always show welcome banner image
+    welcome_text = "Copy Trade Polymarket on Telegram\n\nTrade Smarter. Automatically."
+    if os.path.exists(WELCOME_IMAGE):
+        with open(WELCOME_IMAGE, "rb") as img:
+            msg = await context.bot.send_photo(
+                chat_id=telegram_id, photo=img, caption=welcome_text,
+                reply_markup=home_keyboard())
+    else:
+        msg = await context.bot.send_message(
+            chat_id=telegram_id, text=welcome_text,
+            reply_markup=home_keyboard())
+    context.user_data["last_bot_msg_id"] = msg.message_id
 
 
 async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: dict = None):
