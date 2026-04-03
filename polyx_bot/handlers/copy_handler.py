@@ -41,6 +41,14 @@ SMART_WALLETS = [
         "weekly_pnl": "+27.15% weekly",
         "stats_url": "https://polymarketanalytics.com/traders/0xfd22b8843ae03a33a8a4c5e39ef1e5ff33ebad91",
     },
+    {
+        "name": "🦈 Sharky6999",
+        "address": "0x751a2b86cab503496efd325c8344e10159349ea1",
+        "copiers": 150,
+        "description": "High-frequency crypto & BTC/XRP 5-min markets",
+        "weekly_pnl": "+18.5% weekly",
+        "stats_url": "https://polymarketanalytics.com/traders/0x751a2b86cab503496efd325c8344e10159349ea1",
+    },
 ]
 
 
