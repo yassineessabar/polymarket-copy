@@ -57,6 +57,19 @@ export default function LandingPage() {
     }
   }
 
+  async function handleDemo() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/demo`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      localStorage.setItem('polyx_token', data.token);
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error('Demo login failed:', err);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dark-bg">
@@ -103,13 +116,22 @@ export default function LandingPage() {
           tracking -- all from your browser.
         </p>
 
-        <button
-          onClick={handleCTA}
-          className="mt-10 flex items-center gap-2 rounded-xl bg-accent px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-accent/20 transition-all hover:bg-accent/90 hover:shadow-accent/30"
-        >
-          {isConnected ? 'Sign In to Dashboard' : 'Connect Wallet to Start'}
-          <ArrowRight size={18} />
-        </button>
+        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
+          <button
+            onClick={handleCTA}
+            className="flex items-center gap-2 rounded-xl bg-accent px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-accent/20 transition-all hover:bg-accent/90 hover:shadow-accent/30"
+          >
+            <Wallet size={18} />
+            {isConnected ? 'Sign In to Dashboard' : 'Connect Wallet'}
+          </button>
+          <button
+            onClick={handleDemo}
+            className="flex items-center gap-2 rounded-xl border border-dark-border px-8 py-3.5 text-base font-medium text-text-secondary transition-all hover:border-accent hover:text-accent"
+          >
+            Try Demo
+            <ArrowRight size={18} />
+          </button>
+        </div>
       </section>
 
       {/* Features */}

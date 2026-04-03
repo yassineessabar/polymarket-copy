@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
 import AppShell from '@/components/layout/AppShell';
 import AuthGuard from '@/components/shared/AuthGuard';
+import type { WalletInfo } from '@/types';
 import {
   Wallet,
   Copy,
@@ -14,28 +15,24 @@ import {
   ArrowDownToLine,
 } from 'lucide-react';
 
-interface WalletBalance {
-  usdc: number;
-  matic: number;
-}
-
 export default function WalletPage() {
   const { user } = useAuth();
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  const walletAddress = user?.wallet_address ?? '';
+  const walletAddress = walletInfo?.wallet_address ?? user?.wallet_address ?? '';
 
   useEffect(() => {
     api
-      .get<WalletBalance>('/api/wallet/balance')
-      .then(setBalance)
+      .get<WalletInfo>('/api/wallet')
+      .then(setWalletInfo)
       .catch(() => null)
       .finally(() => setLoading(false));
   }, []);
 
   function copyAddress() {
+    if (!walletAddress) return;
     navigator.clipboard.writeText(walletAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -94,7 +91,7 @@ export default function WalletPage() {
                 <div className="mt-2 h-10 w-32 animate-pulse rounded-lg bg-dark-border" />
               ) : (
                 <p className="mt-2 font-mono text-3xl font-bold text-text-primary">
-                  ${(balance?.usdc ?? 0).toFixed(2)}
+                  ${(walletInfo?.usdc_balance ?? 0).toFixed(2)}
                 </p>
               )}
               <p className="mt-1 text-xs text-text-secondary">Polygon USDC</p>
@@ -107,7 +104,7 @@ export default function WalletPage() {
                 <div className="mt-2 h-10 w-32 animate-pulse rounded-lg bg-dark-border" />
               ) : (
                 <p className="mt-2 font-mono text-3xl font-bold text-text-primary">
-                  {(balance?.matic ?? 0).toFixed(4)}
+                  {(walletInfo?.matic_balance ?? 0).toFixed(4)}
                 </p>
               )}
               <p className="mt-1 text-xs text-text-secondary">For gas fees</p>

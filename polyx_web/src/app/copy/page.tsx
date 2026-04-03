@@ -19,26 +19,26 @@ import {
 const SMART_WALLETS = [
   {
     name: 'Theo4',
-    address: '0x36B4728d1b0E09E2b6E2d0830a7B14fE301c12',
-    description: '$3M+ volume, multi-strategy',
+    address: '0x56687bf447db6ffa42ffe2204a05edaa20f55839',
+    description: '$22M+ PnL, top Polymarket whale, diverse bets',
     tag: 'Top Trader',
   },
   {
     name: 'Sports-Whale',
-    address: '0xe1A9D741c8A93E4F3C5cD1b22F8910aC3b5cDC',
-    description: 'Sports specialist, NBA/NFL focused',
+    address: '0x0c154c190E293B7e5F8D453b5F690C4dC9599A45',
+    description: 'Sports whale -- NBA, NHL, large bets',
     tag: 'Sports',
   },
   {
     name: 'Spread-Master',
-    address: '0xA0B93c7E41d2bF8AC5a9F7cD1E3b2460c78a3C',
-    description: 'Spread arbitrage specialist',
+    address: '0x492442eab586f242b53bda933fd5de859c8a3782',
+    description: 'High-volume spread trader',
     tag: 'Arbitrage',
   },
   {
     name: 'Geopolitics-Pro',
-    address: '0x4D8bC1f2A3E7D9c0B6F5a8E2d1C7b4A3F09e2F',
-    description: 'Geopolitics & elections expert',
+    address: '0xfd22b8843ae03a33a8a4c5e39ef1e5ff33ebad91',
+    description: 'Politics & Geopolitics, steady conviction bets',
     tag: 'Politics',
   },
 ];
@@ -56,7 +56,7 @@ export default function CopyTradePage() {
   useEffect(() => {
     Promise.all([
       api.get<CopyTarget[]>('/api/copy/targets').catch(() => []),
-      api.get<Settings>('/api/settings').catch(() => null),
+      api.get<Settings>('/api/user/settings').catch(() => null),
     ])
       .then(([t, s]) => {
         setTargets(Array.isArray(t) ? t : []);
@@ -65,16 +65,21 @@ export default function CopyTradePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const isCopyActive = settings?.copy_trading_active ?? false;
+  const isCopyActive = !!(settings?.copy_trading_active);
 
   async function addTarget(address: string, name?: string) {
     setAdding(true);
     try {
-      const t = await api.post<CopyTarget>('/api/copy/targets', {
-        wallet_addr: address,
-        display_name: name || undefined,
+      // API expects { wallet_address, display_name, description }
+      // and returns { ok: true, wallet_address: "..." }
+      await api.post('/api/copy/targets', {
+        wallet_address: address,
+        display_name: name || '',
+        description: '',
       });
-      setTargets((prev) => [...prev, t]);
+      // Re-fetch targets to get the full CopyTarget object from the DB
+      const refreshed = await api.get<CopyTarget[]>('/api/copy/targets').catch(() => []);
+      setTargets(Array.isArray(refreshed) ? refreshed : []);
       setCustomWallet('');
       setCustomName('');
     } catch (e) {
@@ -87,7 +92,7 @@ export default function CopyTradePage() {
   async function removeTarget(address: string) {
     try {
       await api.delete(`/api/copy/targets/${address}`);
-      setTargets((prev) => prev.filter((t) => t.wallet_addr !== address));
+      setTargets((prev) => prev.filter((t) => (t.wallet_addr ?? '') !== address));
     } catch (e) {
       console.error('Failed to remove target:', e);
     }
@@ -96,10 +101,14 @@ export default function CopyTradePage() {
   async function toggleCopyTrading() {
     setToggling(true);
     try {
-      const updated = await api.patch<Settings>('/api/settings', {
-        copy_trading_active: !isCopyActive,
-      });
-      setSettings(updated);
+      if (isCopyActive) {
+        await api.post('/api/copy/stop');
+      } else {
+        await api.post('/api/copy/start');
+      }
+      // Re-fetch settings to get updated state
+      const updated = await api.get<Settings>('/api/user/settings').catch(() => null);
+      if (updated) setSettings(updated);
     } catch (e) {
       console.error('Failed to toggle:', e);
     } finally {
@@ -115,7 +124,7 @@ export default function CopyTradePage() {
 
   const isAlreadyAdded = (addr: string) =>
     targets.some(
-      (t) => t.wallet_addr.toLowerCase() === addr.toLowerCase()
+      (t) => (t.wallet_addr ?? '').toLowerCase() === addr.toLowerCase()
     );
 
   return (
@@ -185,46 +194,51 @@ export default function CopyTradePage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {targets.map((t) => (
-                  <div
-                    key={t.wallet_addr}
-                    className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-card px-4 py-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-text-primary">
-                          {t.display_name || 'Unknown Trader'}
-                        </p>
-                        {t.is_active && (
-                          <span className="rounded-full bg-profit/10 px-2 py-0.5 text-[10px] font-medium text-profit">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <p className="font-mono text-xs text-text-secondary">
-                          {t.wallet_addr.slice(0, 10)}...{t.wallet_addr.slice(-6)}
-                        </p>
-                        <button
-                          onClick={() => copyAddress(t.wallet_addr)}
-                          className="text-text-secondary hover:text-accent"
-                        >
-                          {copiedAddr === t.wallet_addr ? (
-                            <Check size={12} />
-                          ) : (
-                            <Copy size={12} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeTarget(t.wallet_addr)}
-                      className="ml-4 rounded-lg p-2 text-text-secondary transition-colors hover:bg-loss/10 hover:text-loss"
+                {targets.map((t) => {
+                  const addr = t.wallet_addr ?? '';
+                  return (
+                    <div
+                      key={addr || t.id}
+                      className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-card px-4 py-3"
                     >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-text-primary">
+                            {t.display_name || 'Unknown Trader'}
+                          </p>
+                          {!!t.is_active && (
+                            <span className="rounded-full bg-profit/10 px-2 py-0.5 text-[10px] font-medium text-profit">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <p className="font-mono text-xs text-text-secondary">
+                            {addr ? `${addr.slice(0, 10)}...${addr.slice(-6)}` : '---'}
+                          </p>
+                          {addr && (
+                            <button
+                              onClick={() => copyAddress(addr)}
+                              className="text-text-secondary hover:text-accent"
+                            >
+                              {copiedAddr === addr ? (
+                                <Check size={12} />
+                              ) : (
+                                <Copy size={12} />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeTarget(addr)}
+                        className="ml-4 rounded-lg p-2 text-text-secondary transition-colors hover:bg-loss/10 hover:text-loss"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

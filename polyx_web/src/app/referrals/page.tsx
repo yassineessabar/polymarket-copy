@@ -10,39 +10,32 @@ import { Link2, Copy, Check, Users, DollarSign, Gift, ArrowRight } from 'lucide-
 
 export default function ReferralsPage() {
   const [stats, setStats] = useState<ReferralStats | null>(null);
+  const [referralLink, setReferralLink] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
-    api
-      .get<ReferralStats>('/api/referrals/stats')
-      .then(setStats)
-      .catch(() => null)
+    Promise.all([
+      api.get<ReferralStats>('/api/referrals').catch(() => null),
+      api.get<{ referral_code: string; link: string }>('/api/referrals/link').catch(() => null),
+    ])
+      .then(([s, linkData]) => {
+        setStats(s);
+        if (linkData?.link) {
+          setReferralLink(linkData.link);
+        } else if (s?.referral_code) {
+          setReferralLink(`https://polyx.app/ref/${s.referral_code}`);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
   function copyLink() {
-    if (!stats?.referral_link) return;
-    navigator.clipboard.writeText(stats.referral_link);
+    if (!referralLink) return;
+    navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-
-  async function withdraw() {
-    if (!stats || stats.claimable < 5) return;
-    setWithdrawing(true);
-    try {
-      await api.post('/api/referrals/withdraw');
-      setStats((s) => (s ? { ...s, claimable: 0 } : s));
-    } catch (e) {
-      console.error('Withdraw failed:', e);
-    } finally {
-      setWithdrawing(false);
-    }
-  }
-
-  const canWithdraw = (stats?.claimable ?? 0) >= 5;
 
   const TIERS = [
     {
@@ -50,7 +43,7 @@ export default function ReferralsPage() {
       label: 'Direct Referrals',
       commission: '25%',
       desc: 'Earn 25% commission on fees from users you refer directly',
-      count: stats?.tier1_count ?? 0,
+      count: stats?.tier1 ?? 0,
       color: 'text-accent bg-accent/10',
     },
     {
@@ -58,7 +51,7 @@ export default function ReferralsPage() {
       label: 'Referrals of Referrals',
       commission: '5%',
       desc: 'Earn 5% commission from second-level referrals',
-      count: stats?.tier2_count ?? 0,
+      count: stats?.tier2 ?? 0,
       color: 'text-purple-400 bg-purple-400/10',
     },
     {
@@ -66,7 +59,7 @@ export default function ReferralsPage() {
       label: '3 Levels Deep',
       commission: '3%',
       desc: 'Earn 3% commission from third-level referrals',
-      count: stats?.tier3_count ?? 0,
+      count: stats?.tier3 ?? 0,
       color: 'text-amber-400 bg-amber-400/10',
     },
   ];
@@ -105,12 +98,13 @@ export default function ReferralsPage() {
                 <div className="mt-3 flex items-center gap-2">
                   <div className="flex-1 overflow-hidden rounded-lg border border-dark-border bg-dark-bg px-4 py-2.5">
                     <p className="truncate font-mono text-sm text-text-primary">
-                      {stats?.referral_link ?? '---'}
+                      {referralLink || '---'}
                     </p>
                   </div>
                   <button
                     onClick={copyLink}
-                    className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-accent/90"
+                    disabled={!referralLink}
+                    className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-accent/90 disabled:opacity-30"
                   >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
                     {copied ? 'Copied!' : 'Copy'}
@@ -128,7 +122,7 @@ export default function ReferralsPage() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <StatCard
                   label="Total Referrals"
-                  value={String(stats?.total_referrals ?? 0)}
+                  value={String(stats?.total_reach ?? 0)}
                 />
                 <StatCard
                   label="Total Earned"
@@ -140,24 +134,6 @@ export default function ReferralsPage() {
                   value={`$${(stats?.claimable ?? 0).toFixed(2)}`}
                   mono
                 />
-              </div>
-
-              {/* Withdraw Button */}
-              <div className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-card p-4">
-                <div>
-                  <p className="text-sm font-medium text-text-primary">Withdraw Earnings</p>
-                  <p className="text-xs text-text-secondary">
-                    Minimum withdrawal: $5.00
-                  </p>
-                </div>
-                <button
-                  onClick={withdraw}
-                  disabled={!canWithdraw || withdrawing}
-                  className="flex items-center gap-2 rounded-lg bg-profit/10 px-5 py-2.5 text-sm font-semibold text-profit transition-all hover:bg-profit/20 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <DollarSign size={16} />
-                  {withdrawing ? 'Processing...' : 'Withdraw'}
-                </button>
               </div>
 
               {/* Tier Breakdown */}

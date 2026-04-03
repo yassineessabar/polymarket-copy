@@ -26,7 +26,7 @@ def verify_siwe(message: str, signature: str) -> str:
 
 def create_jwt(user_id: int, wallet_address: str) -> str:
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),
         "wallet": wallet_address.lower(),
         "iat": int(time.time()),
         "exp": int(time.time()) + JWT_EXPIRY_SECONDS,
@@ -36,4 +36,6 @@ def create_jwt(user_id: int, wallet_address: str) -> str:
 
 def verify_jwt(token: str) -> dict:
     """Decode and verify JWT. Raises jwt.PyJWTError on failure."""
-    return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    decoded["sub"] = int(decoded["sub"])
+    return decoded

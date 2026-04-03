@@ -8,7 +8,7 @@ import AppShell from '@/components/layout/AppShell';
 import AuthGuard from '@/components/shared/AuthGuard';
 import StatCard from '@/components/shared/StatCard';
 import PnLBadge from '@/components/shared/PnLBadge';
-import type { Settings, Position, PortfolioStats } from '@/types';
+import type { Settings, Position, PortfolioStats, WalletInfo } from '@/types';
 import {
   Copy,
   TrendingUp,
@@ -19,41 +19,37 @@ import {
   StopCircle,
 } from 'lucide-react';
 
-interface WalletBalance {
-  usdc: number;
-  matic: number;
-}
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<PortfolioStats | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [wallet, setWallet] = useState<WalletBalance | null>(null);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [recentClosed, setRecentClosed] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get<PortfolioStats>('/api/portfolio/stats').catch(() => null),
-      api.get<Settings>('/api/settings').catch(() => null),
-      api.get<WalletBalance>('/api/wallet/balance').catch(() => null),
-      api.get<Position[]>('/api/portfolio/positions?status=closed&limit=5').catch(() => []),
+      api.get<Settings>('/api/user/settings').catch(() => null),
+      api.get<WalletInfo>('/api/wallet').catch(() => null),
+      api.get<{ positions: Position[] }>('/api/portfolio/closed?limit=5').catch(() => ({ positions: [] })),
     ])
-      .then(([s, set, w, closed]) => {
+      .then(([s, set, w, closedResp]) => {
         setStats(s);
         setSettings(set);
         setWallet(w);
-        setRecentClosed(Array.isArray(closed) ? closed : []);
+        const closedList = closedResp?.positions ?? [];
+        setRecentClosed(Array.isArray(closedList) ? closedList : []);
       })
       .finally(() => setLoading(false));
   }, []);
 
   const portfolioValue = stats?.positions_value ?? 0;
-  const availableBalance = wallet?.usdc ?? 0;
+  const availableBalance = wallet?.usdc_balance ?? 0;
   const dailyPnl = stats?.daily_pnl ?? 0;
   const totalNetWorth = portfolioValue + availableBalance;
-  const isDemo = settings?.demo_mode ?? false;
-  const isCopyActive = settings?.copy_trading_active ?? false;
+  const isDemo = !!(settings?.demo_mode);
+  const isCopyActive = !!(settings?.copy_trading_active);
 
   return (
     <AuthGuard>
@@ -206,10 +202,10 @@ export default function DashboardPage() {
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-text-primary">
-                              {pos.title}
+                              {pos.title ?? 'Untitled Market'}
                             </p>
                             <p className="text-xs text-text-secondary">
-                              {pos.outcome} &middot;{' '}
+                              {pos.outcome ?? '---'} &middot;{' '}
                               {pos.close_reason ?? 'closed'} &middot;{' '}
                               {pos.closed_at
                                 ? new Date(pos.closed_at).toLocaleDateString()

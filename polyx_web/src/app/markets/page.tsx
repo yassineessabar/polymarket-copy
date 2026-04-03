@@ -8,6 +8,7 @@ import type { Market } from '@/types';
 import { BarChart3, TrendingUp, Loader2 } from 'lucide-react';
 
 const CATEGORIES = [
+  { key: 'trending', label: 'Trending', emoji: '\ud83d\udd25' },
   { key: 'politics', label: 'Politics', emoji: '\ud83c\udfe1' },
   { key: 'sports', label: 'Sports', emoji: '\u26bd' },
   { key: 'crypto', label: 'Crypto', emoji: '\ud83e\ude99' },
@@ -15,7 +16,6 @@ const CATEGORIES = [
   { key: 'finance', label: 'Finance', emoji: '\ud83d\udcc8' },
   { key: 'geopolitics', label: 'Geopolitics', emoji: '\ud83c\udf0d' },
   { key: 'volume', label: 'Volume', emoji: '\ud83d\udcca' },
-  { key: 'trending', label: 'Trending', emoji: '\ud83d\udd25' },
 ];
 
 export default function MarketsPage() {
@@ -25,17 +25,37 @@ export default function MarketsPage() {
 
   useEffect(() => {
     setLoading(true);
+
+    // Use trending endpoint for 'trending', otherwise use category filter
+    const endpoint =
+      selectedCategory === 'trending'
+        ? '/api/markets/trending'
+        : `/api/markets?category=${selectedCategory}`;
+
     api
-      .get<Market[]>(`/api/markets?category=${selectedCategory}`)
-      .then((data) => setMarkets(Array.isArray(data) ? data : []))
+      .get<{ markets: Market[] }>(endpoint)
+      .then((resp) => {
+        const list = resp?.markets ?? [];
+        setMarkets(Array.isArray(list) ? list : []);
+      })
       .catch(() => setMarkets([]))
       .finally(() => setLoading(false));
   }, [selectedCategory]);
 
-  function formatVolume(vol: number): string {
+  function formatVolume(vol: number | undefined | null): string {
+    if (!vol) return '$0';
     if (vol >= 1_000_000) return `$${(vol / 1_000_000).toFixed(1)}M`;
     if (vol >= 1_000) return `$${(vol / 1_000).toFixed(1)}K`;
     return `$${vol.toFixed(0)}`;
+  }
+
+  // Gamma API returns `question` as the market title
+  function getTitle(market: Market): string {
+    return market.question || market.title || 'Untitled Market';
+  }
+
+  function getVolume(market: Market): number {
+    return market.volume ?? market.volume24hr ?? 0;
   }
 
   return (
@@ -81,36 +101,40 @@ export default function MarketsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {markets.map((market, i) => (
-                <div
-                  key={`${market.slug}-${i}`}
-                  className="group flex items-center justify-between rounded-xl border border-dark-border bg-dark-card p-4 transition-colors hover:border-accent/30"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-text-primary group-hover:text-accent">
-                      {market.title}
-                    </p>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-text-secondary">
-                      {market.markets_count > 0 && (
-                        <span>{market.markets_count} market{market.markets_count !== 1 ? 's' : ''}</span>
-                      )}
-                      {market.volume > 0 && (
-                        <span className="flex items-center gap-1">
-                          <TrendingUp size={12} />
-                          {formatVolume(market.volume)} vol
+              {markets.map((market, i) => {
+                const title = getTitle(market);
+                const vol = getVolume(market);
+                return (
+                  <div
+                    key={`${market.condition_id ?? market.slug ?? i}-${i}`}
+                    className="group flex items-center justify-between rounded-xl border border-dark-border bg-dark-card p-4 transition-colors hover:border-accent/30"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-text-primary group-hover:text-accent">
+                        {title}
+                      </p>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-text-secondary">
+                        {market.category && (
+                          <span>{market.category}</span>
+                        )}
+                        {vol > 0 && (
+                          <span className="flex items-center gap-1">
+                            <TrendingUp size={12} />
+                            {formatVolume(vol)} vol
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-shrink-0">
+                      {vol > 0 && (
+                        <span className="font-mono text-sm font-semibold text-text-primary">
+                          {formatVolume(vol)}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="ml-4 flex-shrink-0">
-                    {market.volume > 0 && (
-                      <span className="font-mono text-sm font-semibold text-text-primary">
-                        {formatVolume(market.volume)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

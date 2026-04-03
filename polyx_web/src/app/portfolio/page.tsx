@@ -27,13 +27,15 @@ export default function PortfolioPage() {
   useEffect(() => {
     Promise.all([
       api.get<PortfolioStats>('/api/portfolio/stats').catch(() => null),
-      api.get<Position[]>('/api/portfolio/positions?status=open').catch(() => []),
-      api.get<Position[]>('/api/portfolio/positions?status=closed').catch(() => []),
+      api.get<{ positions: Position[] }>('/api/portfolio/open').catch(() => ({ positions: [] })),
+      api.get<{ positions: Position[] }>('/api/portfolio/closed').catch(() => ({ positions: [] })),
     ])
-      .then(([s, open, closed]) => {
+      .then(([s, openResp, closedResp]) => {
         setStats(s);
-        setOpenPositions(Array.isArray(open) ? open : []);
-        setClosedPositions(Array.isArray(closed) ? closed : []);
+        const openList = openResp?.positions ?? [];
+        const closedList = closedResp?.positions ?? [];
+        setOpenPositions(Array.isArray(openList) ? openList : []);
+        setClosedPositions(Array.isArray(closedList) ? closedList : []);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -50,8 +52,8 @@ export default function PortfolioPage() {
   const sortedOpen = useMemo(() => {
     const arr = [...openPositions];
     arr.sort((a, b) => {
-      const va = sortKey === 'pnl' ? (a.unrealized_pnl ?? 0) : a.bet_amount;
-      const vb = sortKey === 'pnl' ? (b.unrealized_pnl ?? 0) : b.bet_amount;
+      const va = sortKey === 'pnl' ? (a.unrealized_pnl ?? 0) : (a.bet_amount ?? 0);
+      const vb = sortKey === 'pnl' ? (b.unrealized_pnl ?? 0) : (b.bet_amount ?? 0);
       return sortDir === 'asc' ? va - vb : vb - va;
     });
     return arr;
@@ -60,8 +62,8 @@ export default function PortfolioPage() {
   const sortedClosed = useMemo(() => {
     const arr = [...closedPositions];
     arr.sort((a, b) => {
-      const va = sortKey === 'pnl' ? (a.pnl_usd ?? 0) : a.bet_amount;
-      const vb = sortKey === 'pnl' ? (b.pnl_usd ?? 0) : b.bet_amount;
+      const va = sortKey === 'pnl' ? (a.pnl_usd ?? 0) : (a.bet_amount ?? 0);
+      const vb = sortKey === 'pnl' ? (b.pnl_usd ?? 0) : (b.bet_amount ?? 0);
       return sortDir === 'asc' ? va - vb : vb - va;
     });
     return arr;
@@ -75,7 +77,7 @@ export default function PortfolioPage() {
 
   const totalUnrealized = openPositions.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0);
   const totalRealized = closedPositions.reduce((s, p) => s + (p.pnl_usd ?? 0), 0);
-  const totalValue = stats?.positions_value ?? openPositions.reduce((s, p) => s + p.bet_amount, 0);
+  const totalValue = stats?.positions_value ?? openPositions.reduce((s, p) => s + (p.bet_amount ?? 0), 0);
 
   return (
     <AuthGuard>
@@ -193,17 +195,17 @@ export default function PortfolioPage() {
                     {sortedOpen.map((pos) => (
                       <tr key={pos.id} className="transition-colors hover:bg-dark-hover">
                         <td className="max-w-[200px] truncate px-4 py-3 text-text-primary">
-                          {pos.title}
+                          {pos.title ?? 'Untitled'}
                         </td>
-                        <td className="px-4 py-3 text-text-secondary">{pos.outcome}</td>
+                        <td className="px-4 py-3 text-text-secondary">{pos.outcome ?? '---'}</td>
                         <td className="px-4 py-3 font-mono text-text-primary">
-                          ${pos.entry_price.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-text-primary">
-                          ${(pos.current_price ?? pos.entry_price).toFixed(2)}
+                          ${(pos.entry_price ?? 0).toFixed(2)}
                         </td>
                         <td className="px-4 py-3 font-mono text-text-primary">
-                          ${pos.bet_amount.toFixed(2)}
+                          ${(pos.current_price ?? pos.entry_price ?? 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-text-primary">
+                          ${(pos.bet_amount ?? 0).toFixed(2)}
                         </td>
                         <td className="px-4 py-3">
                           <PnLBadge amount={pos.unrealized_pnl ?? 0} />
@@ -255,17 +257,17 @@ export default function PortfolioPage() {
                       {paginatedClosed.map((pos) => (
                         <tr key={pos.id} className="transition-colors hover:bg-dark-hover">
                           <td className="max-w-[180px] truncate px-4 py-3 text-text-primary">
-                            {pos.title}
+                            {pos.title ?? 'Untitled'}
                           </td>
-                          <td className="px-4 py-3 text-text-secondary">{pos.outcome}</td>
+                          <td className="px-4 py-3 text-text-secondary">{pos.outcome ?? '---'}</td>
                           <td className="px-4 py-3 font-mono text-text-primary">
-                            ${pos.entry_price.toFixed(2)}
+                            ${(pos.entry_price ?? 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 font-mono text-text-primary">
                             ${(pos.exit_price ?? 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 font-mono text-text-primary">
-                            ${pos.bet_amount.toFixed(2)}
+                            ${(pos.bet_amount ?? 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3">
                             <PnLBadge amount={pos.pnl_usd ?? 0} />

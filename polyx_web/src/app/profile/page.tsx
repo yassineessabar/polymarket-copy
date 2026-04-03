@@ -19,7 +19,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     Promise.all([
-      api.get<Settings>('/api/settings').catch(() => null),
+      api.get<Settings>('/api/user/settings').catch(() => null),
       api.get<PortfolioStats>('/api/portfolio/stats').catch(() => null),
       api.get<CopyTarget[]>('/api/copy/targets').catch(() => []),
     ])
@@ -43,15 +43,18 @@ export default function ProfilePage() {
     ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`
     : '---';
 
-  const mode = settings?.demo_mode
+  const isDemo = !!(settings?.demo_mode);
+  const isDryRun = !!(settings?.dry_run);
+
+  const mode = isDemo
     ? 'Demo'
-    : settings?.dry_run
+    : isDryRun
     ? 'Dry Run'
     : 'Live';
 
-  const modeColor = settings?.demo_mode
+  const modeColor = isDemo
     ? 'text-amber-400 bg-amber-400/10 border-amber-400/20'
-    : settings?.dry_run
+    : isDryRun
     ? 'text-blue-400 bg-blue-400/10 border-blue-400/20'
     : 'text-profit bg-profit/10 border-profit/20';
 
@@ -64,9 +67,7 @@ export default function ProfilePage() {
     : '---';
 
   const totalPnl = stats?.total_pnl ?? 0;
-  const openCount = stats?.open_count ?? 0;
-  const closedCount = stats?.closed_count ?? 0;
-  const totalTrades = openCount + closedCount;
+  const positionCount = stats?.position_count ?? 0;
 
   return (
     <AuthGuard>
@@ -105,12 +106,14 @@ export default function ProfilePage() {
                         <span className="font-mono text-xs text-text-secondary">
                           {truncated}
                         </span>
-                        <button
-                          onClick={copyAddress}
-                          className="text-text-secondary hover:text-accent"
-                        >
-                          {copied ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
+                        {walletAddr && (
+                          <button
+                            onClick={copyAddress}
+                            className="text-text-secondary hover:text-accent"
+                          >
+                            {copied ? <Check size={12} /> : <Copy size={12} />}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -156,8 +159,12 @@ export default function ProfilePage() {
                   Trading Statistics
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <StatCard label="Total Trades" value={String(totalTrades)} />
-                  <StatCard label="Open Positions" value={String(openCount)} />
+                  <StatCard label="Open Positions" value={String(positionCount)} />
+                  <StatCard
+                    label="Win Rate"
+                    value={`${(stats?.win_rate ?? 0).toFixed(1)}%`}
+                    mono
+                  />
                   <StatCard
                     label="Portfolio Value"
                     value={`$${(stats?.positions_value ?? 0).toFixed(2)}`}
@@ -187,20 +194,23 @@ export default function ProfilePage() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {targets.map((t) => (
-                      <div
-                        key={t.wallet_addr}
-                        className="flex items-center gap-3 rounded-lg border border-dark-border bg-dark-bg px-3 py-2"
-                      >
-                        <span className="h-2 w-2 rounded-full bg-profit" />
-                        <span className="text-sm font-medium text-text-primary">
-                          {t.display_name || 'Unknown'}
-                        </span>
-                        <span className="font-mono text-xs text-text-secondary">
-                          {t.wallet_addr.slice(0, 8)}...{t.wallet_addr.slice(-4)}
-                        </span>
-                      </div>
-                    ))}
+                    {targets.map((t) => {
+                      const addr = t.wallet_addr ?? '';
+                      return (
+                        <div
+                          key={addr || t.id}
+                          className="flex items-center gap-3 rounded-lg border border-dark-border bg-dark-bg px-3 py-2"
+                        >
+                          <span className="h-2 w-2 rounded-full bg-profit" />
+                          <span className="text-sm font-medium text-text-primary">
+                            {t.display_name || 'Unknown'}
+                          </span>
+                          <span className="font-mono text-xs text-text-secondary">
+                            {addr ? `${addr.slice(0, 8)}...${addr.slice(-4)}` : '---'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

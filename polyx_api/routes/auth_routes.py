@@ -60,6 +60,25 @@ async def verify(body: AuthVerifyRequest, db: Database = Depends(get_db)):
     )
 
 
+@router.post("/demo")
+async def demo_login(db: Database = Depends(get_db)):
+    """Create or find a demo user and return JWT — no wallet needed."""
+    demo_addr = "0xdemo000000000000000000000000000000000000"
+    user = await db.get_user_by_wallet(demo_addr)
+    if not user:
+        referral_code = secrets.token_hex(4)
+        user_id = await db.create_web_user(
+            wallet_address=demo_addr,
+            referral_code=referral_code,
+        )
+        await db.update_setting_by_user_id(user_id, "demo_mode", 1)
+        await db.update_setting_by_user_id(user_id, "demo_balance", 1000.0)
+    else:
+        user_id = user["user_id"]
+    token = create_jwt(user_id, demo_addr)
+    return {"token": token, "user_id": user_id, "wallet_address": demo_addr, "is_new": not bool(user)}
+
+
 @router.get("/me")
 async def me(
     user_id: int = Depends(get_current_user_id),

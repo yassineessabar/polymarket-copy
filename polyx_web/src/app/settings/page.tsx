@@ -49,12 +49,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  async function fetchSettings() {
+    try {
+      const s = await api.get<Settings>('/api/user/settings');
+      setSettings(s);
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
-    api
-      .get<Settings>('/api/settings')
-      .then(setSettings)
-      .catch(() => null)
-      .finally(() => setLoading(false));
+    fetchSettings().finally(() => setLoading(false));
   }, []);
 
   function update(patch: Partial<Settings>) {
@@ -66,8 +71,23 @@ export default function SettingsPage() {
     if (!settings) return;
     setSaving(true);
     try {
-      const updated = await api.patch<Settings>('/api/settings', settings);
-      setSettings(updated);
+      // Only send fields that UpdateSettingsRequest accepts
+      await api.patch('/api/user/settings', {
+        trade_mode: settings.trade_mode,
+        quickbuy_amount: settings.quickbuy_amount,
+        max_risk_pct: settings.max_risk_pct,
+        min_bet: settings.min_bet,
+        max_open_positions: settings.max_open_positions,
+        max_per_event: settings.max_per_event,
+        max_exposure_pct: settings.max_exposure_pct,
+        daily_loss_limit_pct: settings.daily_loss_limit_pct,
+        drawdown_scale_start: settings.drawdown_scale_start,
+        correlation_penalty: settings.correlation_penalty,
+        dry_run: settings.dry_run,
+        notifications_on: settings.notifications_on,
+      });
+      // Re-fetch to get the actual saved state
+      await fetchSettings();
       setDirty(false);
     } catch (e) {
       console.error('Save failed:', e);
@@ -78,32 +98,40 @@ export default function SettingsPage() {
 
   async function toggleDemoMode() {
     if (!settings) return;
-    const updated = await api.patch<Settings>('/api/settings', {
-      demo_mode: !settings.demo_mode,
-    });
-    setSettings(updated);
+    try {
+      const isCurrentlyDemo = !!settings.demo_mode;
+      if (isCurrentlyDemo) {
+        await api.post('/api/user/demo/disable');
+      } else {
+        await api.post('/api/user/demo/enable', { balance: 1000.0 });
+      }
+      await fetchSettings();
+    } catch (e) {
+      console.error('Toggle demo failed:', e);
+    }
   }
 
   async function resetDemoBalance(amount: number) {
     try {
-      const updated = await api.patch<Settings>('/api/settings', {
-        demo_balance: amount,
-      });
-      setSettings(updated);
+      await api.post('/api/user/demo/reset', { balance: amount });
+      await fetchSettings();
     } catch (e) {
       console.error('Reset failed:', e);
     }
   }
 
-  const mode = settings?.demo_mode
+  const isDemo = !!(settings?.demo_mode);
+  const isDryRun = !!(settings?.dry_run);
+
+  const mode = isDemo
     ? 'Demo'
-    : settings?.dry_run
+    : isDryRun
     ? 'Dry Run'
     : 'Live';
 
-  const modeColor = settings?.demo_mode
+  const modeColor = isDemo
     ? 'text-amber-400 bg-amber-400/10'
-    : settings?.dry_run
+    : isDryRun
     ? 'text-blue-400 bg-blue-400/10'
     : 'text-profit bg-profit/10';
 
@@ -206,25 +234,25 @@ export default function SettingsPage() {
                   <button
                     onClick={toggleDemoMode}
                     className={`relative h-7 w-12 rounded-full transition-colors ${
-                      settings.demo_mode ? 'bg-accent' : 'bg-dark-border'
+                      isDemo ? 'bg-accent' : 'bg-dark-border'
                     }`}
                   >
                     <span
                       className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${
-                        settings.demo_mode ? 'left-[22px]' : 'left-0.5'
+                        isDemo ? 'left-[22px]' : 'left-0.5'
                       }`}
                     />
                   </button>
                 </div>
 
-                {settings.demo_mode && (
+                {isDemo && (
                   <div className="mt-5 space-y-4 border-t border-dark-border pt-5">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
                         Demo Balance
                       </p>
                       <p className="mt-1 font-mono text-2xl font-bold text-text-primary">
-                        ${settings.demo_balance.toFixed(2)}
+                        ${(settings.demo_balance ?? 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
