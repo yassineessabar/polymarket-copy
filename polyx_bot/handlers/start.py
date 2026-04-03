@@ -1,3 +1,4 @@
+import os
 import secrets
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -5,6 +6,8 @@ from ..database import Database
 from ..wallet import generate_wallet, encrypt_key, get_usdc_balance
 from ..keyboards import home_keyboard, welcome_keyboard, respond
 from ..config import BOT_USERNAME
+
+WELCOME_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "welcome.png")
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -40,19 +43,18 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         existing = await db.get_user(telegram_id)
 
         welcome_text = (
-            "PolyX is a Telegram-native trading\n"
-            "bot for Polymarket\n\n"
-            "Trade on Polymarket directly from\n"
-            "Telegram\n\n"
-            "Copy trades from selected wallets\n\n"
-            "Manage positions inside Telegram\n\n"
-            "Built for users who want fast, seamless\n"
-            "Polymarket trading without leaving\n"
-            "Telegram."
+            "Copy Trade Polymarket on Telegram\n\n"
+            "Trade Smarter. Automatically."
         )
-        # For /start we always send a fresh message and track it
-        msg = await update.message.reply_text(
-            text=welcome_text, reply_markup=welcome_keyboard())
+        # Send welcome image + text for new users
+        if os.path.exists(WELCOME_IMAGE):
+            with open(WELCOME_IMAGE, "rb") as img:
+                msg = await update.message.reply_photo(
+                    photo=img, caption=welcome_text,
+                    reply_markup=welcome_keyboard())
+        else:
+            msg = await update.message.reply_text(
+                text=welcome_text, reply_markup=welcome_keyboard())
         context.user_data["last_bot_msg_id"] = msg.message_id
         return
 
