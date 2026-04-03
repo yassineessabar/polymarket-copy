@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     two_factor_enabled   INTEGER NOT NULL DEFAULT 0,
     demo_mode            INTEGER NOT NULL DEFAULT 0,
     demo_balance         REAL NOT NULL DEFAULT 0.0,
+    last_menu_msg_id     INTEGER,
     user_id              INTEGER
 );
 

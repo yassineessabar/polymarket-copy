@@ -53,11 +53,54 @@ class CopyTradeManager:
         return self._target_portfolio_cache.get(target.lower(), 0)
 
     async def _notify(self, telegram_id: int, text: str):
-        """Send Telegram notification to user."""
+        """Send Telegram notification, then re-send menu at the bottom."""
         try:
+            # Delete old menu message so notification + new menu stay at bottom
+            settings = await self.db.get_settings(telegram_id)
+            old_menu_id = settings.get("last_menu_msg_id") if settings else None
+            if old_menu_id:
+                try:
+                    await self.bot.delete_message(chat_id=telegram_id, message_id=old_menu_id)
+                except Exception:
+                    pass
+
+            # Send the notification
             await self.bot.send_message(
                 chat_id=telegram_id, text=text,
                 parse_mode="HTML", disable_web_page_preview=True)
+
+            # Re-send the home menu at the bottom
+            from .keyboards import home_keyboard
+            from .wallet import get_usdc_balance
+
+            demo_mode = bool(settings and settings.get("demo_mode", 0))
+            stats = await self.db.get_portfolio_stats(telegram_id)
+            positions_val = stats["positions_value"]
+            open_count = stats.get("position_count", 0)
+
+            if demo_mode:
+                balance = settings.get("demo_balance", 0)
+            else:
+                user = await self.db.get_user(telegram_id)
+                balance = get_usdc_balance(user["wallet_address"]) if user and user.get("wallet_address") else 0.0
+
+            net_worth = balance + positions_val
+            mode_badge = f"<b>🎮 DEMO MODE</b>\n" if demo_mode else ""
+
+            menu_text = (
+                f"Welcome to PolyX 🏠\n{mode_badge}"
+                f"Your secure companion for rapid Polymarket trades.\n\n"
+                f"📊 Current Positions: ${positions_val:.2f} ({open_count} open)\n"
+                f"💰 Available Balance: ${balance:,.2f}\n"
+                f"💎 Total Net Worth: ${net_worth:,.2f}\n\n"
+                f"Copy top traders, snipe odds, and trade like a\npro."
+            )
+            menu_msg = await self.bot.send_message(
+                chat_id=telegram_id, text=menu_text,
+                parse_mode="HTML", reply_markup=home_keyboard(),
+                disable_web_page_preview=True)
+            await self.db.update_setting(telegram_id, "last_menu_msg_id", menu_msg.message_id)
+
         except Exception as e:
             log.error(f"[Notify] Failed for {telegram_id}: {e}")
 

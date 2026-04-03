@@ -99,6 +99,11 @@ async def run(db_path: str | None = None):
         """)
         await db.commit()
 
+        # ── 5. Add last_menu_msg_id to user_settings ──
+        if not await column_exists(db, "user_settings", "last_menu_msg_id"):
+            await db.execute("ALTER TABLE user_settings ADD COLUMN last_menu_msg_id INTEGER")
+            await db.commit()
+
         print("Migration 001_add_user_id completed successfully.")
 
 

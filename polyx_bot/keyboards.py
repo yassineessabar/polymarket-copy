@@ -50,6 +50,15 @@ async def respond(update: Update, context: ContextTypes.DEFAULT_TYPE,
     msg = await context.bot.send_message(chat_id=chat_id, **kwargs)
     context.user_data["last_bot_msg_id"] = msg.message_id
 
+    # Also persist menu msg ID to DB so copy engine can delete it
+    try:
+        from .database import Database
+        db: Database = context.application.bot_data.get("db")
+        if db:
+            await db.update_setting(update.effective_user.id, "last_menu_msg_id", msg.message_id)
+    except Exception:
+        pass
+
 
 def welcome_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
