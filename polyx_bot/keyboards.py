@@ -18,45 +18,35 @@ async def respond(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     chat_id = update.effective_chat.id
 
-    # If triggered by a button press, answer the query and edit that message
+    # Answer callback query to dismiss loading spinner
     if update.callback_query:
-        # Always answer the callback query to dismiss the loading spinner
         try:
             await update.callback_query.answer()
         except Exception:
-            pass  # already answered
+            pass
 
-        try:
-            await update.callback_query.edit_message_text(**kwargs)
-            return
-        except Exception as e:
-            err_msg = str(e).lower()
-            # "message is not modified" is harmless — just means same content
-            if "message is not modified" in err_msg:
-                return
-            # Edit failed (e.g. photo message) — delete old and send new at bottom
-            _log.warning(f"edit_message_text failed: {e}, sending new message")
-            try:
-                await update.callback_query.message.delete()
-            except Exception:
-                pass
-
-    # If triggered by a text message (conversation), delete user msg
+    # Delete user's typed message if any
     if update.message:
         try:
             await update.message.delete()
         except Exception:
             pass
 
-    # Delete the previous bot message so the new one is always at the bottom
-    last_msg_id = context.user_data.get("last_bot_msg_id")
-    if last_msg_id:
+    # Delete the previous bot message (so the new one is always at the bottom)
+    if update.callback_query and update.callback_query.message:
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_msg_id)
+            await update.callback_query.message.delete()
         except Exception:
             pass
+    else:
+        last_msg_id = context.user_data.get("last_bot_msg_id")
+        if last_msg_id:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=last_msg_id)
+            except Exception:
+                pass
 
-    # Send a new message at the bottom and store its ID
+    # Always send a fresh message at the bottom
     msg = await context.bot.send_message(chat_id=chat_id, **kwargs)
     context.user_data["last_bot_msg_id"] = msg.message_id
 
