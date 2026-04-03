@@ -93,7 +93,7 @@ class CopyTradeManager:
                 f"📊 Current Positions: ${positions_val:.2f} ({open_count} open)\n"
                 f"💰 Available Balance: ${balance:,.2f}\n"
                 f"💎 Total Net Worth: ${net_worth:,.2f}\n\n"
-                f"Copy top traders, snipe odds, and trade like a\npro."
+                f"Copy top traders, snipe odds, and trade like a pro."
             )
             menu_msg = await self.bot.send_message(
                 chat_id=telegram_id, text=menu_text,

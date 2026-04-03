@@ -101,8 +101,7 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
         f"📊 Current Positions: ${positions_val:.2f} ({open_count} open)\n"
         f"💰 Available Balance: ${balance:,.2f}\n"
         f"💎 Total Net Worth: ${net_worth:,.2f}\n\n"
-        f"Copy top traders, snipe odds, and trade like a\n"
-        f"pro."
+        f"Copy top traders, snipe odds, and trade like a pro."
     )
 
     await respond(update, context, text, reply_markup=home_keyboard())
