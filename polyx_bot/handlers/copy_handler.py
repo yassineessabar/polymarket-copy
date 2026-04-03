@@ -101,7 +101,8 @@ async def copy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = f"🎯 <b>Copy Trading</b> — {status}\n\n<b>Active Targets:</b>\n"
         for i, t in enumerate(targets, 1):
             name = t.get("display_name") or t["wallet_addr"][:10] + "..."
-            text += f"\n{i}. {name}\n   <code>{t['wallet_addr']}</code>\n"
+            stats_url = f"https://polymarketanalytics.com/traders/{t['wallet_addr']}#trades"
+            text += f"\n{i}. {name}\n   <a href=\"{stats_url}\">{t['wallet_addr'][:10]}...{t['wallet_addr'][-6:]}</a>\n"
         text += f"\nTotal: {len(targets)} active copytrades"
         kb = copy_trading_with_targets_keyboard(is_running, targets)
 
