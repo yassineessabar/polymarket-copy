@@ -47,7 +47,8 @@ export default function LandingPage() {
           {FEATURED_STRATEGIES.map((s) => (
             <li key={s.slug} className="flex-shrink-0">
               <Link href={`/strategy/${s.slug}`}>
-                <div className={`relative w-[280px] sm:w-[320px] aspect-square rounded-2xl overflow-hidden bg-gradient-to-br ${s.gradient}`}>
+                <div className="relative w-[280px] sm:w-[320px] aspect-square rounded-2xl overflow-hidden">
+                  <img alt={`${s.name} image`} src={s.image} className="absolute inset-0 w-full h-full object-cover" />
                   <div className="relative z-[2] flex w-full h-full flex-col justify-end gap-y-3 p-5">
                     <div className="absolute inset-0 -z-[1] bg-gradient-to-b from-transparent to-black/70" />
                     <div className="w-min rounded-sm border border-white/[0.04] bg-black/[0.12] px-2 py-1 text-xs font-medium -tracking-[0.24px] text-white backdrop-blur-sm whitespace-nowrap">Featured</div>
@@ -55,7 +56,7 @@ export default function LandingPage() {
                       <p className="text-2xl font-bold -tracking-[0.48px] text-white">{s.name}</p>
                       <div className="flex text-sm -tracking-[0.28px] items-center">
                         <p className="pr-1.5 font-normal text-white/60">by</p>
-                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${s.gradient} border border-white/20`} />
+                        <img alt={s.manager} src={s.image} className="w-5 h-5 rounded-full object-cover border border-white/20" />
                         <p className="pl-1 font-medium text-white/80">{s.manager}</p>
                       </div>
                     </div>
@@ -77,12 +78,14 @@ export default function LandingPage() {
               {STRATEGY_LIST.map((s) => (
                 <Link key={s.slug} href={`/strategy/${s.slug}`} className="flex w-full items-center justify-between border-b border-[#F4F4F4] py-4 first:border-t lg:py-5 hover:bg-[#FAFAFA] transition-colors">
                   <div className="relative flex items-center gap-4 py-1 pl-4 lg:gap-x-5 lg:pl-1">
-                    <div className={`aspect-square h-[92px] w-[92px] lg:h-[86px] lg:w-[86px] rounded-[40px] overflow-hidden border border-black/5 bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                    <div className="aspect-square h-[92px] w-[92px] lg:h-[86px] lg:w-[86px] rounded-[40px] overflow-hidden border border-black/5 flex-shrink-0">
+                      <img alt={s.name} src={s.image} className="w-full h-full object-cover" />
+                    </div>
                     <div className="flex flex-col overflow-hidden text-nowrap">
                       <p className="w-min overflow-hidden bg-[#EBFAF4] px-1 text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#009D55]">+{s.returnPct}%</p>
                       <p className="overflow-hidden text-lg font-bold -tracking-[0.4px] text-nowrap text-ellipsis text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">{s.name}</p>
                       <div className="flex gap-x-1 items-center">
-                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                        <img alt={s.manager} src={s.image} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                         <p className="overflow-hidden text-sm font-medium -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">{s.manager}</p>
                       </div>
                     </div>
@@ -102,14 +105,16 @@ export default function LandingPage() {
               {[...STRATEGY_LIST].sort((a, b) => b.copiers - a.copiers).map((s) => (
                 <Link key={s.slug} href={`/strategy/${s.slug}`} className="flex w-full items-center justify-between border-b border-[#F4F4F4] py-4 first:border-t lg:py-5 hover:bg-[#FAFAFA] transition-colors">
                   <div className="relative flex items-center gap-4 py-1 pl-4 lg:gap-x-5 lg:pl-1">
-                    <div className={`aspect-square h-[92px] w-[92px] lg:h-[86px] lg:w-[86px] rounded-[40px] overflow-hidden border border-black/5 bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                    <div className="aspect-square h-[92px] w-[92px] lg:h-[86px] lg:w-[86px] rounded-[40px] overflow-hidden border border-black/5 flex-shrink-0">
+                      <img alt={s.name} src={s.image} className="w-full h-full object-cover" />
+                    </div>
                     <div className="flex flex-col overflow-hidden text-nowrap">
                       <p className="overflow-hidden text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">
                         <span className="text-[#009D55]">{s.copiers}</span> Copiers
                       </p>
                       <p className="overflow-hidden text-lg font-bold -tracking-[0.4px] text-nowrap text-ellipsis text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">{s.name}</p>
                       <div className="flex gap-x-1 items-center">
-                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                        <img alt={s.manager} src={s.image} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                         <p className="overflow-hidden text-sm font-medium -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">{s.manager}</p>
                       </div>
                     </div>

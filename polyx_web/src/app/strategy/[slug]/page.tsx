@@ -92,13 +92,19 @@ export default function StrategyDetailPage() {
         </div>
       </nav>
 
-      {/* Hero with gradient */}
-      <div className={`bg-gradient-to-br ${strategy.gradient} relative`}>
-        <div className="max-w-[1000px] mx-auto px-5 sm:px-7 py-8 sm:py-12">
+      {/* Hero with image */}
+      <div className="relative overflow-hidden">
+        <img alt={strategy.name} src={strategy.image} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/60" />
+        <div className="relative max-w-[1000px] mx-auto px-5 sm:px-7 py-8 sm:py-12">
           <div className="flex items-center gap-4 mb-4">
+            <img alt={strategy.manager} src={strategy.image} className="w-12 h-12 rounded-full object-cover border-2 border-white/30" />
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{strategy.name}</h1>
-              <p className="text-white/70 text-sm font-medium">by {strategy.manager}</p>
+              <div className="flex items-center gap-1.5 text-sm -tracking-[0.28px]">
+                <span className="text-white/60">by</span>
+                <span className="text-white/90 font-medium">{strategy.manager}</span>
+              </div>
             </div>
           </div>
           <div className="flex items-baseline gap-2">

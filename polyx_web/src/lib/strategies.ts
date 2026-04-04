@@ -11,6 +11,7 @@ export interface Strategy {
   copiers: number;
   returnPct: number;
   gradient: string;
+  image: string;
   aum: string;
   avgTradeSize: string;
   featured: boolean;
@@ -31,6 +32,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     copiers: 150,
     returnPct: 127.4,
     gradient: "from-blue-600 to-cyan-400",
+    image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=800&h=800&fit=crop",
     aum: "$2.4M",
     avgTradeSize: "$420",
     featured: true,
@@ -49,6 +51,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     copiers: 1240,
     returnPct: 89.2,
     gradient: "from-purple-600 to-pink-400",
+    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&h=800&fit=crop",
     aum: "$18.5M",
     avgTradeSize: "$5,300",
     featured: true,
@@ -67,6 +70,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     copiers: 336,
     returnPct: 156.8,
     gradient: "from-orange-500 to-yellow-400",
+    image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=800&fit=crop",
     aum: "$4.2M",
     avgTradeSize: "$1,100",
     featured: true,
@@ -85,6 +89,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     copiers: 280,
     returnPct: 94.1,
     gradient: "from-emerald-500 to-teal-400",
+    image: "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&h=800&fit=crop",
     aum: "$3.1M",
     avgTradeSize: "$1,650",
     featured: false,
@@ -103,6 +108,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     copiers: 200,
     returnPct: 108.5,
     gradient: "from-indigo-500 to-blue-400",
+    image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=800&h=800&fit=crop",
     aum: "$2.8M",
     avgTradeSize: "$500",
     featured: false,

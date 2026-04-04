@@ -133,7 +133,7 @@ export default function InvestPage() {
       <div className="max-w-[500px] mx-auto px-5 py-8 sm:py-12">
         {/* Strategy header */}
         <div className="flex items-center gap-3 mb-8 bg-white rounded-2xl p-4 shadow-sm">
-          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${strategy.gradient} flex items-center justify-center`} />
+          <img alt={strategy.name} src={strategy.image} className="w-12 h-12 rounded-xl object-cover" />
           <div>
             <div className="font-bold text-sm text-[#121212]">{strategy.name}</div>
             <div className="text-xs text-[#9B9B9B] font-medium">+{strategy.returnPct}% all time &middot; {strategy.winRate}% win rate</div>
