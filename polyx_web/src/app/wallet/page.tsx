@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { userApi } from "@/lib/api";
-import { formatUsd, truncateAddress } from "@/lib/utils";
+import { formatUsd } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
 
 export default function WalletPage() {
@@ -24,41 +24,41 @@ export default function WalletPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="max-w-[600px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-semibold font-display mb-4 sm:mb-6">Wallet</h1>
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#121212]">Wallet</h1>
 
       {/* Balance */}
-      <div className="bg-bg-card border border-border rounded-2xl p-5 sm:p-8 mb-4 text-center">
-        <div className="text-xs text-text-muted uppercase tracking-wider mb-2">USDC Balance</div>
-        <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">
+      <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 text-center shadow-sm">
+        <div className="text-xs text-[#9B9B9B] uppercase tracking-wider mb-2 font-medium">USDC Balance</div>
+        <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight text-[#121212]">
           {formatUsd(profile?.balance_usdc || 0)}
         </div>
-        <div className="text-xs text-text-muted mt-1">on Polygon Network</div>
+        <div className="text-xs text-[#9B9B9B] mt-1 font-medium">on Polygon Network</div>
       </div>
 
       {/* Wallet Address + QR */}
-      <div className="bg-bg-card border border-border rounded-2xl p-5 sm:p-8 mb-4">
-        <h3 className="font-semibold text-sm sm:text-base mb-4">Your Trading Wallet</h3>
+      <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 shadow-sm">
+        <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Your Trading Wallet</h3>
 
         <div className="flex flex-col items-center gap-5">
-          <div className="bg-white p-3 rounded-2xl">
+          <div className="bg-[#F7F7F7] p-4 rounded-2xl">
             <QRCodeSVG value={profile?.wallet_address || ""} size={160} />
           </div>
 
           <div className="w-full">
-            <div className="bg-bg-secondary border border-border rounded-xl px-4 py-3 font-mono text-[11px] sm:text-sm break-all text-center mb-4">
+            <div className="bg-[#F7F7F7] rounded-2xl px-4 py-3 font-mono text-[11px] sm:text-sm break-all text-center mb-4 text-[#121212]">
               {profile?.wallet_address}
             </div>
 
             <button
               onClick={copyAddress}
-              className="w-full bg-accent hover:bg-accent-hover text-white font-medium py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3 rounded-full transition-all text-sm flex items-center justify-center gap-2"
             >
               {copied ? (
                 <>
@@ -77,19 +77,19 @@ export default function WalletPage() {
       </div>
 
       {/* Send Instructions */}
-      <div className="bg-bg-card border border-border rounded-2xl p-5 sm:p-6">
-        <h3 className="font-semibold text-sm sm:text-base mb-3">How to Deposit</h3>
-        <div className="space-y-3 text-sm text-text-secondary">
+      <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm">
+        <h3 className="font-bold text-sm sm:text-base mb-3 text-[#121212]">How to Deposit</h3>
+        <div className="space-y-3 text-sm text-[#656565] font-medium">
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0">1</span>
-            <p>Send <strong className="text-white">USDC</strong> on the <strong className="text-white">Polygon</strong> network to the address above.</p>
+            <span className="w-6 h-6 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">1</span>
+            <p>Send <strong className="text-[#121212]">USDC</strong> on the <strong className="text-[#121212]">Polygon</strong> network to the address above.</p>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0">2</span>
-            <p>Make sure you are sending on <strong className="text-white">Polygon (MATIC)</strong>, not Ethereum mainnet.</p>
+            <span className="w-6 h-6 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">2</span>
+            <p>Make sure you are sending on <strong className="text-[#121212]">Polygon (MATIC)</strong>, not Ethereum mainnet.</p>
           </div>
           <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0">3</span>
+            <span className="w-6 h-6 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">3</span>
             <p>Your balance will update automatically within a few minutes.</p>
           </div>
         </div>

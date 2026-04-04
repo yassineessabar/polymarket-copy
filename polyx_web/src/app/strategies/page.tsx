@@ -63,15 +63,15 @@ export default function StrategiesPage() {
 
   return (
     <div className="max-w-[900px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-semibold font-display mb-4 sm:mb-6">Strategies</h1>
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#121212]">Strategies</h1>
 
       {/* Your Active Strategies */}
-      <div className="bg-bg-card border border-border rounded-2xl p-4 sm:p-6 mb-6">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 mb-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-sm sm:text-base">Your Active Strategies</h2>
+          <h2 className="font-bold text-sm sm:text-base text-[#121212]">Your Active Strategies</h2>
           <button
             onClick={() => setShowAddModal(true)}
-            className="text-xs text-accent hover:underline"
+            className="text-xs text-[#121212] font-medium underline"
           >
             + Add Custom
           </button>
@@ -79,30 +79,28 @@ export default function StrategiesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-20">
-            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : targets.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-sm text-text-muted mb-3">No active strategies yet</p>
-            <p className="text-xs text-text-muted">Pick a strategy below to start copying</p>
+            <p className="text-sm text-[#9B9B9B] font-medium mb-3">No active strategies yet</p>
+            <p className="text-xs text-[#9B9B9B] font-medium">Pick a strategy below to start copying</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-0">
             {targets.map((t) => {
               const strat = Object.values(STRATEGIES).find(
                 (s) => s.wallet.toLowerCase() === t.wallet_addr.toLowerCase()
               );
               return (
-                <div key={t.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <div key={t.id} className="flex items-center justify-between py-3 border-b border-black/5 last:border-0">
                   <div className="flex items-center gap-3">
                     {strat && (
-                      <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${strat.gradient} flex items-center justify-center text-lg`}>
-                        {strat.emoji}
-                      </div>
+                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${strat.gradient} flex items-center justify-center`} />
                     )}
                     <div>
-                      <div className="text-sm font-medium">{t.display_name || t.wallet_addr.slice(0, 10)}</div>
-                      <div className="text-[10px] text-text-muted font-mono">
+                      <div className="text-sm font-bold text-[#121212]">{t.display_name || t.wallet_addr.slice(0, 10)}</div>
+                      <div className="text-[10px] text-[#9B9B9B] font-mono font-medium">
                         {t.wallet_addr.slice(0, 8)}...{t.wallet_addr.slice(-6)}
                       </div>
                     </div>
@@ -110,7 +108,7 @@ export default function StrategiesPage() {
                   <button
                     onClick={() => removeTarget(t.wallet_addr)}
                     disabled={toggling === t.wallet_addr}
-                    className="text-xs text-red hover:underline disabled:opacity-50"
+                    className="text-xs text-[#DC2626] font-medium hover:underline disabled:opacity-50"
                   >
                     {toggling === t.wallet_addr ? "..." : "Stop"}
                   </button>
@@ -123,40 +121,39 @@ export default function StrategiesPage() {
 
       {/* Discover Strategies */}
       <div>
-        <h2 className="font-semibold text-sm sm:text-base mb-4">Discover Strategies</h2>
+        <h2 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Discover Strategies</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {STRATEGY_LIST.map((s) => {
             const isActive = activeWallets.has(s.wallet.toLowerCase());
             return (
-              <div key={s.slug} className="bg-bg-card border border-border rounded-2xl overflow-hidden hover:border-border-hover transition-all">
+              <div key={s.slug} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                 <div className={`h-20 bg-gradient-to-br ${s.gradient} relative`}>
-                  <div className="absolute bottom-2 left-3 text-2xl">{s.emoji}</div>
                   {s.featured && (
-                    <div className="absolute top-2 right-2 bg-black/30 backdrop-blur-sm text-white text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <div className="absolute top-2 right-2 bg-white/90 text-[#121212] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                       Featured
                     </div>
                   )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-1">
-                    <Link href={`/strategy/${s.slug}`} className="font-semibold text-sm hover:text-accent transition-colors">
+                    <Link href={`/strategy/${s.slug}`} className="font-bold text-sm text-[#121212] hover:underline transition-colors">
                       {s.name}
                     </Link>
-                    <span className="text-green font-semibold font-mono text-xs">+{s.returnPct}%</span>
+                    <span className="text-[#009D55] font-bold font-mono text-xs">+{s.returnPct}%</span>
                   </div>
-                  <p className="text-[10px] text-text-muted mb-3">
+                  <p className="text-[10px] text-[#9B9B9B] font-medium mb-3">
                     {s.winRate}% win &middot; {s.copiers} copiers &middot; {s.trades} trades
                   </p>
                   {isActive ? (
-                    <div className="flex items-center gap-2 text-green text-xs font-medium">
-                      <span className="w-2 h-2 bg-green rounded-full animate-pulse" />
+                    <div className="flex items-center gap-2 text-[#009D55] text-xs font-bold">
+                      <span className="w-2 h-2 bg-[#009D55] rounded-full animate-pulse" />
                       Active
                     </div>
                   ) : (
                     <button
                       onClick={() => addStrategyTarget(s.wallet, s.name)}
                       disabled={toggling === s.wallet}
-                      className="w-full bg-accent hover:bg-accent-hover text-white text-xs font-medium py-2 rounded-lg transition-all disabled:opacity-50"
+                      className="w-full bg-[#121212] hover:bg-[#333] text-white text-xs font-medium py-2.5 rounded-full transition-all disabled:opacity-50"
                     >
                       {toggling === s.wallet ? "Adding..." : "Start Copying"}
                     </button>
@@ -170,15 +167,15 @@ export default function StrategiesPage() {
 
       {/* Add Custom Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-bg-card border border-border rounded-2xl p-6 w-full max-w-[420px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-5">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-[420px] shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-base">Add Custom Wallet</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-text-muted hover:text-white">
+              <h3 className="font-bold text-base text-[#121212]">Add Custom Wallet</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-[#9B9B9B] hover:text-[#121212]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
-            <p className="text-sm text-text-secondary mb-4">
+            <p className="text-sm text-[#9B9B9B] font-medium mb-4">
               Paste any Polymarket wallet address to start copying their trades.
             </p>
             <input
@@ -186,26 +183,26 @@ export default function StrategiesPage() {
               placeholder="0x..."
               value={customWallet}
               onChange={(e) => setCustomWallet(e.target.value)}
-              className="w-full bg-bg-secondary border border-border rounded-xl px-4 py-3 text-white placeholder-text-muted outline-none focus:border-accent transition-colors mb-3"
+              className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] placeholder-[#BFBFBF] outline-none focus:border-[#121212] transition-colors mb-3"
             />
             <input
               type="text"
               placeholder="Display name (optional)"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
-              className="w-full bg-bg-secondary border border-border rounded-xl px-4 py-3 text-white placeholder-text-muted outline-none focus:border-accent transition-colors mb-4"
+              className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] placeholder-[#BFBFBF] outline-none focus:border-[#121212] transition-colors mb-4"
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 bg-bg-secondary border border-border text-white font-medium py-2.5 rounded-xl transition-all text-sm"
+                className="flex-1 border border-[#121212] text-[#121212] font-medium py-2.5 rounded-full transition-all text-sm hover:bg-[#F7F7F7]"
               >
                 Cancel
               </button>
               <button
                 onClick={addCustomTarget}
                 disabled={adding || !customWallet.startsWith("0x")}
-                className="flex-1 bg-accent hover:bg-accent-hover text-white font-medium py-2.5 rounded-xl transition-all disabled:opacity-50 text-sm"
+                className="flex-1 bg-[#121212] hover:bg-[#333] text-white font-medium py-2.5 rounded-full transition-all disabled:opacity-50 text-sm"
               >
                 {adding ? "Adding..." : "Add Target"}
               </button>

@@ -67,13 +67,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-bg-primary flex">
+    <div className="min-h-screen min-h-[100dvh] bg-[#F7F7F7] flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-[240px] flex-col border-r border-border bg-bg-primary fixed top-0 left-0 bottom-0 z-40">
+      <aside className="hidden md:flex w-[240px] flex-col bg-white border-r border-black/5 fixed top-0 left-0 bottom-0 z-40">
         <div className="p-6">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center font-bold text-sm text-white">X</div>
-            <span className="font-display text-lg font-semibold text-white">PolyX</span>
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#121212] flex items-center justify-center font-bold text-sm text-white">P</div>
+            <span className="text-lg font-bold text-[#121212]">PolyX</span>
           </Link>
         </div>
 
@@ -84,10 +84,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl mb-1 text-sm transition-all ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl mb-1 text-sm font-medium transition-all ${
                   active
-                    ? "bg-accent/10 text-accent font-medium"
-                    : "text-text-secondary hover:text-white hover:bg-bg-hover"
+                    ? "bg-[#F7F7F7] text-[#121212] font-bold"
+                    : "text-[#9B9B9B] hover:text-[#121212] hover:bg-[#F7F7F7]"
                 }`}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -99,9 +99,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-4 border-t border-border">
-          <div className="text-xs text-text-muted mb-2 truncate">{truncateAddress(wallet)}</div>
-          <button onClick={logout} className="text-xs text-text-muted hover:text-red transition-colors">
+        <div className="p-4 border-t border-black/5">
+          <div className="text-xs text-[#9B9B9B] mb-2 truncate font-mono">{truncateAddress(wallet)}</div>
+          <button onClick={logout} className="text-xs text-[#9B9B9B] hover:text-[#DC2626] transition-colors font-medium">
             Sign Out
           </button>
         </div>
@@ -110,43 +110,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main content */}
       <main className="flex-1 md:ml-[240px] w-full">
         {/* Top header */}
-        <header className="sticky top-0 z-30 backdrop-blur-xl bg-bg-primary/80 border-b border-border">
-          <div className="flex items-center justify-between h-14 sm:h-16 px-4 sm:px-6">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-black/5">
+          <div className="flex items-center justify-between h-14 sm:h-16 px-5 sm:px-6">
             <Link href="/" className="md:hidden flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center font-bold text-xs text-white">X</div>
-              <span className="font-display font-semibold text-sm">PolyX</span>
+              <div className="w-7 h-7 rounded-full bg-[#121212] flex items-center justify-center font-bold text-xs text-white">P</div>
+              <span className="font-bold text-sm text-[#121212]">PolyX</span>
             </Link>
             <div className="hidden md:block" />
 
             <div className="flex items-center gap-3 sm:gap-4">
-              <Link href="/dashboard" className="relative text-text-secondary hover:text-white transition-colors p-1">
+              <Link href="/dashboard" className="relative text-[#9B9B9B] hover:text-[#121212] transition-colors p-1">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
                 </svg>
                 {unread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-accent rounded-full text-[10px] font-bold flex items-center justify-center">{unread}</span>
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#DC2626] rounded-full text-[10px] font-bold flex items-center justify-center text-white">{unread}</span>
                 )}
               </Link>
 
-              <div className="hidden sm:block text-xs text-text-muted bg-bg-card border border-border rounded-lg px-3 py-1.5 truncate max-w-[160px]">
+              <div className="hidden sm:block text-xs text-[#9B9B9B] bg-[#F7F7F7] rounded-full px-3 py-1.5 truncate max-w-[160px] font-mono">
                 {truncateAddress(wallet)}
               </div>
 
-              <button onClick={logout} className="md:hidden text-xs text-text-muted hover:text-red transition-colors p-1">
+              <button onClick={logout} className="md:hidden text-[#9B9B9B] hover:text-[#DC2626] transition-colors p-1">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>
               </button>
             </div>
           </div>
         </header>
 
-        <div className="p-4 sm:p-6 pb-24 md:pb-6">{children}</div>
+        <div className="p-5 sm:p-6 pb-24 md:pb-6">{children}</div>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-bg-primary/95 backdrop-blur-lg border-t border-border flex z-40 mobile-bottom-nav">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-black/5 flex z-40 mobile-bottom-nav">
           {MOBILE_NAV.map((item) => {
             const active = isActive(item.href);
             return (
-              <Link key={item.href} href={item.href} className={`flex-1 flex flex-col items-center py-2.5 pb-3 text-[10px] gap-0.5 ${active ? "text-accent" : "text-text-muted"}`}>
+              <Link key={item.href} href={item.href} className={`flex-1 flex flex-col items-center py-2.5 pb-3 text-[10px] gap-0.5 font-medium ${active ? "text-[#121212]" : "text-[#9B9B9B]"}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2" : "1.5"} strokeLinecap="round" strokeLinejoin="round">
                   <path d={item.icon} />
                 </svg>

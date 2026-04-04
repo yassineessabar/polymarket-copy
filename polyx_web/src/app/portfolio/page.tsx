@@ -31,16 +31,16 @@ export default function PortfolioPage() {
 
   return (
     <div className="max-w-[900px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-semibold font-display mb-4 sm:mb-6">Portfolio</h1>
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#121212]">Portfolio</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-bg-card border border-border rounded-xl p-1 mb-4 sm:mb-6 w-full sm:w-fit">
+      <div className="flex gap-1 bg-[#F0F0F0] rounded-full p-1 mb-4 sm:mb-6 w-full sm:w-fit">
         {(["open", "closed"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
-              tab === t ? "bg-accent text-white" : "text-text-secondary hover:text-white"
+            className={`px-5 py-2 rounded-full text-sm font-medium transition-all capitalize ${
+              tab === t ? "bg-[#121212] text-white" : "text-[#9B9B9B] hover:text-[#121212]"
             }`}
           >
             {t} Positions
@@ -50,12 +50,12 @@ export default function PortfolioPage() {
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : positions.length === 0 ? (
-        <div className="bg-bg-card border border-border rounded-2xl p-8 sm:p-12 text-center">
-          <h3 className="font-semibold mb-2">No {tab} positions</h3>
-          <p className="text-sm text-text-secondary">
+        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm">
+          <h3 className="font-bold mb-2 text-[#121212]">No {tab} positions</h3>
+          <p className="text-sm text-[#9B9B9B] font-medium">
             {tab === "open"
               ? "Start copy trading to open positions automatically."
               : "Closed positions and P&L will appear here."}
@@ -71,17 +71,17 @@ export default function PortfolioPage() {
             const pnlPctVal = pos.pnl_pct || (pos.entry_price > 0 ? ((pos.live_price || pos.exit_price || pos.entry_price) - pos.entry_price) / pos.entry_price * 100 : 0);
 
             return (
-              <div key={pos.id} className="bg-bg-card border border-border rounded-2xl p-4 sm:p-5 hover:border-border-hover transition-all">
+              <div key={pos.id} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm mb-1 truncate">{pos.title}</div>
-                    <div className="text-xs text-text-muted">{pos.outcome}</div>
+                    <div className="font-bold text-sm mb-1 truncate text-[#121212]">{pos.title}</div>
+                    <div className="text-xs text-[#9B9B9B] font-medium">{pos.outcome}</div>
                   </div>
                   <div className="text-right">
-                    <div className={`font-semibold font-mono text-sm ${pnl >= 0 ? "text-green" : "text-red"}`}>
+                    <div className={`font-bold font-mono text-sm ${pnl >= 0 ? "text-[#009D55]" : "text-[#DC2626]"}`}>
                       {formatPnl(pnl)}
                     </div>
-                    <div className={`text-xs font-mono ${pnlPctVal >= 0 ? "text-green" : "text-red"}`}>
+                    <div className={`text-xs font-mono font-medium ${pnlPctVal >= 0 ? "text-[#009D55]" : "text-[#DC2626]"}`}>
                       {formatPct(pnlPctVal)}
                     </div>
                   </div>
@@ -89,33 +89,33 @@ export default function PortfolioPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-3 sm:mt-4">
                   <div>
-                    <div className="text-xs text-text-muted mb-0.5">Entry</div>
-                    <div className="text-sm font-mono">{entryPct}c</div>
+                    <div className="text-xs text-[#9B9B9B] mb-0.5 font-medium">Entry</div>
+                    <div className="text-sm font-mono font-medium text-[#121212]">{entryPct}c</div>
                   </div>
                   {tab === "open" && livePct && (
                     <div>
-                      <div className="text-xs text-text-muted mb-0.5">Live</div>
-                      <div className="text-sm font-mono">{livePct}c</div>
+                      <div className="text-xs text-[#9B9B9B] mb-0.5 font-medium">Live</div>
+                      <div className="text-sm font-mono font-medium text-[#121212]">{livePct}c</div>
                     </div>
                   )}
                   {tab === "closed" && exitPct && (
                     <div>
-                      <div className="text-xs text-text-muted mb-0.5">Exit</div>
-                      <div className="text-sm font-mono">{exitPct}c</div>
+                      <div className="text-xs text-[#9B9B9B] mb-0.5 font-medium">Exit</div>
+                      <div className="text-sm font-mono font-medium text-[#121212]">{exitPct}c</div>
                     </div>
                   )}
                   <div>
-                    <div className="text-xs text-text-muted mb-0.5">Bet</div>
-                    <div className="text-sm font-mono">{formatUsd(pos.bet_amount)}</div>
+                    <div className="text-xs text-[#9B9B9B] mb-0.5 font-medium">Bet</div>
+                    <div className="text-sm font-mono font-medium text-[#121212]">{formatUsd(pos.bet_amount)}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-text-muted mb-0.5">{tab === "open" ? "Opened" : "Closed"}</div>
-                    <div className="text-xs text-text-secondary">{formatDate(tab === "open" ? pos.opened_at : pos.closed_at || "")}</div>
+                    <div className="text-xs text-[#9B9B9B] mb-0.5 font-medium">{tab === "open" ? "Opened" : "Closed"}</div>
+                    <div className="text-xs text-[#656565] font-medium">{formatDate(tab === "open" ? pos.opened_at : pos.closed_at || "")}</div>
                   </div>
                 </div>
 
                 {pos.close_reason && (
-                  <div className="mt-3 text-xs text-text-muted">
+                  <div className="mt-3 text-xs text-[#9B9B9B] font-medium">
                     Reason: {pos.close_reason}
                   </div>
                 )}
