@@ -69,6 +69,18 @@ SMART_WALLETS = [
         "positions": 120,
         "stats_url": "https://polymarketanalytics.com/traders/0x751a2b86cab503496efd325c8344e10159349ea1",
     },
+    {
+        "name": "🌊 SecondWindCapital",
+        "address": "0x8c80d213c0cbad777d06ee3f58f6ca4bc03102c3",
+        "copiers": 200,
+        "description": "Consistent returns, diversified macro & crypto plays",
+        "weekly_pnl": "+15.2% weekly",
+        "win_rate": "71%",
+        "total_trades": "2,400+",
+        "total_profit": "$1.2M",
+        "positions": 55,
+        "stats_url": "https://polymarketanalytics.com/traders/0x8c80d213c0cbad777d06ee3f58f6ca4bc03102c3",
+    },
 ]
 
 
