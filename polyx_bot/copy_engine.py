@@ -376,7 +376,7 @@ class CopyTradeManager:
             f"{title}\n"
             f"{outcome} @ {price*100:.1f}c\n"
             f"Target: ${usdc_size:.1f} | Conf: {conf:.0%} ({cl})\n"
-            f"<b>Bet: ${bet:.2f}</b> (fee: ${fee:.2f})\n\n"
+            f"<b>Bet: ${bet:.2f}</b>\n\n"
             f"📊 P&L: ${rpnl:+.2f} | Pos: {len(open_pos)+1}{demo_bal_text}")
 
     async def _process_sell(self, session, telegram_id, activity, target,

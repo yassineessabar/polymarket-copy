@@ -773,3 +773,80 @@ class Database:
                 "UPDATE user_settings SET demo_balance=?, demo_mode=1 WHERE user_id=?",
                 (new_balance, user_id))
             await db.commit()
+
+    # ── Web API helpers ──
+
+    async def get_notifications_by_user_id(self, user_id: int, limit: int = 50,
+                                            unread_only: bool = False) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            if unread_only:
+                query = ("SELECT * FROM notifications WHERE user_id=? AND read=0 "
+                         "ORDER BY created_at DESC LIMIT ?")
+            else:
+                query = ("SELECT * FROM notifications WHERE user_id=? "
+                         "ORDER BY created_at DESC LIMIT ?")
+            async with db.execute(query, (user_id, limit)) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def mark_notifications_read(self, user_id: int, ids: list[int] = None,
+                                       mark_all: bool = False):
+        async with aiosqlite.connect(self.path) as db:
+            if mark_all:
+                await db.execute(
+                    "UPDATE notifications SET read=1 WHERE user_id=?", (user_id,))
+            elif ids:
+                placeholders = ",".join("?" for _ in ids)
+                await db.execute(
+                    f"UPDATE notifications SET read=1 WHERE user_id=? AND id IN ({placeholders})",
+                    [user_id] + ids)
+            await db.commit()
+
+    async def get_trades_by_user_id(self, user_id: int, limit: int = 50,
+                                     offset: int = 0) -> list:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM trades WHERE user_id=? "
+                "ORDER BY executed_at DESC LIMIT ? OFFSET ?",
+                (user_id, limit, offset)
+            ) as cur:
+                return [dict(r) for r in await cur.fetchall()]
+
+    async def get_subscription(self, telegram_id: int) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM subscriptions WHERE telegram_id=?",
+                (telegram_id,)
+            ) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def upsert_subscription(self, telegram_id: int, stripe_customer_id: str,
+                                   stripe_subscription_id: str, status: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT OR REPLACE INTO subscriptions "
+                "(telegram_id, stripe_customer_id, stripe_subscription_id, status) "
+                "VALUES (?, ?, ?, ?)",
+                (telegram_id, stripe_customer_id, stripe_subscription_id, status))
+            await db.commit()
+
+    async def update_subscription_status(self, stripe_customer_id: str, status: str):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE subscriptions SET status=? WHERE stripe_customer_id=?",
+                (status, stripe_customer_id))
+            await db.commit()
+
+    async def get_user_by_wallet(self, wallet_address: str) -> dict | None:
+        """Find user by wallet address or auth wallet (stored in username)."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM users WHERE LOWER(wallet_address)=? OR LOWER(username)=?",
+                (wallet_address.lower(), wallet_address.lower())
+            ) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
