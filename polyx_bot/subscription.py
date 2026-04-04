@@ -101,8 +101,6 @@ async def create_checkout_session(db: Database, telegram_id: int) -> str | None:
 
         if customer_id:
             params["customer"] = customer_id
-        else:
-            params["customer_creation"] = "always"
 
         session = stripe.checkout.Session.create(**params)
 
