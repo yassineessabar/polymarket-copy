@@ -129,6 +129,16 @@ async def quick_copy(update: Update, context: ContextTypes.DEFAULT_TYPE, index: 
         return
 
     await db.add_target(telegram_id, address, display_name=name)
+
+    # Auto-start copy trading when a trader is added
+    settings = await db.get_settings(telegram_id)
+    is_running = bool(settings and settings.get("copy_trading_active", 0))
+    if not is_running:
+        await db.update_setting(telegram_id, "copy_trading_active", 1)
+        manager = context.application.bot_data.get("copy_manager")
+        if manager:
+            await manager.start_user(telegram_id)
+
     await update.callback_query.answer(f"✅ Now copying {name}!")
     await copy_command(update, context)
 
@@ -219,10 +229,19 @@ async def add_copy_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await db.add_target(telegram_id, address, display_name="")
 
+    # Auto-start copy trading when a trader is added
+    settings = await db.get_settings(telegram_id)
+    is_running = bool(settings and settings.get("copy_trading_active", 0))
+    if not is_running:
+        await db.update_setting(telegram_id, "copy_trading_active", 1)
+        manager = context.application.bot_data.get("copy_manager")
+        if manager:
+            await manager.start_user(telegram_id)
+
     await respond(update, context,
         f"✅ <b>Copy trade added!</b>\n\n"
         f"Wallet: <code>{address}</code>\n\n"
-        f"Go to 🎯 Copy Trade to start copying.",
+        f"Copy trading is now active.",
         reply_markup=back_and_home("copy", "🎯 Copy Trade"))
 
     return ConversationHandler.END

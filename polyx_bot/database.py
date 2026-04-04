@@ -253,8 +253,12 @@ class Database:
 
     async def add_target(self, telegram_id: int, wallet_addr: str, display_name: str = "", description: str = ""):
         async with aiosqlite.connect(self.path) as db:
+            # Re-activate if previously removed, otherwise insert new
             await db.execute(
-                "INSERT OR IGNORE INTO targets (telegram_id, wallet_addr, display_name, description) VALUES (?,?,?,?)",
+                """INSERT INTO targets (telegram_id, wallet_addr, display_name, description, is_active)
+                   VALUES (?,?,?,?,1)
+                   ON CONFLICT(telegram_id, wallet_addr)
+                   DO UPDATE SET is_active=1, display_name=COALESCE(NULLIF(excluded.display_name,''), display_name)""",
                 (telegram_id, wallet_addr.lower(), display_name, description))
             await db.commit()
 
