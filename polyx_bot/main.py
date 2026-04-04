@@ -348,6 +348,33 @@ async def post_init(application):
     if active:
         log.info(f"Resumed copy trading for {len(active)} users")
 
+    # Periodic sync: detect newly activated/deactivated users (for web users)
+    import asyncio
+
+    async def _sync_loop():
+        known: set[int] = set(active)
+        while True:
+            await asyncio.sleep(15)
+            try:
+                current = set(await db.get_active_copy_traders())
+                for tid in current - known:
+                    log.info(f"[Sync] Starting copy engine for new user {tid}")
+                    await manager.start_user(tid)
+                for tid in known - current:
+                    log.info(f"[Sync] Stopping copy engine for user {tid}")
+                    await manager.stop_user(tid)
+                for tid in current:
+                    task = manager.tasks.get(tid)
+                    if task and task.done():
+                        log.warning(f"[Sync] Task for {tid} died, restarting")
+                        await manager.start_user(tid)
+                known = current
+            except Exception as e:
+                log.error(f"[Sync] Error: {e}")
+
+    asyncio.get_event_loop().create_task(_sync_loop())
+    log.info("Copy engine sync loop started (every 15s)")
+
     # Start Stripe webhook server
     from .config import STRIPE_SECRET_KEY
     if STRIPE_SECRET_KEY:

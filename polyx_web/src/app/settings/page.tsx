@@ -182,32 +182,20 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Subscription */}
+      {/* Subscription — link to separate page */}
       <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4 shadow-sm">
-        <h3 className="font-bold text-sm sm:text-base mb-3 text-[#121212]">Subscription</h3>
-        {subscription?.status === "active" || subscription?.status === "trialing" ? (
-          <div className="flex items-center gap-3 p-3 bg-[#F7F7F7] rounded-xl">
-            <span className="bg-[#009D55]/10 text-[#009D55] text-xs font-bold px-2.5 py-1 rounded-full">
-              {subscription.status === "trialing" ? "Trial" : "Active"}
-            </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${subscription?.status === "active" || subscription?.status === "trialing" ? "bg-[#009D55]" : "bg-[#9B9B9B]"}`} />
             <div>
-              <p className="text-sm font-medium text-[#121212]">Live Trading Enabled</p>
-              <p className="text-xs text-[#9B9B9B]">$39/month + 25% perf fee</p>
+              <h3 className="font-bold text-sm text-[#121212]">Subscription</h3>
+              <p className="text-xs text-[#9B9B9B]">{subscription?.status === "active" ? "Live — $39/mo" : subscription?.status === "trialing" ? "Trial active" : "Demo mode"}</p>
             </div>
           </div>
-        ) : (
-          <div>
-            <p className="text-sm text-[#9B9B9B] font-medium mb-4">
-              Subscribe to enable live trading with real funds. $39/month + 25% performance fee on profits only.
-            </p>
-            <button
-              onClick={startCheckout}
-              className="bg-[#009D55] hover:bg-[#008548] text-white font-medium px-6 py-2.5 rounded-full transition-all text-sm"
-            >
-              Subscribe &mdash; $39/month
-            </button>
-          </div>
-        )}
+          <a href="/subscription" className="rounded-full border border-[#121212] text-[#121212] text-xs font-medium px-4 py-2 hover:bg-[#F7F7F7] transition-colors">
+            {subscription?.status === "active" || subscription?.status === "trialing" ? "Manage" : "Upgrade"}
+          </a>
+        </div>
       </div>
 
       {/* Risk Settings */}
