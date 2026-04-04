@@ -6,7 +6,7 @@ import { portfolioApi, copyApi, notificationsApi } from "@/lib/api";
 import { formatUsd, formatPnl } from "@/lib/utils";
 import type { PortfolioSummary, CopyStatus, Notification } from "@/lib/types";
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
 } from "recharts";
 
 export default function DashboardPage() {
@@ -16,6 +16,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [perfData, setPerfData] = useState<any[]>([]);
+  const [chartRange, setChartRange] = useState<"1D" | "7D" | "30D" | "All">("30D");
+  const [autoRedeem, setAutoRedeem] = useState(false);
+  const [posTab, setPosTab] = useState<"history" | "open">("history");
 
   useEffect(() => {
     loadData();
@@ -57,155 +60,216 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-[50vh] bg-[#0B0E1C]">
+        <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   const pnl = summary?.daily_pnl || 0;
   const pnlUp = pnl >= 0;
+  const totalPnl = summary?.daily_pnl || 0;
 
   return (
-    <div className="max-w-[900px] mx-auto">
+    <div className="max-w-[900px] mx-auto bg-[#0B0E1C] min-h-screen px-4 pt-5 pb-8">
       {error && (
-        <div className="bg-[#DC2626]/5 border border-[#DC2626]/10 text-[#DC2626] text-sm p-3 rounded-2xl mb-4 flex items-center justify-between">
+        <div className="bg-[#DC2626]/10 border border-[#DC2626]/20 text-[#DC2626] text-sm p-3 rounded-2xl mb-4 flex items-center justify-between">
           <span>{error}</span>
           <button onClick={loadData} className="text-xs underline ml-2">Retry</button>
         </div>
       )}
 
       {summary?.demo_mode && (
-        <div className="bg-[#F0F0F0] text-[#121212] text-sm px-4 py-3 rounded-2xl mb-5 flex items-center justify-between">
+        <div className="bg-[#1A1F35] text-white text-sm px-4 py-3 rounded-2xl mb-5 flex items-center justify-between border border-white/[0.06]">
           <div className="flex items-center gap-2">
             <span className="text-base">&#x1F3AE;</span>
             <span><strong>Demo Mode</strong> &mdash; Trading with virtual funds</span>
           </div>
-          <Link href="/settings" className="text-xs font-semibold text-[#121212] underline">Go Live</Link>
+          <Link href="/settings" className="text-xs font-semibold text-[#3B5BFE] underline">Go Live</Link>
         </div>
       )}
 
-      {/* Hero: Net Worth + Chart */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm mb-4">
-        <div className="flex items-start justify-between mb-1">
-          <div>
-            <p className="text-xs font-medium text-[#9B9B9B] uppercase tracking-wider mb-1">Net Worth</p>
-            <p className="text-[32px] sm:text-[42px] font-bold -tracking-[1px] text-[#121212] leading-none">
-              {formatUsd(summary?.net_worth || 0)}
-            </p>
-          </div>
-          <div className={`text-right ${pnlUp ? "text-[#009D55]" : "text-[#DC2626]"}`}>
-            <p className="text-lg sm:text-xl font-bold font-mono">{formatPnl(pnl)}</p>
-            <p className="text-[10px] font-medium text-[#9B9B9B]">today</p>
-          </div>
+      {/* Top Row: Avatar + Username + Portfolio + Cash + Add + Settings */}
+      <div className="flex items-center gap-3 mb-1">
+        <div className="w-12 h-12 rounded-xl bg-[#2D8B4E] flex items-center justify-center flex-shrink-0">
+          <span className="text-white font-bold text-base">YE</span>
         </div>
+        <div className="min-w-0 mr-auto">
+          <p className="text-white font-semibold text-sm truncate max-w-[100px]">yassiness...</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[#5A5F7A] text-xs font-medium">Portfolio</p>
+          <p className="text-white font-bold text-sm font-mono">{formatUsd(summary?.net_worth || 0)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[#5A5F7A] text-xs font-medium">Cash</p>
+          <p className="text-white font-bold text-sm font-mono">{formatUsd(summary?.balance_usdc || 0)}</p>
+        </div>
+        <button className="w-8 h-8 rounded-full bg-[#F5A623] flex items-center justify-center flex-shrink-0 hover:bg-[#E09510] transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <Link href="/settings" className="flex-shrink-0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5F7A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </Link>
+      </div>
 
+      {/* 24h change */}
+      <p className="text-[#5A5F7A] text-xs mb-5 ml-[60px]">+0.0$ 24h</p>
+
+      {/* Equity Chart */}
+      <div className="mb-4">
         {chartData.length > 1 && (
-          <div className="h-[140px] sm:h-[180px] mt-4 -mx-2">
+          <div className="h-[160px] sm:h-[200px] -mx-4">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="dGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={pnlUp ? "#009D55" : "#DC2626"} stopOpacity={0.12} />
-                    <stop offset="100%" stopColor={pnlUp ? "#009D55" : "#DC2626"} stopOpacity={0} />
+                    <stop offset="0%" stopColor="#00C853" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#00C853" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" hide />
                 <YAxis hide domain={["auto", "auto"]} />
                 <Tooltip
-                  contentStyle={{ background: "#fff", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "14px", fontSize: "12px", color: "#121212", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}
+                  contentStyle={{
+                    background: "#1E2235",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                    color: "#fff",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+                  }}
                   formatter={(v: number) => [formatUsd(v), "Value"]}
                   labelFormatter={(l) => l}
+                  labelStyle={{ color: "#8B8FA3" }}
                 />
-                <Area type="monotone" dataKey="value" stroke={pnlUp ? "#009D55" : "#DC2626"} strokeWidth={2} fill="url(#dGrad)" />
+                <Area type="monotone" dataKey="value" stroke="#00C853" strokeWidth={2} fill="url(#dGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
+
+        {/* PnL below chart */}
+        <p className={`text-sm font-bold font-mono mt-2 ${pnlUp ? "text-[#00C853]" : "text-[#DC2626]"}`}>
+          {formatPnl(totalPnl)}
+        </p>
+      </div>
+
+      {/* Time Period Tabs */}
+      <div className="flex items-center gap-2 mb-5">
+        {(["1D", "7D", "30D", "All"] as const).map((range) => (
+          <button
+            key={range}
+            onClick={() => setChartRange(range)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              chartRange === range
+                ? "bg-[#1E2235] text-white"
+                : "text-[#5A5F7A] hover:text-[#8B8FA3]"
+            }`}
+          >
+            {range}
+          </button>
+        ))}
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-4 gap-3 mb-5">
         {[
-          { label: "Balance", value: formatUsd(summary?.balance_usdc || 0) },
-          { label: "Win Rate", value: `${summary?.win_rate?.toFixed(0) || 0}%` },
-          { label: "Trades", value: String(summary?.total_trades || 0) },
-          { label: "Positions", value: String(summary?.position_count || 0) },
+          { label: "Total PnL", value: formatPnl(totalPnl), color: totalPnl >= 0 ? "text-[#00C853]" : "text-[#DC2626]" },
+          { label: "Copy", value: formatPnl(0), color: "text-[#00C853]" },
+          { label: "Manual", value: formatPnl(0), color: "text-[#00C853]" },
+          { label: "Win Rate", value: `${summary?.win_rate?.toFixed(0) || 0}%`, color: "text-white" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm text-center">
-            <p className="text-sm sm:text-lg font-bold font-mono text-[#121212] truncate">{s.value}</p>
-            <p className="text-[9px] sm:text-[10px] text-[#9B9B9B] uppercase tracking-wider mt-0.5 font-medium">{s.label}</p>
+          <div key={s.label} className="text-center">
+            <p className="text-[10px] text-[#5A5F7A] uppercase tracking-wider mb-0.5 font-medium">{s.label}</p>
+            <p className={`text-sm font-bold font-mono ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Two-column: Strategies + Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
-        {/* Active Strategies */}
-        <div className="lg:col-span-3 bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-[#121212]">Active Strategies</h3>
-            <Link href="/strategies" className="text-xs font-medium text-[#9B9B9B] hover:text-[#121212]">Manage</Link>
-          </div>
-          {copyStatus?.active ? (
-            <div className="flex items-center gap-3 p-3 bg-[#F7F7F7] rounded-xl">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#009D55] animate-pulse flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-bold text-[#121212]">Copying {copyStatus.target_count} trader{copyStatus.target_count !== 1 ? "s" : ""}</p>
-                <p className="text-xs text-[#9B9B9B]">{copyStatus.open_positions} open positions</p>
-              </div>
-              <Link href="/portfolio" className="text-xs font-medium text-[#121212] bg-white border border-black/8 rounded-full px-3 py-1.5">View</Link>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-sm text-[#9B9B9B] mb-3">No active strategies</p>
-              <Link href="/strategies" className="inline-flex items-center gap-2 rounded-full bg-[#121212] text-white text-xs font-medium px-5 py-2.5">
-                Browse Strategies
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </Link>
-            </div>
-          )}
+      {/* My Rewards Card */}
+      <div className="bg-[#141728] rounded-xl p-3 flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <span className="text-base">&#x1F381;</span>
+          <span className="text-white font-medium text-sm">My Rewards</span>
         </div>
-
-        {/* Quick Actions */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-[#121212] mb-3">Quick Actions</h3>
-          <div className="space-y-2">
-            {[
-              { href: "/strategies", label: "Add Strategy", icon: "M12 4v16m8-8H4" },
-              { href: "/wallet", label: "Deposit Funds", icon: "M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4M4 6v12c0 1.1.9 2 2 2h14v-4" },
-              { href: "/portfolio", label: "View Positions", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10" },
-            ].map((a) => (
-              <Link key={a.label} href={a.href} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#F7F7F7] transition-colors">
-                <div className="w-8 h-8 rounded-full bg-[#F0F0F0] flex items-center justify-center flex-shrink-0">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#121212" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={a.icon}/></svg>
-                </div>
-                <span className="text-sm font-medium text-[#121212]">{a.label}</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#BFBFBF" strokeWidth="2" className="ml-auto"><path d="m9 18 6-6-6-6"/></svg>
-              </Link>
-            ))}
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[#8B8FA3] text-sm">$0.00 pending</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A5F7A" strokeWidth="2" strokeLinecap="round"><path d="m9 18 6-6-6-6"/></svg>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-[#121212]">Recent Activity</h3>
-          {notifications.length > 0 && (
-            <Link href="/portfolio" className="text-xs font-medium text-[#9B9B9B] hover:text-[#121212]">View all</Link>
-          )}
+      {/* Your Positions Section */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-white font-bold text-base">Your Positions</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[#8B8FA3] text-xs">Auto redeem</span>
+            <button
+              onClick={() => setAutoRedeem(!autoRedeem)}
+              className={`w-9 h-5 rounded-full relative transition-colors ${autoRedeem ? "bg-[#3B5BFE]" : "bg-[#1E2235]"}`}
+            >
+              <div className={`w-3.5 h-3.5 rounded-full bg-white absolute top-[3px] transition-transform ${autoRedeem ? "translate-x-[18px]" : "translate-x-[3px]"}`} />
+            </button>
+          </div>
         </div>
+
+        {/* Sub-tabs */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <button
+            onClick={() => setPosTab("history")}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              posTab === "history" ? "bg-[#1E2235] text-white" : "text-[#5A5F7A] hover:text-[#8B8FA3]"
+            }`}
+          >
+            History
+          </button>
+          <button
+            onClick={() => setPosTab("open")}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              posTab === "open" ? "bg-[#1E2235] text-white" : "text-[#5A5F7A] hover:text-[#8B8FA3]"
+            }`}
+          >
+            Open Orders
+          </button>
+          <button className="bg-[#1E2235] text-[#8B8FA3] text-sm font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
+            <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+            Syncing...
+          </button>
+          <button onClick={loadData} className="p-1.5 rounded-lg hover:bg-[#1E2235] transition-colors ml-auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5A5F7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Empty State / Positions */}
         {notifications.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-[#9B9B9B] mb-3">No trades yet</p>
-            <Link href="/" className="inline-flex items-center gap-2 rounded-full bg-[#121212] text-white text-xs font-medium px-5 py-2.5">
-              Pick a Strategy
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </Link>
+          <div className="bg-[#141728] rounded-2xl p-8 sm:p-12 text-center border border-white/[0.06]">
+            <div className="w-14 h-14 rounded-full bg-[#1E2235] flex items-center justify-center mx-auto mb-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5A5F7A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <h3 className="text-white font-bold text-lg mb-2">No Positions Yet</h3>
+            <p className="text-sm text-[#5A5F7A] max-w-xs mx-auto leading-relaxed">
+              Start trading to see your positions here. Your portfolio will track all your active bets.
+            </p>
+
+            {/* Syncing pill */}
+            <div className="mt-6 flex justify-center">
+              <div className="bg-[#1E2235] text-[#8B8FA3] text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#3B5BFE] animate-pulse" />
+                Syncing...
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="space-y-0">
+          <div className="space-y-2">
             {notifications.map((n) => {
               let text = n.payload;
               try { text = JSON.parse(n.payload).text || n.payload; } catch {}
@@ -213,11 +277,11 @@ export default function DashboardPage() {
               const isBuy = n.type === "BUY";
               const isSell = n.type === "SELL" || n.type === "CLOSE";
               return (
-                <div key={n.id} className="flex items-center gap-3 py-3 border-b border-black/5 last:border-0">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#009D55]" : isSell ? "bg-[#DC2626]" : "bg-[#9B9B9B]"}`} />
-                  <span className={`text-[10px] sm:text-xs font-bold font-mono w-10 flex-shrink-0 ${isBuy ? "text-[#009D55]" : isSell ? "text-[#DC2626]" : "text-[#9B9B9B]"}`}>{n.type}</span>
-                  <span className="text-xs sm:text-sm text-[#656565] truncate flex-1">{clean.slice(0, 80)}</span>
-                  <span className="text-[10px] text-[#9B9B9B] flex-shrink-0 hidden sm:block">
+                <div key={n.id} className="flex items-center gap-3 py-3 border-b border-white/[0.06] last:border-0">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#00C853]" : isSell ? "bg-[#DC2626]" : "bg-[#5A5F7A]"}`} />
+                  <span className={`text-[10px] sm:text-xs font-bold font-mono w-10 flex-shrink-0 ${isBuy ? "text-[#00C853]" : isSell ? "text-[#DC2626]" : "text-[#5A5F7A]"}`}>{n.type}</span>
+                  <span className="text-xs sm:text-sm text-[#8B8FA3] truncate flex-1">{clean.slice(0, 80)}</span>
+                  <span className="text-[10px] text-[#5A5F7A] flex-shrink-0 hidden sm:block">
                     {new Date(n.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
@@ -225,6 +289,38 @@ export default function DashboardPage() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Feedback Card */}
+      <div className="bg-[#141728] rounded-xl p-4 flex items-center justify-between mb-4 border border-white/[0.06]">
+        <div className="flex items-center gap-3">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B8FA3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+          <div>
+            <p className="text-white font-medium text-sm">Share your feedback</p>
+            <p className="text-[#5A5F7A] text-xs">Help us improve Polycool</p>
+          </div>
+        </div>
+        <button className="bg-white text-[#0B0E1C] text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-gray-100 transition-colors">
+          Share
+        </button>
+      </div>
+
+      {/* Social CTAs */}
+      <div className="grid grid-cols-2 gap-3">
+        <a href="#" className="bg-[#229ED9] rounded-xl p-3 text-white text-sm font-semibold text-center hover:bg-[#1E8FC4] transition-colors flex items-center justify-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+          </svg>
+          Telegram
+        </a>
+        <a href="#" className="bg-[#1E2235] rounded-xl p-3 text-white text-sm font-semibold text-center border border-white/[0.06] hover:bg-[#252A40] transition-colors flex items-center justify-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+          X @polycoolapp
+        </a>
       </div>
     </div>
   );
