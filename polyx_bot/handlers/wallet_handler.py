@@ -56,17 +56,12 @@ async def deposit_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     usdc = get_usdc_balance(address)
 
     text = (
-        f"💳 <b>Deposit Wallets</b>\n\n"
-        f"🟢 Polygon (POL, USDC, USDC.e):\n"
+        f"💳 <b>Deposit</b>\n\n"
+        f"Send <b>USDC on Polygon</b> to:\n"
         f"<code>{address}</code>\n\n"
-        f"🔵 Ethereum (ETH, USDT, USDC):\n"
-        f"<code>{address}</code>\n\n"
-        f"🟡 BNB (BNB, USDT, USDC):\n"
-        f"<code>{address}</code>\n\n"
-        f"✅ Polymarket Wallet: (Don't Deposit Here)\n"
-        f"<code>{address}</code>\n\n"
-        f"💰 Current Trading Balance: ${usdc:.2f}\n"
-        f"⚠️ Minimum deposit amount is $100 worth of tokens."
+        f"💰 Current Balance: <b>${usdc:.2f}</b>\n\n"
+        f"⚠️ Only send USDC on <b>Polygon network</b>.\n"
+        f"Tokens sent on other chains (Ethereum, BNB) will be lost."
     )
     await respond(update, context, text, reply_markup=deposit_keyboard())
 
