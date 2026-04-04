@@ -40,22 +40,23 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Featured — horizontal scroll, square cards with overlay text */}
-      <section className="flex flex-col">
+      {/* Featured — horizontal scroll with square image cards (Autopilot exact) */}
+      <section aria-label="Featured strategies list" className="flex flex-col">
         <h2 className="pl-4 text-[18px] font-bold -tracking-[0.36px] text-[#121212] lg:pl-20 lg:text-2xl lg:-tracking-[0.48px]">Featured</h2>
-        <ul className="flex w-full items-center overflow-x-scroll no-scrollbar py-4 pl-4 lg:pl-20 gap-4">
+        <ul className="flex w-screen items-center overflow-x-scroll no-scrollbar py-2 pl-4 lg:pl-20 gap-4">
           {FEATURED_STRATEGIES.map((s) => (
             <li key={s.slug} className="flex-shrink-0">
               <Link href={`/strategy/${s.slug}`}>
-                <div className={`relative w-[280px] sm:w-[320px] h-[320px] sm:h-[360px] rounded-2xl overflow-hidden bg-gradient-to-br ${s.gradient}`}>
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/70" />
-                  <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-y-3 p-5">
-                    <div className="w-min rounded-sm border border-white/10 bg-black/20 px-2 py-1 text-xs font-medium -tracking-[0.24px] text-white backdrop-blur-sm whitespace-nowrap">Featured</div>
+                <div className={`relative w-[280px] sm:w-[320px] aspect-square rounded-2xl overflow-hidden bg-gradient-to-br ${s.gradient}`}>
+                  <div className="relative z-[2] flex w-full h-full flex-col justify-end gap-y-3 p-5">
+                    <div className="absolute inset-0 -z-[1] bg-gradient-to-b from-transparent to-black/70" />
+                    <div className="w-min rounded-sm border border-white/[0.04] bg-black/[0.12] px-2 py-1 text-xs font-medium -tracking-[0.24px] text-white backdrop-blur-sm whitespace-nowrap">Featured</div>
                     <div>
                       <p className="text-2xl font-bold -tracking-[0.48px] text-white">{s.name}</p>
-                      <div className="flex text-sm -tracking-[0.28px] items-center gap-1">
-                        <p className="font-normal text-white/60">by</p>
-                        <p className="font-medium text-white/80">{s.manager}</p>
+                      <div className="flex text-sm -tracking-[0.28px] items-center">
+                        <p className="pr-1.5 font-normal text-white/60">by</p>
+                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${s.gradient} border border-white/20`} />
+                        <p className="pl-1 font-medium text-white/80">{s.manager}</p>
                       </div>
                     </div>
                   </div>
@@ -66,42 +67,60 @@ export default function LandingPage() {
         </ul>
       </section>
 
-      {/* All Strategies — grid with cover images */}
-      <section id="strategies" className="flex flex-col gap-y-4 lg:gap-y-5 px-4 lg:px-20 py-10 lg:py-16">
-        <header className="flex flex-col gap-y-2">
-          <h2 className="text-[18px] font-bold -tracking-[0.36px] text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">All Strategies</h2>
-          <p className="text-xs font-medium -tracking-[0.24px] text-[#9B9B9B] lg:text-sm lg:-tracking-[0.28px]">Pick a strategy and start copying top Polymarket traders</p>
-        </header>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
-          {STRATEGY_LIST.map((s) => (
-            <Link key={s.slug} href={`/strategy/${s.slug}`}>
-              <div className="bg-white rounded-2xl overflow-hidden border border-[#F4F4F4] hover:shadow-md transition-all">
-                <div className={`relative h-[160px] sm:h-[180px] bg-gradient-to-br ${s.gradient}`}>
-                  {s.featured && (
-                    <div className="absolute top-3 left-3 rounded-sm border border-white/10 bg-black/20 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm">Featured</div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40" />
-                  <div className="absolute bottom-3 left-4">
-                    <p className="text-lg font-bold -tracking-[0.36px] text-white">{s.name}</p>
-                  </div>
-                </div>
-                <div className="p-4 flex flex-col gap-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${s.gradient}`} />
-                      <p className="text-sm font-medium -tracking-[0.28px] text-[#121212]">by {s.manager}</p>
+      {/* Top Performers + Popular — two-column list layout (Autopilot exact) */}
+      <section id="strategies" className="mt-16 flex flex-col justify-between gap-y-6 pb-16 lg:px-20">
+        <div className="flex flex-col flex-wrap gap-6 lg:flex-row">
+          {/* Top Performers column */}
+          <div className="flex min-w-[320px] flex-1 flex-col gap-y-[21px]">
+            <h2 className="pl-4 text-[18px] font-bold -tracking-[0.36px] text-[#121212] lg:pl-0 lg:text-2xl lg:-tracking-[0.48px]">Top Performers</h2>
+            <ul>
+              {STRATEGY_LIST.map((s) => (
+                <Link key={s.slug} href={`/strategy/${s.slug}`} className="flex w-full items-center justify-between border-b border-[#F4F4F4] py-4 first:border-t lg:py-5 hover:bg-[#FAFAFA] transition-colors">
+                  <div className="relative flex items-center gap-4 py-1 pl-4 lg:gap-x-5 lg:pl-1">
+                    <div className={`w-[86px] h-[86px] lg:w-[86px] lg:h-[86px] rounded-[40px] overflow-hidden bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                    <div className="flex flex-col overflow-hidden text-nowrap">
+                      <p className="w-min overflow-hidden bg-[#EBFAF4] px-1 text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#009D55]">+{s.returnPct}%</p>
+                      <p className="overflow-hidden text-lg font-bold -tracking-[0.4px] text-nowrap text-ellipsis text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">{s.name}</p>
+                      <div className="flex gap-x-1 items-center">
+                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                        <p className="overflow-hidden text-sm font-medium -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">{s.manager}</p>
+                      </div>
                     </div>
-                    <p className="text-sm font-bold -tracking-[0.28px] text-[#009D55]">+{s.returnPct}%</p>
                   </div>
-                  <div className="flex items-center gap-x-4 text-xs font-medium -tracking-[0.24px] text-[#9B9B9B]">
-                    <span>{s.winRate}% win rate</span>
-                    <span>{s.copiers} copiers</span>
-                    <span>{s.trades} trades</span>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="size-8 min-h-8 min-w-8 pr-4 text-[#BfBfBF] lg:pr-0">
+                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 18 6-6-6-6" />
+                  </svg>
+                </Link>
+              ))}
+            </ul>
+          </div>
+
+          {/* Popular column */}
+          <div className="flex min-w-[320px] flex-1 flex-col gap-y-[21px]">
+            <h2 className="pl-4 text-[18px] font-bold -tracking-[0.36px] text-[#121212] lg:pl-0 lg:text-2xl lg:-tracking-[0.48px]">Popular</h2>
+            <ul>
+              {[...STRATEGY_LIST].sort((a, b) => b.copiers - a.copiers).map((s) => (
+                <Link key={s.slug} href={`/strategy/${s.slug}`} className="flex w-full items-center justify-between border-b border-[#F4F4F4] py-4 first:border-t lg:py-5 hover:bg-[#FAFAFA] transition-colors">
+                  <div className="relative flex items-center gap-4 py-1 pl-4 lg:gap-x-5 lg:pl-1">
+                    <div className={`w-[86px] h-[86px] lg:w-[86px] lg:h-[86px] rounded-[40px] overflow-hidden bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                    <div className="flex flex-col overflow-hidden text-nowrap">
+                      <p className="overflow-hidden text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">
+                        <span className="text-[#009D55]">{s.copiers}</span> Copiers
+                      </p>
+                      <p className="overflow-hidden text-lg font-bold -tracking-[0.4px] text-nowrap text-ellipsis text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">{s.name}</p>
+                      <div className="flex gap-x-1 items-center">
+                        <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                        <p className="overflow-hidden text-sm font-medium -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">{s.manager}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </Link>
-          ))}
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="size-8 min-h-8 min-w-8 pr-4 text-[#BfBfBF] lg:pr-0">
+                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 18 6-6-6-6" />
+                  </svg>
+                </Link>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
