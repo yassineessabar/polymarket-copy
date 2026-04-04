@@ -69,17 +69,26 @@ export default function StrategyDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] text-[#121212]">
-      {/* Top nav */}
+      {/* Top nav — back / title / share */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/5">
-        <div className="max-w-[1000px] mx-auto flex items-center justify-between h-[56px] sm:h-[64px] px-5 sm:px-7">
-          <Link href="/" className="flex items-center gap-2 text-[#9B9B9B] hover:text-[#121212] transition-colors">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            <span className="text-sm font-medium">Back</span>
+        <div className="max-w-[1000px] mx-auto flex items-center justify-between h-[56px] sm:h-[64px] px-4 sm:px-7">
+          <Link href="/" className="flex items-center gap-1 text-[#121212] hover:text-[#121212]/70 transition-colors w-16">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           </Link>
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-[#121212] flex items-center justify-center font-bold text-xs text-white">P</div>
-            <span className="font-bold text-sm">PolyX</span>
-          </Link>
+          <span className="font-bold text-sm -tracking-[0.28px] text-[#121212] truncate">{strategy.name}</span>
+          <button
+            onClick={() => {
+              if (navigator.share) {
+                navigator.share({ title: `${strategy.name} on PolyX`, url: window.location.href });
+              } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert("Link copied!");
+              }
+            }}
+            className="w-16 flex justify-end"
+          >
+            <span className="rounded-full bg-[#121212] text-white text-xs font-medium px-3.5 py-1.5">Share</span>
+          </button>
         </div>
       </nav>
 

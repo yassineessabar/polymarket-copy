@@ -77,7 +77,7 @@ export default function LandingPage() {
               {STRATEGY_LIST.map((s) => (
                 <Link key={s.slug} href={`/strategy/${s.slug}`} className="flex w-full items-center justify-between border-b border-[#F4F4F4] py-4 first:border-t lg:py-5 hover:bg-[#FAFAFA] transition-colors">
                   <div className="relative flex items-center gap-4 py-1 pl-4 lg:gap-x-5 lg:pl-1">
-                    <div className={`w-[86px] h-[86px] lg:w-[86px] lg:h-[86px] rounded-[40px] overflow-hidden bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                    <div className={`aspect-square h-[92px] w-[92px] lg:h-[86px] lg:w-[86px] rounded-[40px] overflow-hidden border border-black/5 bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
                     <div className="flex flex-col overflow-hidden text-nowrap">
                       <p className="w-min overflow-hidden bg-[#EBFAF4] px-1 text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#009D55]">+{s.returnPct}%</p>
                       <p className="overflow-hidden text-lg font-bold -tracking-[0.4px] text-nowrap text-ellipsis text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">{s.name}</p>
@@ -102,7 +102,7 @@ export default function LandingPage() {
               {[...STRATEGY_LIST].sort((a, b) => b.copiers - a.copiers).map((s) => (
                 <Link key={s.slug} href={`/strategy/${s.slug}`} className="flex w-full items-center justify-between border-b border-[#F4F4F4] py-4 first:border-t lg:py-5 hover:bg-[#FAFAFA] transition-colors">
                   <div className="relative flex items-center gap-4 py-1 pl-4 lg:gap-x-5 lg:pl-1">
-                    <div className={`w-[86px] h-[86px] lg:w-[86px] lg:h-[86px] rounded-[40px] overflow-hidden bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
+                    <div className={`aspect-square h-[92px] w-[92px] lg:h-[86px] lg:w-[86px] rounded-[40px] overflow-hidden border border-black/5 bg-gradient-to-br ${s.gradient} flex-shrink-0`} />
                     <div className="flex flex-col overflow-hidden text-nowrap">
                       <p className="overflow-hidden text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">
                         <span className="text-[#009D55]">{s.copiers}</span> Copiers
