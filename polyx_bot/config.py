@@ -6,7 +6,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", "")
 FEE_WALLET = os.getenv("FEE_WALLET", "")
-FEE_RATE = 0.01  # 1% per trade
+PERFORMANCE_FEE_RATE = 0.25  # 25% of realized profit
 
 # Polymarket APIs
 DATA_API = "https://data-api.polymarket.com"
@@ -17,6 +17,11 @@ USDC_CONTRACT = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
 
 # Bot name (for referral links)
 BOT_USERNAME = os.getenv("BOT_USERNAME", "PolyXBot")
+
+# Stripe subscription
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")  # Stripe Price ID for $39/month plan
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 # Web API
 JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-production")

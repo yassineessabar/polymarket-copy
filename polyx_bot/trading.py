@@ -49,10 +49,3 @@ def place_sell(client: ClobClient, token_id: str, amount: float):
     order = MarketOrderArgs(token_id=token_id, amount=amount, side=SELL, order_type=OrderType.FOK)
     signed = client.create_market_order(order)
     return client.post_order(signed, OrderType.FOK)
-
-
-def calculate_fee(amount: float, fee_rate: float = 0.01) -> tuple[float, float]:
-    """Calculate fee. Returns (net_amount, fee_amount)."""
-    fee = round(amount * fee_rate, 6)
-    net = amount - fee
-    return net, fee

@@ -1,56 +1,27 @@
 """
-Fee collection and referral reward calculation.
+Performance fee collection — 25% of realized profit on winning positions.
 """
-import aiosqlite
-from .config import FEE_RATE
+import logging
+from .config import PERFORMANCE_FEE_RATE
 
-# Referral tier rates
-TIER1_RATE = 0.25  # 25% of fee
-TIER2_RATE = 0.05  # 5% of fee
-TIER3_RATE = 0.03  # 3% of fee
+log = logging.getLogger("polyx")
 
 
-def calculate_trade_fee(amount: float) -> tuple[float, float]:
-    """Returns (net_amount_for_market, fee_amount)."""
-    fee = round(amount * FEE_RATE, 6)
-    return amount - fee, fee
+async def collect_performance_fee(db, telegram_id: int, position_id: int,
+                                   pnl_usd: float, demo_mode: bool = False) -> float:
+    """Collect 25% performance fee on profitable closes.
 
+    Returns the fee amount collected (0 if position was not profitable).
+    Only charges on realized profit > 0. Demo mode tracks but doesn't collect.
+    """
+    if demo_mode or pnl_usd <= 0:
+        return 0.0
 
-async def distribute_referral_rewards(db, telegram_id: int, trade_id: int, fee: float):
-    """Distribute referral rewards up 3 tiers."""
-    if fee <= 0:
-        return
+    fee = round(pnl_usd * PERFORMANCE_FEE_RATE, 2)
+    if fee < 0.01:
+        return 0.0
 
-    user = await db.get_user(telegram_id)
-    if not user or not user.get("referred_by"):
-        return
+    await db.record_performance_fee(telegram_id, position_id, pnl_usd, fee, demo=False)
+    log.info(f"[PerfFee:{telegram_id}] pos={position_id} profit=${pnl_usd:.2f} fee=${fee:.2f}")
 
-    referrer_id = user["referred_by"]
-    async with aiosqlite.connect(db.path) as conn:
-        # Tier 1: direct referrer gets 25%
-        reward1 = round(fee * TIER1_RATE, 6)
-        if reward1 > 0:
-            await conn.execute(
-                "INSERT INTO referral_rewards (referrer_id, referee_id, trade_id, tier, reward_usdc) "
-                "VALUES (?,?,?,1,?)", (referrer_id, telegram_id, trade_id, reward1))
-
-        # Tier 2: referrer's referrer gets 5%
-        referrer2 = await db.get_user(referrer_id)
-        if referrer2 and referrer2.get("referred_by"):
-            t2_id = referrer2["referred_by"]
-            reward2 = round(fee * TIER2_RATE, 6)
-            if reward2 > 0:
-                await conn.execute(
-                    "INSERT INTO referral_rewards (referrer_id, referee_id, trade_id, tier, reward_usdc) "
-                    "VALUES (?,?,?,2,?)", (t2_id, telegram_id, trade_id, reward2))
-
-                # Tier 3: 3 levels up gets 3%
-                referrer3 = await db.get_user(t2_id)
-                if referrer3 and referrer3.get("referred_by"):
-                    reward3 = round(fee * TIER3_RATE, 6)
-                    if reward3 > 0:
-                        await conn.execute(
-                            "INSERT INTO referral_rewards (referrer_id, referee_id, trade_id, tier, reward_usdc) "
-                            "VALUES (?,?,?,3,?)", (referrer3["referred_by"], telegram_id, trade_id, reward3))
-
-        await conn.commit()
+    return fee

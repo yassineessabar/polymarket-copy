@@ -171,12 +171,13 @@ def demo_mode_keyboard(is_active: bool, balance: float = 0) -> InlineKeyboardMar
 
 def settings_keyboard(demo_mode: bool = False) -> InlineKeyboardMarkup:
     if demo_mode:
-        mode_btn = InlineKeyboardButton("🔴 Switch to Live Mode", callback_data="demo_disable")
+        mode_btn = InlineKeyboardButton("\U0001f534 Switch to Live Mode", callback_data="demo_disable")
     else:
         mode_btn = InlineKeyboardButton("🎮 Switch to Demo Mode", callback_data="demo_mode")
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📊 Risk & Sizing", callback_data="risk_settings")],
+        [InlineKeyboardButton("\U0001f4ca Risk & Sizing", callback_data="risk_settings")],
         [mode_btn],
+        [InlineKeyboardButton("💎 Subscription", callback_data="subscription")],
         [InlineKeyboardButton("🔑 Export Key", callback_data="wallet_security")],
         [InlineKeyboardButton("👥 Referral Hub", callback_data="referral_hub")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],

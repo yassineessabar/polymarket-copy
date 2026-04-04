@@ -10,14 +10,13 @@ import aiohttp
 
 from .database import Database
 from .wallet import decrypt_key, get_usdc_balance
-from .trading import get_user_clob_client, place_buy, place_sell, calculate_fee
+from .trading import get_user_clob_client, place_buy, place_sell
 from .risk_engine import risk_check, calculate_confidence
 from .api_helpers import (
     get_positions, get_recent_activity, get_market_price,
     get_profile_name, check_condition_resolved, make_trade_id,
 )
-from .config import FEE_RATE
-from .fees import distribute_referral_rewards
+from .fees import collect_performance_fee
 
 log = logging.getLogger("polyx")
 
@@ -311,9 +310,6 @@ class CopyTradeManager:
                  f"our_portfolio=${portfolio_value:.0f} target_bet=${usdc_size:.2f} "
                  f"our_bet=${bet:.2f} conf={conf:.0%}")
 
-        # Apply fee
-        net_bet, fee = calculate_fee(bet)
-
         cl = "LOW" if conf < 0.3 else "MED" if conf < 0.6 else "HIGH" if conf < 0.85 else "MAX"
         target_pct = (usdc_size / target_portfolio * 100) if target_portfolio > 0 else 0
 
@@ -324,10 +320,17 @@ class CopyTradeManager:
             # Deduct from demo balance
             await self.db.adjust_demo_balance(telegram_id, -bet)
         elif not dry_run:
+            # Subscription gate — block live buys if subscription inactive
+            if not await self.db.is_subscription_active(telegram_id):
+                log.info(f"[Copy:{telegram_id}] BLOCKED {title} | No active subscription")
+                await self._notify(telegram_id,
+                    "Your subscription is inactive. Live trading is paused.\n"
+                    "Use /subscribe to reactivate.")
+                return
             try:
                 client = get_user_clob_client(telegram_id, private_key, wallet)
                 await asyncio.get_event_loop().run_in_executor(
-                    None, place_buy, client, token_id, net_bet)
+                    None, place_buy, client, token_id, bet)
             except Exception as e:
                 log.error(f"[Copy:{telegram_id}] Buy failed: {e}")
                 return
@@ -339,17 +342,11 @@ class CopyTradeManager:
             title=title, outcome=outcome, entry_price=price,
             bet_amount=bet, target_usdc_size=usdc_size, event_slug=slug)
 
-        # Record trade + fee + referral
+        # Record trade
         trade_id = await self.db.record_trade(
             telegram_id=telegram_id, position_id=pos_id, side="BUY",
-            token_id=token_id, amount=bet, price=price, fee=fee,
+            token_id=token_id, amount=bet, price=price, fee=0,
             is_copy=True, source_wallet=target, dry_run=bool(dry_run))
-
-        if fee > 0 and not dry_run:
-            try:
-                await distribute_referral_rewards(self.db, telegram_id, trade_id, fee)
-            except Exception as e:
-                log.error(f"[Copy:{telegram_id}] Referral reward failed: {e}")
 
         # Record bet history for confidence scoring
         tid = make_trade_id(activity)
@@ -436,6 +433,10 @@ class CopyTradeManager:
                 bet_amount=new_bet,
                 target_usdc_size=max(0, target_orig - sell_usdc))
 
+        # Performance fee on profit
+        perf_fee = await collect_performance_fee(
+            self.db, telegram_id, our_pos["id"], pnl_usd, demo_mode=demo_mode)
+
         # Update daily risk P&L (atomic increment)
         await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
@@ -448,6 +449,7 @@ class CopyTradeManager:
             mode_tag = ""
         result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
         pnl_pct = ((sell_price - entry) / entry * 100) if entry > 0 else 0
+        fee_text = f"\n💎 Perf Fee: ${perf_fee:.2f}" if perf_fee > 0 else ""
         demo_bal_text = ""
         if demo_mode:
             cur_demo = await self.db.get_demo_balance(telegram_id)
@@ -456,7 +458,7 @@ class CopyTradeManager:
             f"<b>SELL{mode_tag}</b> {result}\n"
             f"{our_pos.get('title', '?')[:50]}\n"
             f"Sold {sell_frac*100:.0f}% @ {sell_price*100:.1f}c\n"
-            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){demo_bal_text}")
+            f"P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){fee_text}{demo_bal_text}")
 
     async def _check_closes(self, session, telegram_id, targets, settings,
                             risk, dry_run, private_key, wallet, demo_mode=False):
@@ -522,6 +524,11 @@ class CopyTradeManager:
                     log.error(f"[Copy:{telegram_id}] Resolution close sell failed: {e}")
 
             await self.db.close_position(pos["id"], cur_price, pnl_usd, close_reason)
+
+            # Performance fee on profit
+            perf_fee = await collect_performance_fee(
+                self.db, telegram_id, pos["id"], pnl_usd, demo_mode=demo_mode)
+
             await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
             if demo_mode:
@@ -531,6 +538,7 @@ class CopyTradeManager:
             else:
                 mode_tag = ""
             result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+            fee_text = f"\n💎 Perf Fee: ${perf_fee:.2f}" if perf_fee > 0 else ""
             demo_bal_text = ""
             if demo_mode:
                 cur_demo = await self.db.get_demo_balance(telegram_id)
@@ -540,7 +548,7 @@ class CopyTradeManager:
                 f"{pos.get('title', '?')[:50]} — {pos.get('outcome', '?')}\n"
                 f"Reason: {close_reason}\n"
                 f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
-                f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){demo_bal_text}")
+                f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){fee_text}{demo_bal_text}")
 
             checked_resolved.add(pos["id"])
 
@@ -617,6 +625,10 @@ class CopyTradeManager:
                 # Close in DB
                 await self.db.close_position(pos["id"], cur_price, pnl_usd, close_reason)
 
+                # Performance fee on profit
+                perf_fee = await collect_performance_fee(
+                    self.db, telegram_id, pos["id"], pnl_usd, demo_mode=demo_mode)
+
                 # Update daily P&L (atomic increment)
                 await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
@@ -628,6 +640,7 @@ class CopyTradeManager:
                 else:
                     mode_tag = ""
                 result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+                fee_text = f"\n💎 Perf Fee: ${perf_fee:.2f}" if perf_fee > 0 else ""
                 demo_bal_text = ""
                 if demo_mode:
                     cur_demo = await self.db.get_demo_balance(telegram_id)
@@ -637,4 +650,4 @@ class CopyTradeManager:
                     f"{pos.get('title', '?')[:50]} — {pos.get('outcome', '?')}\n"
                     f"Reason: {close_reason}\n"
                     f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
-                    f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){demo_bal_text}")
+                    f"Bet: ${bet_amt:.2f} | P&L: {pnl_pct:+.1f}% (${pnl_usd:+.2f}){fee_text}{demo_bal_text}")

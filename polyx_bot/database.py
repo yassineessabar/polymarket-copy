@@ -151,6 +151,27 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TEXT DEFAULT (datetime('now')),
     read       INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS performance_fees (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id  INTEGER NOT NULL REFERENCES users(telegram_id),
+    position_id  INTEGER REFERENCES positions(id),
+    profit_usd   REAL NOT NULL,
+    fee_usd      REAL NOT NULL,
+    demo         INTEGER NOT NULL DEFAULT 0,
+    collected_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    telegram_id             INTEGER PRIMARY KEY REFERENCES users(telegram_id),
+    stripe_customer_id      TEXT,
+    stripe_subscription_id  TEXT,
+    status                  TEXT NOT NULL DEFAULT 'none',
+    trial_started_at        TEXT,
+    trial_ends_at           TEXT,
+    current_period_end      TEXT,
+    updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -472,8 +493,66 @@ class Database:
                 "SELECT telegram_id FROM user_settings WHERE copy_trading_active=1") as cur:
                 return [r[0] for r in await cur.fetchall()]
 
+    # ── Performance Fees ──
+    async def record_performance_fee(self, telegram_id: int, position_id: int,
+                                      profit_usd: float, fee_usd: float, demo: bool = False):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT INTO performance_fees (telegram_id, position_id, profit_usd, fee_usd, demo) "
+                "VALUES (?,?,?,?,?)",
+                (telegram_id, position_id, profit_usd, fee_usd, 1 if demo else 0))
+            await db.commit()
+
+    async def get_total_performance_fees(self, telegram_id: int, demo: bool = False) -> float:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT COALESCE(SUM(fee_usd), 0) FROM performance_fees WHERE telegram_id=? AND demo=?",
+                (telegram_id, 1 if demo else 0)) as cur:
+                return (await cur.fetchone())[0]
+
+    # ── Subscriptions ──
+    async def get_subscription(self, telegram_id: int) -> dict | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM subscriptions WHERE telegram_id=?", (telegram_id,)) as cur:
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def upsert_subscription(self, telegram_id: int, **kwargs):
+        async with aiosqlite.connect(self.path) as db:
+            existing = await self.get_subscription(telegram_id)
+            if existing:
+                sets = ", ".join(f"{k}=?" for k in kwargs)
+                vals = list(kwargs.values()) + [telegram_id]
+                await db.execute(
+                    f"UPDATE subscriptions SET {sets}, updated_at=datetime('now') WHERE telegram_id=?", vals)
+            else:
+                kwargs["telegram_id"] = telegram_id
+                cols = ", ".join(kwargs.keys())
+                placeholders = ", ".join("?" for _ in kwargs)
+                await db.execute(
+                    f"INSERT INTO subscriptions ({cols}) VALUES ({placeholders})",
+                    list(kwargs.values()))
+            await db.commit()
+
+    async def is_subscription_active(self, telegram_id: int) -> bool:
+        """Check if user has an active subscription or is in trial."""
+        sub = await self.get_subscription(telegram_id)
+        if not sub:
+            return False
+        return sub.get("status") in ("trialing", "active")
+
+    async def get_telegram_id_by_stripe_customer(self, stripe_customer_id: str) -> int | None:
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT telegram_id FROM subscriptions WHERE stripe_customer_id=?",
+                (stripe_customer_id,)) as cur:
+                row = await cur.fetchone()
+                return row[0] if row else None
+
     # ══════════════════════════════════════════════════════════════════
-    # WEB / user_id-based methods (for polyx_api)
+    # Lookup helpers
     # ══════════════════════════════════════════════════════════════════
 
     async def get_user_by_wallet(self, wallet_address: str) -> dict | None:

@@ -1,4 +1,4 @@
-# PolyX Telegram Bot + Web API
+# PolyX Telegram Bot
 python-telegram-bot>=20.0
 aiosqlite>=0.19.0
 cryptography>=41.0.0
@@ -8,7 +8,5 @@ py-clob-client
 python-dotenv>=1.0.0
 eth-account>=0.9.0
 web3>=6.0.0
-fastapi>=0.110.0
-uvicorn[standard]>=0.27.0
 PyJWT>=2.8.0
-pydantic>=2.0.0
+stripe>=8.0.0

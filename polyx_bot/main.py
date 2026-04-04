@@ -29,6 +29,7 @@ from .handlers.settings_handler import (
     risk_settings_command, set_risk_param,
 )
 from .handlers.referral_handler import referral_command, copy_referral_link
+from .handlers.subscription_handler import subscription_command
 from .handlers.help_handler import help_command
 
 logging.basicConfig(
@@ -173,6 +174,9 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "demo_disable":
             # demo_disable calls query.answer() with a status message
             await demo_disable(update, context)
+        elif data == "subscription":
+            await query.answer()
+            await subscription_command(update, context)
         elif data == "trade_threshold":
             await query.answer("Trade threshold settings coming soon")
         elif data == "two_factor":
@@ -344,6 +348,13 @@ async def post_init(application):
     if active:
         log.info(f"Resumed copy trading for {len(active)} users")
 
+    # Start Stripe webhook server
+    from .config import STRIPE_SECRET_KEY
+    if STRIPE_SECRET_KEY:
+        from .stripe_webhook import start_webhook_server
+        webhook_runner = await start_webhook_server(db)
+        application.bot_data["webhook_runner"] = webhook_runner
+
 
 async def post_shutdown(application):
     """Graceful shutdown — stop all copy trading tasks."""
@@ -351,6 +362,10 @@ async def post_shutdown(application):
     if manager:
         await manager.stop_all()
         log.info("All copy trading tasks stopped")
+    webhook_runner = application.bot_data.get("webhook_runner")
+    if webhook_runner:
+        await webhook_runner.cleanup()
+        log.info("Webhook server stopped")
 
 
 def main():
@@ -410,6 +425,7 @@ def main():
     app.add_handler(CommandHandler("copy", copy_command))
     app.add_handler(CommandHandler("settings", settings_command))
     app.add_handler(CommandHandler("referral", referral_command))
+    app.add_handler(CommandHandler("subscribe", subscription_command))
     app.add_handler(CommandHandler("help", help_command))
 
     # Callback query router (catch-all for inline buttons)
