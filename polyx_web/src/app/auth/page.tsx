@@ -18,7 +18,6 @@ export default function AuthPage() {
   async function connectWallet() {
     setError("");
     if (typeof window === "undefined" || !(window as any).ethereum) {
-      // No MetaMask — suggest magic link
       setError("No wallet detected. Use email sign-in instead.");
       return;
     }
@@ -30,17 +29,10 @@ export default function AuthPage() {
       const provider = new BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-
-      // Get nonce
       const { nonce } = await authApi.nonce(address);
-
-      // Sign the nonce
       const signature = await signer.signMessage(nonce);
-
-      // Verify and get JWT
-      const { token, user } = await authApi.verify(address, signature);
+      const { token } = await authApi.verify(address, signature);
       setToken(token);
-
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Connection failed");
@@ -60,15 +52,12 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const res = await authApi.magicLink(email);
-
-      // Dev mode: auto-verify with dev_token
       if (res.dev_token) {
         const { token } = await authApi.magicVerify(res.dev_token);
         setToken(token);
         router.push("/dashboard");
         return;
       }
-
       setStep("magic-sent");
     } catch (err: any) {
       setError(err.message || "Failed to send magic link");
@@ -80,27 +69,23 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4">
       <div className="w-full max-w-[420px]">
-        {/* Logo */}
         <Link href="/" className="flex items-center gap-2 justify-center mb-10">
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center font-bold text-lg text-white">X</div>
           <span className="font-display text-2xl font-semibold text-white">PolyX</span>
         </Link>
 
-        <div className="bg-bg-card border border-border rounded-2xl p-8">
+        <div className="bg-bg-card border border-border rounded-2xl p-6 sm:p-8">
           {step === "choose" && (
             <>
-              <h1 className="text-xl font-semibold text-center mb-2">Get Started</h1>
+              <h1 className="text-xl font-semibold text-center mb-2">Sign In</h1>
               <p className="text-sm text-text-secondary text-center mb-8">
-                Connect your wallet or sign in with email to start copy trading.
+                Connect your wallet or sign in with email to start.
               </p>
 
               {error && (
-                <div className="bg-red/10 border border-red/20 text-red text-sm p-3 rounded-xl mb-4">
-                  {error}
-                </div>
+                <div className="bg-red/10 border border-red/20 text-red text-sm p-3 rounded-xl mb-4">{error}</div>
               )}
 
-              {/* Wallet Connect */}
               <button
                 onClick={connectWallet}
                 disabled={loading}
@@ -109,7 +94,7 @@ export default function AuthPage() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" /><path d="M4 6v12c0 1.1.9 2 2 2h14v-4" /><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" />
                 </svg>
-                Connect Wallet (MetaMask)
+                Connect Wallet
               </button>
 
               <div className="flex items-center gap-3 my-5">
@@ -118,7 +103,6 @@ export default function AuthPage() {
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* Magic Link */}
               <button
                 onClick={() => setStep("magic-form")}
                 className="w-full bg-accent hover:bg-accent-hover text-white font-medium py-3.5 rounded-xl transition-all flex items-center justify-center gap-3"
@@ -128,10 +112,6 @@ export default function AuthPage() {
                 </svg>
                 Sign in with Email
               </button>
-
-              <p className="text-xs text-text-muted text-center mt-6">
-                No wallet? No problem. We&apos;ll create a secure trading wallet for you.
-              </p>
             </>
           )}
 
@@ -140,7 +120,7 @@ export default function AuthPage() {
               <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <h2 className="font-semibold mb-2">Connecting Wallet</h2>
               <p className="text-sm text-text-secondary">
-                Please approve the connection and sign the message in your wallet...
+                Approve the connection and sign the message...
               </p>
             </div>
           )}
@@ -153,13 +133,11 @@ export default function AuthPage() {
               </button>
               <h1 className="text-xl font-semibold mb-2">Sign in with Email</h1>
               <p className="text-sm text-text-secondary mb-6">
-                Enter your email and we&apos;ll create a secure wallet for you.
+                We&apos;ll create a secure wallet for you automatically.
               </p>
 
               {error && (
-                <div className="bg-red/10 border border-red/20 text-red text-sm p-3 rounded-xl mb-4">
-                  {error}
-                </div>
+                <div className="bg-red/10 border border-red/20 text-red text-sm p-3 rounded-xl mb-4">{error}</div>
               )}
 
               <input

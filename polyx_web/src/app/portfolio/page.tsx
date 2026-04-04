@@ -30,7 +30,7 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="max-w-[1100px]">
+    <div className="max-w-[900px] mx-auto">
       <h1 className="text-xl sm:text-2xl font-semibold font-display mb-4 sm:mb-6">Portfolio</h1>
 
       {/* Tabs */}
@@ -53,8 +53,7 @@ export default function PortfolioPage() {
           <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
       ) : positions.length === 0 ? (
-        <div className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-8 sm:p-12 text-center">
-          <div className="text-3xl mb-3">&#x1F4CA;</div>
+        <div className="bg-bg-card border border-border rounded-2xl p-8 sm:p-12 text-center">
           <h3 className="font-semibold mb-2">No {tab} positions</h3>
           <p className="text-sm text-text-secondary">
             {tab === "open"
@@ -72,7 +71,7 @@ export default function PortfolioPage() {
             const pnlPctVal = pos.pnl_pct || (pos.entry_price > 0 ? ((pos.live_price || pos.exit_price || pos.entry_price) - pos.entry_price) / pos.entry_price * 100 : 0);
 
             return (
-              <div key={pos.id} className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-5 hover:border-border-hover transition-all">
+              <div key={pos.id} className="bg-bg-card border border-border rounded-2xl p-4 sm:p-5 hover:border-border-hover transition-all">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm mb-1 truncate">{pos.title}</div>

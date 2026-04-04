@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { userApi, paymentsApi } from "@/lib/api";
 import { truncateAddress, formatUsd } from "@/lib/utils";
-import { QRCodeSVG } from "qrcode.react";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<any>(null);
@@ -12,9 +11,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showKey, setShowKey] = useState(false);
 
-  useEffect(() => { loadProfile(); }, []);
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
   async function loadProfile() {
     try {
@@ -56,41 +56,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-[800px]">
+    <div className="max-w-[700px] mx-auto">
       <h1 className="text-xl sm:text-2xl font-semibold font-display mb-4 sm:mb-6">Settings</h1>
 
-      {/* Deposit / Wallet */}
-      <div className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Deposit USDC</h3>
-        <p className="text-xs sm:text-sm text-text-secondary mb-3 sm:mb-4">
-          Send USDC on <strong className="text-white">Polygon</strong> to your trading wallet. Funds appear automatically.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-start">
-          <div className="bg-white p-2.5 sm:p-3 rounded-xl flex-shrink-0">
-            <QRCodeSVG value={profile?.wallet_address || ""} size={120} />
-          </div>
-          <div className="flex-1 w-full">
-            <div className="text-[10px] sm:text-xs text-text-muted mb-1">Your Trading Wallet</div>
-            <div className="bg-bg-secondary border border-border rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 font-mono text-[11px] sm:text-sm break-all mb-3">
-              {profile?.wallet_address}
-            </div>
-            <button
-              onClick={() => navigator.clipboard.writeText(profile?.wallet_address || "")}
-              className="bg-bg-secondary border border-border hover:border-border-hover text-white text-sm px-4 py-2 rounded-xl transition-all"
-            >
-              Copy Address
-            </button>
-            <div className="mt-4">
-              <div className="text-xs text-text-muted mb-1">Current Balance</div>
-              <div className="text-xl font-semibold font-mono">{formatUsd(profile?.balance_usdc || 0)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Demo Mode */}
-      <div className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
+      <div className="bg-bg-card border border-border rounded-2xl p-4 sm:p-6 mb-4">
+        <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-sm sm:text-base">Demo Mode</h3>
           <button
             onClick={() => updateSetting("demo_mode", settings.demo_mode ? 0 : 1)}
@@ -116,8 +87,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Risk Settings */}
-      <div className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Risk Settings</h3>
+      <div className="bg-bg-card border border-border rounded-2xl p-4 sm:p-6 mb-4">
+        <h3 className="font-semibold text-sm sm:text-base mb-4">Risk Settings</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { key: "trade_mode", label: "Trade Mode", type: "select", options: ["cautious", "standard", "expert"] },
@@ -137,7 +108,9 @@ export default function SettingsPage() {
                   onChange={(e) => updateSetting(field.key, e.target.value)}
                   className="w-full bg-bg-secondary border border-border rounded-xl px-4 py-2.5 text-white outline-none focus:border-accent text-sm appearance-none"
                 >
-                  {field.options!.map((o) => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
+                  {field.options!.map((o) => (
+                    <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
+                  ))}
                 </select>
               ) : (
                 <input
@@ -161,8 +134,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Subscription */}
-      <div className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Subscription</h3>
+      <div className="bg-bg-card border border-border rounded-2xl p-4 sm:p-6 mb-4">
+        <h3 className="font-semibold text-sm sm:text-base mb-3">Subscription</h3>
         {subscription?.status === "active" || subscription?.status === "trialing" ? (
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -178,21 +151,21 @@ export default function SettingsPage() {
         ) : (
           <div>
             <p className="text-sm text-text-secondary mb-4">
-              Subscribe to enable live trading with real funds. $39/month + 25% performance fee on profits only.
+              Subscribe to enable live trading with real funds.
             </p>
             <button
               onClick={startCheckout}
               className="bg-accent hover:bg-accent-hover text-white font-medium px-6 py-2.5 rounded-xl transition-all"
             >
-              Subscribe — $39/month
+              Subscribe &mdash; $39/month
             </button>
           </div>
         )}
       </div>
 
-      {/* Wallet Info */}
-      <div className="bg-bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-6">
-        <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Account Info</h3>
+      {/* Account Info */}
+      <div className="bg-bg-card border border-border rounded-2xl p-4 sm:p-6">
+        <h3 className="font-semibold text-sm sm:text-base mb-3">Account Info</h3>
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
             <span className="text-text-muted">Auth Provider</span>
@@ -204,7 +177,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-text-muted">Member Since</span>
-            <span>{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—"}</span>
+            <span>{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "--"}</span>
           </div>
         </div>
       </div>

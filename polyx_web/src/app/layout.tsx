@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PolyX — Copy Top Polymarket Traders",
-  description: "Copy the sharpest minds on Polymarket. Auto-copy trading with smart risk management.",
+  title: "PolyX — Investing in Polymarket Made Easy",
+  description: "Choose a strategy. Connect. That's it. Auto-copy top Polymarket traders with smart risk management.",
   icons: { icon: "/favicon.ico" },
 };
 

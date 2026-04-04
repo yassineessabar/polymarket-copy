@@ -17,7 +17,7 @@ body {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #0e0f11; }
 ::-webkit-scrollbar-thumb { background: #2a2d32; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3d42; }
@@ -29,6 +29,10 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Hide scrollbar for horizontal scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* iOS safe area */
 @supports (padding: env(safe-area-inset-bottom)) {
