@@ -17,8 +17,10 @@ export default function InvestPage() {
   const strategy = STRATEGIES[slug];
   const isDemo = searchParams.get("demo") === "1";
 
+  const refFromUrl = searchParams.get("ref") || "";
   const [step, setStep] = useState<Step>(isLoggedIn() ? "amount" : "auth");
   const [email, setEmail] = useState("");
+  const [referralCode, setReferralCode] = useState(refFromUrl);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number>(500);
@@ -212,6 +214,16 @@ export default function InvestPage() {
                 </svg>
                 No, Use Email Instead
               </button>
+            </div>
+            <div className="mt-5 pt-4 border-t border-black/5">
+              <label className="text-xs text-[#9B9B9B] font-medium mb-1.5 block">Referral Code (optional)</label>
+              <input
+                type="text"
+                placeholder="Enter referral code"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm placeholder-[#BFBFBF]"
+              />
             </div>
           </div>
         )}

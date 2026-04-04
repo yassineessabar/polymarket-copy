@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi, setToken } from "@/lib/api";
 
 type AuthStep = "choose" | "wallet-connecting" | "magic-form" | "magic-sent";
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const refFromUrl = searchParams.get("ref") || "";
   const [step, setStep] = useState<AuthStep>("choose");
   const [email, setEmail] = useState("");
+  const [referralCode, setReferralCode] = useState(refFromUrl);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -136,6 +139,17 @@ export default function AuthPage() {
                 </svg>
                 Sign in with Email
               </button>
+
+              <div className="mt-5 pt-5 border-t border-black/5">
+                <label className="text-xs text-[#9B9B9B] font-medium mb-1.5 block">Referral Code (optional)</label>
+                <input
+                  type="text"
+                  placeholder="Enter referral code"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm placeholder-[#BFBFBF]"
+                />
+              </div>
             </>
           )}
 
@@ -201,5 +215,13 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F7F7F7]" />}>
+      <AuthContent />
+    </Suspense>
   );
 }
