@@ -141,13 +141,14 @@ async def demo_disable(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             text = (
                 "💎 <b>Live Trading Requires a Subscription</b>\n\n"
-                "Start your <b>7-day free trial</b> to trade with real money.\n"
-                "After the trial, it's just <b>$39/month</b>.\n\n"
-                "Your card will be collected now but <b>won't be charged</b> until the trial ends.\n\n"
+                "Subscribe for <b>$39/month</b> to trade with real money.\n\n"
+                "✅ Unlimited copy trading\n"
+                "✅ Real-time trade execution\n"
+                "✅ All risk management features\n\n"
                 "Demo mode remains free — no subscription needed."
             )
             kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Start Free Trial", url=checkout_url)],
+                [InlineKeyboardButton("Subscribe — $39/mo", url=checkout_url)],
                 [InlineKeyboardButton("⬅️ Back to Settings", callback_data="settings")],
             ])
             await respond(update, context, text, reply_markup=kb)

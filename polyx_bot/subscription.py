@@ -35,28 +35,15 @@ async def check_subscription_status(db: Database, telegram_id: int) -> dict:
         return {
             "allowed": False,
             "status": "none",
-            "message": "No subscription. Start your 7-day free trial to trade live.",
+            "message": "No subscription. Subscribe to trade live.",
             "checkout_url": None,
         }
 
     status = sub.get("status", "none")
 
     if status in ("trialing", "active"):
-        if status == "trialing":
-            ends = sub.get("trial_ends_at", "")
-            if ends:
-                try:
-                    end_dt = datetime.fromisoformat(ends)
-                    days_left = (end_dt - datetime.utcnow()).days
-                    msg = f"Free trial — {max(0, days_left)} days remaining"
-                except Exception:
-                    msg = "Free trial active"
-            else:
-                msg = "Free trial active"
-        else:
-            period_end = sub.get("current_period_end", "")
-            msg = f"Active subscription (renews {period_end[:10]})" if period_end else "Active subscription"
-
+        period_end = sub.get("current_period_end", "")
+        msg = f"Active subscription (renews {period_end[:10]})" if period_end else "Active subscription"
         return {"allowed": True, "status": status, "message": msg, "checkout_url": None}
 
     if status == "past_due":
@@ -93,7 +80,6 @@ async def create_checkout_session(db: Database, telegram_id: int) -> str | None:
         params = {
             "mode": "subscription",
             "line_items": [{"price": STRIPE_PRICE_ID, "quantity": 1}],
-            "subscription_data": {"trial_period_days": TRIAL_DAYS},
             "success_url": f"https://t.me/{_bot_username()}?start=sub_success",
             "cancel_url": f"https://t.me/{_bot_username()}?start=sub_cancel",
             "metadata": {"telegram_id": str(telegram_id)},

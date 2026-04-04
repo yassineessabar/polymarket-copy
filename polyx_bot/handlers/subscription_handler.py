@@ -18,17 +18,10 @@ async def subscription_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if status in ("trialing", "active"):
         # Active subscription
-        if status == "trialing":
-            emoji = "🆓"
-            label = "Free Trial"
-        else:
-            emoji = "✅"
-            label = "Active"
-
         text = (
-            f"💎 <b>Subscription</b> — {emoji} {label}\n\n"
+            f"💎 <b>Subscription</b> — ✅ Active\n\n"
             f"{sub_info['message']}\n\n"
-            f"Plan: <b>$39/month</b>\n"
+            f"Plan: <b>$39/month</b> + 25% performance fee\n"
         )
 
         buttons = []
@@ -60,15 +53,15 @@ async def subscription_command(update: Update, context: ContextTypes.DEFAULT_TYP
         text = (
             "💎 <b>Subscription</b>\n\n"
             "Trade live with PolyX for <b>$39/month</b>.\n\n"
-            "✅ 7-day free trial\n"
             "✅ Unlimited copy trading\n"
             "✅ Real-time trade execution\n"
-            "✅ All risk management features\n\n"
+            "✅ All risk management features\n"
+            "✅ 25% performance fee on profits only\n\n"
             "Demo mode is always free."
         )
         buttons = []
         if checkout_url:
-            buttons.append([InlineKeyboardButton("Start 7-Day Free Trial", url=checkout_url)])
+            buttons.append([InlineKeyboardButton("Subscribe — $39/mo", url=checkout_url)])
         buttons.append([InlineKeyboardButton("⬅️ Settings", callback_data="settings"),
                         InlineKeyboardButton("🏠 Home", callback_data="home")])
         kb = InlineKeyboardMarkup(buttons)
