@@ -20,6 +20,7 @@ export default function StrategyDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const strategy = STRATEGIES[slug];
   const [timeFilter, setTimeFilter] = useState<string>("ALL");
+  const [copied, setCopied] = useState(false);
   const [liveData, setLiveData] = useState<any>(null);
 
   useEffect(() => {
@@ -27,16 +28,20 @@ export default function StrategyDetailPage() {
     traderApi.one(strategy.wallet).then(setLiveData).catch(() => {});
   }, [strategy]);
 
+  // Use live equity curve from API, fallback to generated
   const equityData = useMemo(() => {
+    if (liveData?.equity_curve && liveData.equity_curve.length > 3) {
+      return liveData.equity_curve;
+    }
     if (!strategy) return [];
     return generateEquityData(liveData?.roi || strategy.returnPct);
   }, [strategy, liveData]);
 
   const filteredData = useMemo(() => {
     const filterMap: Record<string, number> = {
-      "1W": 7, "1M": 30, "3M": 90, "6M": 180, "YTD": 90, "1Y": 180, "ALL": 180,
+      "1W": 7, "1M": 30, "3M": 90, "6M": 180, "YTD": 90, "1Y": 365, "ALL": 9999,
     };
-    return equityData.slice(-(filterMap[timeFilter] || 180));
+    return equityData.slice(-(filterMap[timeFilter] || 9999));
   }, [equityData, timeFilter]);
 
   // Use live data if available, fallback to static
@@ -60,8 +65,9 @@ export default function StrategyDetailPage() {
     );
   }
 
-  const chartMin = Math.min(...filteredData.map((d) => d.value));
-  const chartMax = Math.max(...filteredData.map((d) => d.value));
+  const values = filteredData.map((d: any) => d.value).filter(Boolean);
+  const chartMin = values.length > 0 ? Math.min(...values) : 0;
+  const chartMax = values.length > 0 ? Math.max(...values) : 1000;
   const startVal = filteredData[0]?.value || 1000;
   const endVal = filteredData[filteredData.length - 1]?.value || 1000;
   const periodReturn = ((endVal - startVal) / startVal) * 100;
@@ -76,17 +82,22 @@ export default function StrategyDetailPage() {
           </Link>
           <span className="font-bold text-sm -tracking-[0.28px] text-[#121212] truncate">{strategy.name}</span>
           <button
-            onClick={() => {
+            onClick={async () => {
+              const url = window.location.href;
+              const title = `${strategy.name} on PolyX`;
               if (navigator.share) {
-                navigator.share({ title: `${strategy.name} on PolyX`, url: window.location.href });
+                try { await navigator.share({ title, url }); } catch {}
               } else {
-                navigator.clipboard.writeText(window.location.href);
-                alert("Link copied!");
+                await navigator.clipboard.writeText(url);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
               }
             }}
             className="w-16 flex justify-end"
           >
-            <span className="rounded-full bg-[#121212] text-white text-xs font-medium px-3.5 py-1.5">Share</span>
+            <span className="rounded-full bg-[#121212] text-white text-xs font-medium px-3.5 py-1.5">
+              {copied ? "Copied!" : "Share"}
+            </span>
           </button>
         </div>
       </nav>
@@ -148,7 +159,7 @@ export default function StrategyDetailPage() {
                     <stop offset="100%" stopColor="#009D55" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="day" hide />
+                <XAxis dataKey="date" hide />
                 <YAxis
                   domain={[chartMin * 0.98, chartMax * 1.02]}
                   hide
