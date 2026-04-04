@@ -59,7 +59,10 @@ export default function InvestPage() {
       setToken(token);
       setStep("amount");
     } catch (err: any) {
-      setError(err.message || "Connection failed");
+      const msg = err?.code === "ACTION_REJECTED" || err?.message?.includes("user-denied") || err?.message?.includes("4001")
+        ? "Connection cancelled. Try again or use email instead."
+        : err.message || "Connection failed";
+      setError(msg);
       setStep("auth");
       setHasWallet(null);
     } finally {

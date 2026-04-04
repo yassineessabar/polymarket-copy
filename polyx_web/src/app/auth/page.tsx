@@ -35,7 +35,10 @@ export default function AuthPage() {
       setToken(token);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Connection failed");
+      const msg = err?.code === "ACTION_REJECTED" || err?.message?.includes("user-denied") || err?.message?.includes("4001")
+        ? "Connection cancelled. Try again or use email sign-in."
+        : err.message || "Connection failed";
+      setError(msg);
       setStep("choose");
     } finally {
       setLoading(false);
