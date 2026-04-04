@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { STRATEGIES } from "@/lib/strategies";
 import { authApi, setToken, userApi, copyApi, isLoggedIn } from "@/lib/api";
-import { BrowserProvider } from "ethers";
 
 type Step = "auth" | "wallet-connecting" | "magic-form" | "magic-sent" | "amount" | "confirm" | "success";
 
@@ -40,7 +39,8 @@ export default function InvestPage() {
 
   async function connectWallet() {
     setError("");
-    if (typeof window === "undefined" || !(window as any).ethereum) {
+    const eth = (window as any)?.ethereum;
+    if (!eth) {
       setError("No wallet detected. Use email sign-in instead.");
       setHasWallet(null);
       return;
@@ -50,19 +50,30 @@ export default function InvestPage() {
     setLoading(true);
 
     try {
-      const provider = new BrowserProvider((window as any).ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
+      const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
+      if (!accounts || accounts.length === 0) throw new Error("No accounts returned");
+      const address = accounts[0];
+
       const { nonce } = await authApi.nonce(address);
-      const signature = await signer.signMessage(nonce);
+      const signature: string = await eth.request({
+        method: "personal_sign",
+        params: [nonce, address],
+      });
       const { token } = await authApi.verify(address, signature);
       setToken(token);
       setStep("amount");
     } catch (err: any) {
-      const msg = err?.code === "ACTION_REJECTED" || err?.message?.includes("user-denied") || err?.message?.includes("4001")
-        ? "Connection cancelled. Try again or use email instead."
-        : err.message || "Connection failed";
-      setError(msg);
+      const code = err?.code || err?.data?.code || 0;
+      const msg = err?.message || "";
+      let userMsg = "Connection failed. Please try again.";
+
+      if (code === 4001 || msg.includes("user-denied") || msg.includes("User rejected") || msg.includes("ACTION_REJECTED")) {
+        userMsg = "Connection cancelled. Try again or use email instead.";
+      } else if (code === -32002 || msg.includes("already pending") || msg.includes("coalesce")) {
+        userMsg = "A wallet request is already pending. Open your wallet and approve or reject it first.";
+      }
+
+      setError(userMsg);
       setStep("auth");
       setHasWallet(null);
     } finally {

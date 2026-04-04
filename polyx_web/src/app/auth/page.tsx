@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authApi, setToken } from "@/lib/api";
-import { BrowserProvider } from "ethers";
 
 type AuthStep = "choose" | "wallet-connecting" | "magic-form" | "magic-sent";
 
@@ -17,7 +16,8 @@ export default function AuthPage() {
 
   async function connectWallet() {
     setError("");
-    if (typeof window === "undefined" || !(window as any).ethereum) {
+    const eth = (window as any)?.ethereum;
+    if (!eth) {
       setError("No wallet detected. Use email sign-in instead.");
       return;
     }
@@ -26,19 +26,40 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const provider = new BrowserProvider((window as any).ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
+      // Use raw ethereum API — more reliable than ethers BrowserProvider
+      const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts returned");
+      }
+      const address = accounts[0];
+
+      // Get nonce from our API
       const { nonce } = await authApi.nonce(address);
-      const signature = await signer.signMessage(nonce);
+
+      // Sign the nonce using personal_sign (works with all wallets)
+      const signature: string = await eth.request({
+        method: "personal_sign",
+        params: [nonce, address],
+      });
+
+      // Verify and get JWT
       const { token } = await authApi.verify(address, signature);
       setToken(token);
       router.push("/dashboard");
     } catch (err: any) {
-      const msg = err?.code === "ACTION_REJECTED" || err?.message?.includes("user-denied") || err?.message?.includes("4001")
-        ? "Connection cancelled. Try again or use email sign-in."
-        : err.message || "Connection failed";
-      setError(msg);
+      const code = err?.code || err?.data?.code || 0;
+      const msg = err?.message || "";
+      let userMsg = "Connection failed. Please try again.";
+
+      if (code === 4001 || msg.includes("user-denied") || msg.includes("User rejected") || msg.includes("ACTION_REJECTED")) {
+        userMsg = "Connection cancelled. Try again or use email sign-in.";
+      } else if (code === -32002 || msg.includes("already pending") || msg.includes("coalesce")) {
+        userMsg = "A wallet request is already pending. Please open your wallet and approve or reject the pending request.";
+      } else if (msg.includes("No wallet") || msg.includes("accounts")) {
+        userMsg = "Could not connect to wallet. Make sure it is unlocked.";
+      }
+
+      setError(userMsg);
       setStep("choose");
     } finally {
       setLoading(false);
