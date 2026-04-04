@@ -2,8 +2,9 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useState, useMemo } from "react";
-import { STRATEGIES, generateEquityData, generateRecentTrades, generateHoldings } from "@/lib/strategies";
+import { useState, useMemo, useEffect } from "react";
+import { STRATEGIES, generateEquityData } from "@/lib/strategies";
+import { traderApi } from "@/lib/api";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -19,35 +20,33 @@ export default function StrategyDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const strategy = STRATEGIES[slug];
   const [timeFilter, setTimeFilter] = useState<string>("ALL");
+  const [liveData, setLiveData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!strategy) return;
+    traderApi.one(strategy.wallet).then(setLiveData).catch(() => {});
+  }, [strategy]);
 
   const equityData = useMemo(() => {
     if (!strategy) return [];
-    return generateEquityData(strategy.returnPct);
-  }, [strategy]);
+    return generateEquityData(liveData?.roi || strategy.returnPct);
+  }, [strategy, liveData]);
 
   const filteredData = useMemo(() => {
     const filterMap: Record<string, number> = {
-      "1W": 7,
-      "1M": 30,
-      "3M": 90,
-      "6M": 180,
-      "YTD": 90,
-      "1Y": 180,
-      "ALL": 180,
+      "1W": 7, "1M": 30, "3M": 90, "6M": 180, "YTD": 90, "1Y": 180, "ALL": 180,
     };
-    const points = filterMap[timeFilter] || 180;
-    return equityData.slice(-points);
+    return equityData.slice(-(filterMap[timeFilter] || 180));
   }, [equityData, timeFilter]);
 
-  const recentTrades = useMemo(() => {
-    if (!strategy) return [];
-    return generateRecentTrades(strategy);
-  }, [strategy]);
-
-  const holdings = useMemo(() => {
-    if (!strategy) return [];
-    return generateHoldings(strategy);
-  }, [strategy]);
+  // Use live data if available, fallback to static
+  const recentTrades = liveData?.recent_trades || [];
+  const holdings = liveData?.top_holdings || [];
+  const winRate = liveData?.win_rate ?? strategy?.winRate;
+  const totalPnl = liveData?.total_pnl;
+  const totalValue = liveData?.total_value;
+  const roi = liveData?.roi ?? strategy?.returnPct;
+  const copiers = strategy?.copiers;
 
   if (!strategy) {
     return (
@@ -178,58 +177,78 @@ export default function StrategyDetailPage() {
           </div>
         </div>
 
-        {/* Stats row */}
+        {/* Stats row — live data */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           {[
-            { label: "AUM", value: strategy.aum },
-            { label: "Win Rate", value: `${strategy.winRate}%` },
-            { label: "Copiers", value: strategy.copiers.toLocaleString() },
-            { label: "Avg Trade", value: strategy.avgTradeSize },
-          ].map((stat, i) => (
+            { label: "AUM", value: totalValue ? `$${(totalValue).toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.aum },
+            { label: "Win Rate", value: `${winRate}%` },
+            { label: "Total P&L", value: totalPnl !== undefined ? `$${totalPnl.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit },
+            { label: "Positions", value: liveData?.position_count?.toString() || strategy.trades },
+          ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-2xl p-4 text-center shadow-sm">
               <div className="text-lg sm:text-xl font-bold font-mono text-[#121212]">{stat.value}</div>
               <div className="text-[10px] sm:text-xs text-[#9B9B9B] uppercase tracking-wider mt-1 font-medium">{stat.label}</div>
-              {i < 3 && <div className="hidden" />}
             </div>
           ))}
         </div>
 
-        {/* Trade Updates */}
+        {/* Trade Updates — live from Polymarket */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 mt-4 shadow-sm">
-          <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Recent Trade Updates</h3>
-          <div className="space-y-0">
-            {recentTrades.map((trade, i) => (
-              <div key={i} className="flex items-center gap-3 py-3 border-b border-black/5 last:border-0">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${trade.action === "BUY" ? "bg-[#009D55]" : "bg-[#DC2626]"}`} />
-                  <span className={`text-[10px] sm:text-xs font-semibold font-mono w-10 flex-shrink-0 ${trade.action === "BUY" ? "text-[#009D55]" : "text-[#DC2626]"}`}>
-                    {trade.action}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs sm:text-sm font-medium truncate text-[#121212]">{trade.market}</div>
-                  <div className="text-[10px] text-[#9B9B9B]">{trade.outcome} &middot; {trade.amount}</div>
-                </div>
-                <span className="text-[10px] sm:text-xs text-[#9B9B9B] flex-shrink-0">{trade.date}</span>
-              </div>
-            ))}
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="font-bold text-sm sm:text-base text-[#121212]">Recent Trade Updates</h3>
+            {liveData && <span className="w-2 h-2 rounded-full bg-[#009D55] animate-pulse" />}
           </div>
+          {recentTrades.length === 0 ? (
+            <p className="text-sm text-[#9B9B9B] py-4 text-center">Loading trades...</p>
+          ) : (
+            <div className="space-y-0">
+              {recentTrades.map((trade: any, i: number) => {
+                const isBuy = trade.side === "BUY" || trade.action === "BUY";
+                const title = trade.title || trade.market || "?";
+                const outcome = trade.outcome || "";
+                const amount = trade.usdc_size ? `$${trade.usdc_size.toFixed(0)}` : trade.amount || "";
+                const date = trade.timestamp ? new Date(trade.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : trade.date || "";
+                return (
+                  <div key={i} className="flex items-center gap-3 py-3 border-b border-black/5 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#009D55]" : "bg-[#DC2626]"}`} />
+                      <span className={`text-[10px] sm:text-xs font-semibold font-mono w-10 flex-shrink-0 ${isBuy ? "text-[#009D55]" : "text-[#DC2626]"}`}>
+                        {isBuy ? "BUY" : "SELL"}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs sm:text-sm font-medium truncate text-[#121212]">{title}</div>
+                      <div className="text-[10px] text-[#9B9B9B]">{outcome}{outcome && amount ? " \u00b7 " : ""}{amount}</div>
+                    </div>
+                    <span className="text-[10px] sm:text-xs text-[#9B9B9B] flex-shrink-0">{date}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Current Holdings */}
+        {/* Current Holdings — live from Polymarket */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 mt-4 shadow-sm">
           <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Current Holdings</h3>
+          {holdings.length === 0 ? (
+            <p className="text-sm text-[#9B9B9B] py-4 text-center">{liveData ? "No open positions" : "Loading..."}</p>
+          ) : (
           <div className="space-y-0">
-            {holdings.map((h, i) => {
-              const pnlPct = ((h.current - h.entry) / h.entry) * 100;
+            {holdings.map((h: any, i: number) => {
+              const title = h.title || h.market || "?";
+              const outcome = h.outcome || "";
+              const value = h.value || 0;
+              const pnl = h.pnl || 0;
+              const pnlPct = value > 0 && pnl !== 0 ? (pnl / (value - pnl)) * 100 : 0;
               return (
                 <div key={i} className="flex items-center justify-between py-3 border-b border-black/5 last:border-0">
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs sm:text-sm font-medium truncate text-[#121212]">{h.market}</div>
-                    <div className="text-[10px] text-[#9B9B9B]">{h.outcome} &middot; Entry: {(h.entry * 100).toFixed(0)}c &middot; {h.size}</div>
+                    <div className="text-xs sm:text-sm font-medium truncate text-[#121212]">{title}</div>
+                    <div className="text-[10px] text-[#9B9B9B]">{outcome}</div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-3">
-                    <div className="text-xs sm:text-sm font-mono font-medium text-[#121212]">{(h.current * 100).toFixed(0)}c</div>
+                    <div className="text-xs sm:text-sm font-mono font-medium text-[#121212]">${value.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                     <div className={`text-[10px] font-mono font-medium ${pnlPct >= 0 ? "text-[#009D55]" : "text-[#DC2626]"}`}>
                       {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%
                     </div>
@@ -238,6 +257,7 @@ export default function StrategyDetailPage() {
               );
             })}
           </div>
+          )}
         </div>
 
         {/* About */}

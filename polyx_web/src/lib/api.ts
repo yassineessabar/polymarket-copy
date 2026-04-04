@@ -133,3 +133,9 @@ export const marketsApi = {
   browse: (category = "", limit = 10) =>
     apiFetch<{ markets: any[] }>(`/api/v1/markets?category=${category}&limit=${limit}`),
 };
+
+// Trader Analytics (real-time from Polymarket)
+export const traderApi = {
+  all: () => apiFetch<{ traders: any[] }>("/api/v1/traders/analytics"),
+  one: (wallet: string) => apiFetch<any>(`/api/v1/traders/analytics/${wallet}`),
+};
