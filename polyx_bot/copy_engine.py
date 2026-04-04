@@ -435,7 +435,8 @@ class CopyTradeManager:
 
         # Performance fee on profit
         perf_fee = await collect_performance_fee(
-            self.db, telegram_id, our_pos["id"], pnl_usd, demo_mode=demo_mode)
+            self.db, telegram_id, our_pos["id"], pnl_usd,
+            demo_mode=demo_mode, private_key=private_key)
 
         # Update daily risk P&L (atomic increment)
         await self.db.increment_daily_pnl(telegram_id, pnl_usd)
@@ -527,7 +528,8 @@ class CopyTradeManager:
 
             # Performance fee on profit
             perf_fee = await collect_performance_fee(
-                self.db, telegram_id, pos["id"], pnl_usd, demo_mode=demo_mode)
+                self.db, telegram_id, pos["id"], pnl_usd,
+                demo_mode=demo_mode, private_key=private_key)
 
             await self.db.increment_daily_pnl(telegram_id, pnl_usd)
 
@@ -627,7 +629,8 @@ class CopyTradeManager:
 
                 # Performance fee on profit
                 perf_fee = await collect_performance_fee(
-                    self.db, telegram_id, pos["id"], pnl_usd, demo_mode=demo_mode)
+                    self.db, telegram_id, pos["id"], pnl_usd,
+                    demo_mode=demo_mode, private_key=private_key)
 
                 # Update daily P&L (atomic increment)
                 await self.db.increment_daily_pnl(telegram_id, pnl_usd)

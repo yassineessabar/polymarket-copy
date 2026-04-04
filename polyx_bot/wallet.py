@@ -63,3 +63,43 @@ def address_from_key(key: str) -> str:
     if not key.startswith("0x"):
         key = "0x" + key
     return Account.from_key(key).address
+
+
+def transfer_usdc(private_key: str, to_address: str, amount_usdc: float) -> str | None:
+    """Transfer USDC on Polygon. Returns tx hash or None on failure."""
+    from web3 import Web3
+
+    w3 = Web3(Web3.HTTPProvider(POLYGON_RPC))
+    account = Account.from_key(private_key)
+    sender = account.address
+
+    # USDC has 6 decimals
+    amount_raw = int(amount_usdc * 1e6)
+    if amount_raw <= 0:
+        return None
+
+    # ERC-20 transfer(address,uint256) selector
+    data = (
+        "0xa9059cbb"
+        + to_address[2:].lower().zfill(64)
+        + hex(amount_raw)[2:].zfill(64)
+    )
+
+    try:
+        nonce = w3.eth.get_transaction_count(sender)
+        gas_price = w3.eth.gas_price
+
+        tx = {
+            "to": Web3.to_checksum_address(USDC_CONTRACT),
+            "data": data,
+            "gas": 80_000,
+            "gasPrice": gas_price,
+            "nonce": nonce,
+            "chainId": 137,
+        }
+
+        signed = w3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        return tx_hash.hex()
+    except Exception:
+        return None
