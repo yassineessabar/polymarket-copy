@@ -132,7 +132,7 @@ export default function DashboardPage() {
             <span className="text-sm font-bold">DEMO</span>
             <span><strong>Demo Mode</strong> &mdash; Trading with virtual funds</span>
           </div>
-          <Link href="/settings" className="text-xs font-semibold text-[#121212] underline">Go Live</Link>
+          <Link href="/wallet" className="text-xs font-semibold text-[#121212] underline">Go Live</Link>
         </div>
       )}
 
