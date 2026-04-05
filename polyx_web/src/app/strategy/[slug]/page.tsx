@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { STRATEGIES, generateEquityData } from "@/lib/strategies";
-import { traderApi, userApi } from "@/lib/api";
+import { traderApi, userApi, copyApi } from "@/lib/api";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,6 +25,7 @@ export default function StrategyDetailPage() {
   const [settings, setSettings] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [toggling, setToggling] = useState<string | null>(null);
 
   useEffect(() => {
     if (!strategy) return;
@@ -38,6 +39,15 @@ export default function StrategyDetailPage() {
   function updateSetting(key: string, value: any) {
     setSettings((s: any) => ({ ...s, [key]: value }));
   }
+  async function addStrategyTarget(wallet: string, name: string) {
+    setToggling(wallet);
+    try {
+      await copyApi.addTarget(wallet, name);
+      await copyApi.start();
+    } catch {}
+    setToggling(null);
+  }
+
   async function saveSettings() {
     setSaving(true);
     try {
@@ -121,50 +131,111 @@ export default function StrategyDetailPage() {
           </button>
       </div>
 
-      {/* Hero with image */}
-      <div className="relative overflow-hidden rounded-2xl mb-4">
-        <img alt={strategy.name} src={strategy.image} className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/60" />
-        <div className="relative px-5 sm:px-7 py-8 sm:py-12">
-          <div className="flex items-center gap-4 mb-4">
-            <img alt={strategy.manager} src={strategy.image} className="w-12 h-12 rounded-full object-cover border-2 border-white/30" />
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{strategy.name}</h1>
-              <div className="flex items-center gap-2 text-sm -tracking-[0.28px] mt-1">
-                <span className="text-white/60">by</span>
-                <span className="text-white/90 font-medium">{strategy.manager}</span>
-                <span className="text-white/30">|</span>
-                <a href={`https://polymarket.com/profile/${strategy.wallet}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-white/70 hover:text-white transition-colors">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-white/70"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M8 12l3 3 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  <span className="text-xs font-mono">{strategy.wallet.slice(0, 6)}...{strategy.wallet.slice(-4)}</span>
-                </a>
+      {/* Hero Banner */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
+        {/* Image + Name */}
+        <div className="relative h-32 sm:h-40 overflow-hidden">
+          <img alt={strategy.name} src={strategy.image} className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60" />
+          <div className="absolute bottom-4 left-5 right-5">
+            <div className="flex items-center gap-3">
+              <img alt={strategy.manager} src={strategy.image} className="w-11 h-11 rounded-full object-cover border-2 border-white/40" />
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{strategy.name}</h1>
+                <span className="text-white/70 text-xs">by {strategy.manager}</span>
               </div>
+              {/* Rank badge */}
+              <span className="ml-auto bg-[#DC2626] text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7-6.3-4.6L5.7 21l2.3-7L2 9.4h7.6z"/></svg>
+                Rank #{liveData?.rank || Math.floor(strategy.winRate * 2)}
+              </span>
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl sm:text-5xl font-bold font-mono text-white">
-              +{strategy.returnPct}%
-            </span>
-            <span className="text-base sm:text-lg font-medium text-white/60">all time</span>
+        </div>
+
+        {/* Action row: Copy Address + Copy This Trader + Links */}
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-black/5 flex-wrap">
+          <button
+            onClick={() => { navigator.clipboard.writeText(strategy.wallet); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+            className="flex items-center gap-1.5 bg-[#F7F7F7] hover:bg-[#EBEBEB] text-[#121212] text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            {copied ? "Copied!" : "Copy Address"}
+          </button>
+          <button
+            onClick={() => addStrategyTarget(strategy.wallet, strategy.name)}
+            disabled={toggling === strategy.wallet}
+            className="flex items-center gap-1.5 bg-[#121212] hover:bg-[#333] text-white text-xs font-medium px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            {toggling === strategy.wallet ? "Copying..." : "Copy This Trader"}
+          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <a href={`https://polymarket.com/profile/${strategy.wallet}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[#9B9B9B] hover:text-[#121212] text-xs transition-colors">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+              Polymarket
+            </a>
+            <a href={`https://polymarketanalytics.com/traders/${strategy.wallet}#trades`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[#9B9B9B] hover:text-[#121212] text-xs transition-colors">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Analytics
+            </a>
+          </div>
+        </div>
+
+        {/* Stats row — matching Polymarket Analytics layout */}
+        <div className="px-5 py-4">
+          <div className="flex flex-wrap gap-x-6 gap-y-3 mb-3">
+            <div>
+              <div className="text-[10px] text-[#9B9B9B] font-medium">Polymarket PnL</div>
+              <div className="text-lg font-bold font-mono text-[#121212]">
+                {totalPnl !== undefined ? `$${Math.abs(totalPnl).toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[#9B9B9B] font-medium">Total Gains</div>
+              <div className="text-lg font-bold font-mono text-[#009D55]">
+                +{totalPnl !== undefined && totalPnl > 0 ? `$${totalPnl.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[#9B9B9B] font-medium">Total Losses</div>
+              <div className="text-lg font-bold font-mono text-[#DC2626]">
+                -${liveData?.total_losses ? Math.abs(liveData.total_losses).toLocaleString(undefined, {maximumFractionDigits: 0}) : "0"}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-[#9B9B9B] font-medium">Win Rate</div>
+              <div className="text-lg font-bold font-mono text-[#121212]">{winRate}%</div>
+            </div>
+          </div>
+
+          {/* Polymarket Positions card */}
+          <div className="bg-[#F7F7F7] rounded-xl p-3 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] text-[#9B9B9B] font-medium">Polymarket Positions</div>
+              <div className="text-lg font-bold font-mono text-[#121212]">
+                {totalValue ? `$${totalValue.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.aum}
+              </div>
+            </div>
+            <div className="text-[10px] text-[#9B9B9B]">
+              {liveData?.position_count || strategy.trades} positions
+            </div>
+          </div>
+
+          {/* Category tags */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {strategy.categories.map((cat) => (
+              <span key={cat} className="bg-[#F7F7F7] text-[#656565] text-[10px] px-3 py-1 rounded-full font-medium border border-black/5">
+                {cat}
+              </span>
+            ))}
+            {winRate >= 67 && <span className="bg-[#F7F7F7] text-[#656565] text-[10px] px-3 py-1 rounded-full font-medium border border-black/5">Overall Win Rate &gt; 67%</span>}
+            {strategy.returnPct > 100 && <span className="bg-[#F7F7F7] text-[#656565] text-[10px] px-3 py-1 rounded-full font-medium border border-black/5">Overall PnL &gt; $100k</span>}
           </div>
         </div>
       </div>
 
       <div className="pb-6">
-        {/* Stats row — above chart */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "AUM", value: totalValue ? `$${(totalValue).toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.aum },
-            { label: "Win Rate", value: `${winRate}%` },
-            { label: "Total P&L", value: totalPnl !== undefined ? `$${totalPnl.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit },
-            { label: "Positions", value: liveData?.position_count?.toString() || strategy.trades },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl p-4 text-center shadow-sm">
-              <div className="text-lg sm:text-xl font-bold font-mono text-[#121212]">{stat.value}</div>
-              <div className="text-[10px] sm:text-xs text-[#9B9B9B] uppercase tracking-wider mt-1 font-medium">{stat.label}</div>
-            </div>
-          ))}
-        </div>
 
         {/* Chart */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 mt-4 shadow-sm">
@@ -345,31 +416,16 @@ export default function StrategyDetailPage() {
         <div className="bg-white rounded-2xl p-4 sm:p-6 mt-4 shadow-sm">
           <h3 className="font-bold text-sm sm:text-base mb-3 text-[#121212]">About this Strategy</h3>
           <p className="text-sm text-[#656565] leading-relaxed font-medium">{strategy.desc}</p>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {strategy.categories.map((cat) => (
-              <span key={cat} className="bg-[#F7F7F7] text-[#656565] text-[10px] sm:text-xs px-3 py-1.5 rounded-full font-medium">
-                {cat}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 
       {/* Action button */}
       <Link
         href={`/invest/${strategy.slug}`}
-        className="block w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3.5 rounded-full transition-all text-center text-sm mt-4"
+        className="block w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3.5 rounded-full transition-all text-center text-sm"
       >
         Invest in this Strategy
       </Link>
-      <a
-        href={`https://polymarketanalytics.com/traders/${strategy.wallet}#trades`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full text-center text-[#009D55] text-xs font-medium mt-3 hover:underline"
-      >
-        View on Polymarket Analytics
-      </a>
     </div>
   );
 }
