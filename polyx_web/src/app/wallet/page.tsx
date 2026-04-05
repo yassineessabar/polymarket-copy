@@ -78,6 +78,8 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [depositTab, setDepositTab] = useState<"card" | "crypto">("card");
@@ -121,6 +123,16 @@ export default function WalletPage() {
     const updated = { ...settings, demo_mode: 0 };
     setSettings(updated);
     saveTradingMode({ demo_mode: 0 });
+  }
+
+  async function resetDemo() {
+    setResetting(true);
+    try {
+      await userApi.updateSettings({ demo_balance: 1000, reset_demo: true });
+      await loadProfile();
+      setShowResetConfirm(false);
+    } catch {}
+    setResetting(false);
   }
 
   function copyAddress() {
@@ -226,6 +238,12 @@ export default function WalletPage() {
                 </p>
               </div>
             </div>
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="mt-4 w-full border border-[#DC2626]/30 text-[#DC2626] font-medium py-2.5 rounded-full transition-all text-sm hover:bg-[#DC2626]/5"
+            >
+              Reset Demo Account
+            </button>
           </div>
         </>
       )}
@@ -529,8 +547,8 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* ===== YOUR WALLET (always visible) ===== */}
-      <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 shadow-sm">
+      {/* ===== YOUR WALLET (live mode only) ===== */}
+      {!isDemo && <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 shadow-sm">
         <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Your Wallet</h3>
 
         <div className="flex flex-col items-center gap-5">
@@ -566,7 +584,34 @@ export default function WalletPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
+
+      {/* Reset Demo Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-5">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-[380px] shadow-lg">
+            <h3 className="font-bold text-base text-[#121212] mb-2">Reset Demo Account?</h3>
+            <p className="text-sm text-[#9B9B9B] mb-6">
+              This will close all open positions, clear all trades and transaction history, and reset your demo balance to $1,000.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 border border-[#121212] text-[#121212] font-medium py-2.5 rounded-full text-sm hover:bg-[#F7F7F7]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={resetDemo}
+                disabled={resetting}
+                className="flex-1 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-medium py-2.5 rounded-full text-sm disabled:opacity-50"
+              >
+                {resetting ? "Resetting..." : "Reset"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== Mode toggle link (always visible) ===== */}
       <div className="text-center pb-6">

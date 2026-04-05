@@ -37,6 +37,10 @@ const MOCK_TRADERS = STRATEGY_LIST.map((s, i) => ({
   pnl: s.profit,
   image: s.image,
   wallet: s.wallet,
+  trades: s.trades,
+  copiers: s.copiers,
+  returnPct: s.returnPct,
+  categories: s.categories,
 }));
 
 /* ================================================================== */
@@ -542,58 +546,55 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div className="space-y-3">
-              {traders.map((trader, i) => (
+            <div className="space-y-4">
+              {traders.map((trader: any, i: number) => (
                 <div
                   key={i}
-                  className="bg-white rounded-2xl shadow-sm p-4 transition-all hover:shadow-md"
+                  className="bg-white rounded-2xl shadow-sm overflow-hidden transition-all hover:shadow-md"
                 >
-                  <div className="flex items-center gap-3">
-                    {/* Trader image */}
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-[#F7F7F7]">
-                      {(trader as any).image ? (
-                        <img
-                          src={(trader as any).image}
-                          alt={trader.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-lg font-bold text-[#9B9B9B]">
-                          {trader.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                  {/* Hero image */}
+                  <div className="h-28 relative overflow-hidden">
+                    <img src={trader.image} alt={trader.name} className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute top-2.5 right-2.5 bg-white text-[#121212] text-[10px] font-bold px-2.5 py-1 rounded-full">
+                      {trader.match}% match
                     </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[#121212] truncate">
-                          {trader.name}
-                        </span>
-                        <span className="text-xs font-semibold text-white bg-[#121212] rounded-full px-2 py-0.5 flex-shrink-0">
-                          {trader.match}% match
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        {trader.winRate && (
-                          <span className="text-xs text-[#9B9B9B]">
-                            {trader.winRate}% win rate
-                          </span>
-                        )}
-                        {trader.pnl && (
-                          <span className="text-xs text-[#009D55] font-medium">
-                            {trader.pnl}
-                          </span>
-                        )}
+                    <div className="absolute bottom-3 left-4 flex items-center gap-2">
+                      <img src={trader.image} alt={trader.name} className="w-9 h-9 rounded-full object-cover border-2 border-white/40" />
+                      <div>
+                        <p className="text-white font-bold text-sm drop-shadow-sm">{trader.name}</p>
+                        <p className="text-white/70 text-[10px]">{trader.categories?.join(", ") || "Overall"}</p>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Copy button */}
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-4 gap-px bg-[#F0F0F0]">
+                    <div className="bg-white p-3 text-center">
+                      <p className="text-xs font-bold font-mono text-[#009D55]">{trader.pnl}</p>
+                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">P&L</p>
+                    </div>
+                    <div className="bg-white p-3 text-center">
+                      <p className="text-xs font-bold font-mono text-[#121212]">{trader.winRate}%</p>
+                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">Win Rate</p>
+                    </div>
+                    <div className="bg-white p-3 text-center">
+                      <p className="text-xs font-bold font-mono text-[#121212]">{trader.trades}</p>
+                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">Positions</p>
+                    </div>
+                    <div className="bg-white p-3 text-center">
+                      <p className="text-xs font-bold font-mono text-[#121212]">+{trader.returnPct}%</p>
+                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">Return</p>
+                    </div>
+                  </div>
+
+                  {/* Action */}
+                  <div className="p-3">
                     <button
                       onClick={() => handleCopy(trader.name)}
-                      className="bg-[#121212] text-white text-xs font-semibold px-5 py-2.5 rounded-full transition-all hover:bg-[#121212]/90 active:scale-[0.96] flex-shrink-0"
+                      className="w-full bg-[#121212] text-white text-sm font-semibold py-2.5 rounded-full transition-all hover:bg-[#333] active:scale-[0.98]"
                     >
-                      Copy
+                      Start Copying
                     </button>
                   </div>
                 </div>

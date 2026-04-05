@@ -130,9 +130,14 @@ export default function StrategyDetailPage() {
             <img alt={strategy.manager} src={strategy.image} className="w-12 h-12 rounded-full object-cover border-2 border-white/30" />
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{strategy.name}</h1>
-              <div className="flex items-center gap-1.5 text-sm -tracking-[0.28px]">
+              <div className="flex items-center gap-2 text-sm -tracking-[0.28px] mt-1">
                 <span className="text-white/60">by</span>
                 <span className="text-white/90 font-medium">{strategy.manager}</span>
+                <span className="text-white/30">|</span>
+                <a href={`https://polymarket.com/profile/${strategy.wallet}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-white/70 hover:text-white transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-white/70"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M8 12l3 3 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span className="text-xs font-mono">{strategy.wallet.slice(0, 6)}...{strategy.wallet.slice(-4)}</span>
+                </a>
               </div>
             </div>
           </div>
@@ -146,8 +151,23 @@ export default function StrategyDetailPage() {
       </div>
 
       <div className="pb-6">
+        {/* Stats row — above chart */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "AUM", value: totalValue ? `$${(totalValue).toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.aum },
+            { label: "Win Rate", value: `${winRate}%` },
+            { label: "Total P&L", value: totalPnl !== undefined ? `$${totalPnl.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit },
+            { label: "Positions", value: liveData?.position_count?.toString() || strategy.trades },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-2xl p-4 text-center shadow-sm">
+              <div className="text-lg sm:text-xl font-bold font-mono text-[#121212]">{stat.value}</div>
+              <div className="text-[10px] sm:text-xs text-[#9B9B9B] uppercase tracking-wider mt-1 font-medium">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
         {/* Chart */}
-        <div className="bg-white rounded-2xl p-4 sm:p-6 mt-6 shadow-sm">
+        <div className="bg-white rounded-2xl p-4 sm:p-6 mt-4 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <span className={`text-lg font-bold font-mono ${periodReturn >= 0 ? "text-[#009D55]" : "text-[#DC2626]"}`}>
@@ -205,21 +225,6 @@ export default function StrategyDetailPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* Stats row — live data */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-          {[
-            { label: "AUM", value: totalValue ? `$${(totalValue).toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.aum },
-            { label: "Win Rate", value: `${winRate}%` },
-            { label: "Total P&L", value: totalPnl !== undefined ? `$${totalPnl.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit },
-            { label: "Positions", value: liveData?.position_count?.toString() || strategy.trades },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl p-4 text-center shadow-sm">
-              <div className="text-lg sm:text-xl font-bold font-mono text-[#121212]">{stat.value}</div>
-              <div className="text-[10px] sm:text-xs text-[#9B9B9B] uppercase tracking-wider mt-1 font-medium">{stat.label}</div>
-            </div>
-          ))}
         </div>
 
         {/* Trade Updates — live from Polymarket */}

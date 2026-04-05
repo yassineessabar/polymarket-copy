@@ -46,9 +46,11 @@ function AuthContent() {
       });
 
       // Verify and get JWT
-      const { token } = await authApi.verify(address, signature);
+      const { token, user } = await authApi.verify(address, signature);
       setToken(token);
-      router.push("/onboarding");
+      // New users go to onboarding, existing users go to dashboard
+      const isNew = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
+      router.push(isNew ? "/onboarding" : "/dashboard");
     } catch (err: any) {
       const code = err?.code || err?.data?.code || 0;
       const msg = err?.message || "";
@@ -80,9 +82,10 @@ function AuthContent() {
     try {
       const res = await authApi.magicLink(email);
       if (res.dev_token) {
-        const { token } = await authApi.magicVerify(res.dev_token);
+        const { token, user } = await authApi.magicVerify(res.dev_token);
         setToken(token);
-        router.push("/onboarding");
+        const isNew = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
+        router.push(isNew ? "/onboarding" : "/dashboard");
         return;
       }
       setStep("magic-sent");
@@ -140,16 +143,6 @@ function AuthContent() {
                 Sign in with Email
               </button>
 
-              <div className="mt-5 pt-5 border-t border-black/5">
-                <label className="text-xs text-[#9B9B9B] font-medium mb-1.5 block">Referral Code (optional)</label>
-                <input
-                  type="text"
-                  placeholder="Enter referral code"
-                  value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
-                  className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm placeholder-[#BFBFBF]"
-                />
-              </div>
             </>
           )}
 
