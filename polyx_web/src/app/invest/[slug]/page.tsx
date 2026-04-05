@@ -15,7 +15,7 @@ export default function InvestPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const strategy = STRATEGIES[slug];
-  const isDemo = searchParams.get("demo") === "1";
+  const demoFromUrl = searchParams.get("demo") === "1";
 
   const refFromUrl = searchParams.get("ref") || "";
   const [step, setStep] = useState<Step>(isLoggedIn() ? "amount" : "auth");
@@ -25,6 +25,8 @@ export default function InvestPage() {
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState<number>(500);
   const [customAmount, setCustomAmount] = useState("");
+  const [isDemo, setIsDemo] = useState(demoFromUrl);
+  const [showDeposit, setShowDeposit] = useState(false);
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
 
   if (!strategy) {
@@ -287,29 +289,29 @@ export default function InvestPage() {
         )}
 
         {/* Step 2: Choose Amount */}
-        {step === "amount" && (
+        {step === "amount" && !showDeposit && (
           <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
             <h2 className="text-lg sm:text-xl font-bold text-center mb-2 text-[#121212]">Choose Amount</h2>
             <p className="text-sm text-[#9B9B9B] font-medium text-center mb-6">
               {isDemo
                 ? "How much virtual funds do you want to start with?"
-                : "How much do you want to invest?"}
+                : "How much USDC do you want to invest?"}
             </p>
 
             {/* Demo / Live Toggle */}
-            <div className="grid grid-cols-2 gap-2 mb-6">
+            <div className="flex bg-[#F7F7F7] rounded-full p-1 mb-6">
               <button
-                onClick={() => { /* demo mode is set via URL ?demo=1 */ }}
-                className={`py-2.5 rounded-full text-xs font-medium transition-all ${
-                  isDemo ? "bg-[#121212] text-white" : "bg-[#F7F7F7] text-[#9B9B9B] hover:text-[#121212]"
+                onClick={() => setIsDemo(true)}
+                className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all ${
+                  isDemo ? "bg-[#121212] text-white shadow-sm" : "text-[#9B9B9B] hover:text-[#121212]"
                 }`}
               >
                 Demo (Virtual)
               </button>
               <button
-                onClick={() => { if (isDemo) router.push(`/invest/${slug}`); }}
-                className={`py-2.5 rounded-full text-xs font-medium transition-all ${
-                  !isDemo ? "bg-[#121212] text-white" : "bg-[#F7F7F7] text-[#9B9B9B] hover:text-[#121212]"
+                onClick={() => setIsDemo(false)}
+                className={`flex-1 py-2.5 rounded-full text-xs font-medium transition-all ${
+                  !isDemo ? "bg-[#121212] text-white shadow-sm" : "text-[#9B9B9B] hover:text-[#121212]"
                 }`}
               >
                 Live (Real USDC)
@@ -343,42 +345,84 @@ export default function InvestPage() {
               />
             </div>
 
-            {/* Live mode: deposit prompt */}
-            {!isDemo && (
-              <div className="bg-[#F7F7F7] rounded-2xl p-4 mb-4">
-                <p className="text-xs text-[#656565] font-medium mb-3">
-                  You need USDC in your wallet to trade live. Deposit now or continue with demo.
-                </p>
-                <div className="flex gap-2">
-                  <a
-                    href={`https://buy.moonpay.com?apiKey=pk_test_Yh1ao0Ys5snWHLqkeLQfbfFaYHnVjRP&currencyCode=usdc_polygon&walletAddress=${typeof window !== "undefined" ? "" : ""}&colorCode=%237B3FE4&theme=light`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 bg-[#7B3FE4] hover:bg-[#6930C3] text-white text-xs font-medium py-2.5 rounded-full text-center transition-colors"
-                  >
-                    Buy with Card
-                  </a>
-                  <button
-                    onClick={() => router.push("/wallet")}
-                    className="flex-1 border border-black/10 text-[#656565] text-xs font-medium py-2.5 rounded-full text-center hover:bg-white transition-colors"
-                  >
-                    Deposit Crypto
-                  </button>
-                </div>
-              </div>
+            {/* Main CTA */}
+            {isDemo ? (
+              <button
+                onClick={() => setStep("confirm")}
+                disabled={!finalAmount || finalAmount < 1}
+                className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3.5 rounded-full transition-all disabled:opacity-50"
+              >
+                Start Demo with ${(finalAmount || 0).toLocaleString()}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowDeposit(true)}
+                disabled={!finalAmount || finalAmount < 1}
+                className="w-full bg-[#009D55] hover:bg-[#008548] text-white font-medium py-3.5 rounded-full transition-all disabled:opacity-50"
+              >
+                Deposit ${(finalAmount || 0).toLocaleString()} USDC
+              </button>
             )}
 
-            <button
-              onClick={() => setStep("confirm")}
-              disabled={!finalAmount || finalAmount < 1}
-              className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3.5 rounded-full transition-all disabled:opacity-50"
-            >
-              Continue with ${(finalAmount || 0).toLocaleString()}
-            </button>
+            {/* Secondary options */}
+            <div className="flex items-center justify-center gap-4 mt-4">
+              {!isDemo && (
+                <button
+                  onClick={() => { setIsDemo(true); }}
+                  className="text-[#9B9B9B] text-sm hover:text-[#656565] transition-colors"
+                >
+                  Try Demo First
+                </button>
+              )}
+              <button onClick={() => router.push("/dashboard")} className="text-[#9B9B9B] text-sm hover:text-[#656565] transition-colors">
+                I&apos;ll do it later
+              </button>
+            </div>
+          </div>
+        )}
 
-            <button onClick={() => router.push("/dashboard")} className="w-full text-center text-[#9B9B9B] text-sm mt-4 hover:text-[#656565] transition-colors">
-              I&apos;ll do it later
-            </button>
+        {/* Step 2b: Deposit (Live mode) — embedded MoonPay */}
+        {step === "amount" && showDeposit && (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+              <div>
+                <h2 className="text-base font-bold text-[#121212]">Deposit ${(finalAmount || 0).toLocaleString()} USDC</h2>
+                <p className="text-xs text-[#9B9B9B] mt-0.5">Funds go directly to your trading wallet</p>
+              </div>
+              <button onClick={() => setShowDeposit(false)} className="w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#EBEBEB] flex items-center justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Embedded MoonPay */}
+            <div style={{ height: "520px" }}>
+              <iframe
+                src={`https://buy.moonpay.com?apiKey=pk_test_Yh1ao0Ys5snWHLqkeLQfbfFaYHnVjRP&currencyCode=usdc_polygon&baseCurrencyAmount=${finalAmount || 500}&walletAddress=&colorCode=%237B3FE4&language=en&baseCurrencyCode=usd&theme=light`}
+                allow="accelerometer; autoplay; camera; gyroscope; payment; microphone"
+                width="100%"
+                height="100%"
+                style={{ border: "none" }}
+                title="Buy USDC with MoonPay"
+              />
+            </div>
+
+            <div className="px-5 py-4 border-t border-black/5">
+              <p className="text-[10px] text-[#9B9B9B] text-center mb-3">
+                After depositing, click below to continue
+              </p>
+              <button
+                onClick={() => { setShowDeposit(false); setStep("confirm"); }}
+                className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3 rounded-full transition-all text-sm"
+              >
+                I&apos;ve Deposited — Continue
+              </button>
+              <button
+                onClick={() => { setShowDeposit(false); setIsDemo(true); }}
+                className="w-full text-center text-[#9B9B9B] text-sm mt-3 hover:text-[#656565] transition-colors"
+              >
+                Switch to Demo Instead
+              </button>
+            </div>
           </div>
         )}
 
