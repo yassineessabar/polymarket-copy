@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "PolyX -- Investing in Polymarket Made Easy",
-  description: "Choose a strategy. Connect. That's it. Auto-copy top Polymarket traders with smart risk management.",
+  description: "Follow top traders. Unlock capital. Let it run automatically.",
   icons: { icon: "/favicon.ico" },
 };
 

@@ -276,7 +276,7 @@ export default function OnboardingPage() {
       )}
 
       {/* ============================================================ */}
-      {/*  STEP 2: Copy Trading Intro                                  */}
+      {/*  STEP 2: Trading Intro                                  */}
       {/* ============================================================ */}
       {step === 2 && (
         <div className="flex flex-col items-center min-h-screen">
@@ -301,7 +301,7 @@ export default function OnboardingPage() {
           {/* Content */}
           <div className="max-w-[480px] w-full px-6 mt-8 text-center flex-1 flex flex-col">
             <h2 className="text-2xl font-bold text-[#0F0F0F]">
-              Copy top traders in one tap.
+              Follow top traders. Unlock capital. Let it run.
             </h2>
 
             <p className="text-[#6B7280] text-sm mt-3 leading-relaxed">
@@ -313,7 +313,7 @@ export default function OnboardingPage() {
                 onClick={() => setStep(3)}
                 className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
               >
-                Start Copy Trading
+                Get Started
               </button>
             </div>
           </div>
@@ -504,7 +504,7 @@ export default function OnboardingPage() {
                 selected={activityLevel === 1}
                 onClick={() => setActivityLevel(1)}
                 title="Daily Flow"
-                description="Multiple trades per day. Steady signals, steady growth."
+                description="Multiple trades per day. Steady flow, steady growth."
                 imageUrl={QUIZ_IMAGES.activity[1]}
               />
               <OptionCard
@@ -624,7 +624,7 @@ export default function OnboardingPage() {
                       onClick={() => handleCopy(trader.wallet, trader.name)}
                       className="w-full bg-[#0F0F0F] text-white text-sm font-semibold py-2.5 rounded-xl transition-all hover:bg-[#333] active:scale-[0.98]"
                     >
-                      Start Copying
+                      Start Following
                     </button>
                   </div>
                 </div>

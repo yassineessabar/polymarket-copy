@@ -44,7 +44,7 @@ export default function ReferPage() {
       try {
         await navigator.share({
           title: "Join Polycool",
-          text: "Copy top Polymarket traders automatically",
+          text: "Follow top traders with automated capital allocation",
           url: referralLink,
         });
       } catch {}
@@ -179,7 +179,7 @@ export default function ReferPage() {
             {
               step: "2",
               title: "Friend signs up and picks a strategy",
-              desc: "They create an account and choose a trader to copy",
+              desc: "They create an account and choose a trader to follow",
             },
             {
               step: "3",

@@ -431,8 +431,8 @@ export default function StrategyDetailPage() {
             className="w-full bg-[#0F0F0F] hover:bg-[#262626] text-white rounded-xl h-14 text-base font-semibold transition-colors disabled:opacity-50"
           >
             {toggling === strategy.wallet
-              ? "Starting..."
-              : `Invest in ${strategy.name}`}
+              ? "Activating..."
+              : `Follow ${strategy.name}`}
           </button>
         </div>
       </div>

@@ -103,7 +103,7 @@ export default function PortfolioPage() {
         <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm">
           <h3 className="font-bold mb-2 text-[#0F0F0F]">No {tab} positions</h3>
           <p className="text-sm text-[#6B7280] font-medium">
-            {tab === "open" ? "Start copy trading to open positions." : "Closed trades will appear here."}
+            {tab === "open" ? "Start following traders to open positions." : "Closed trades will appear here."}
           </p>
         </div>
       ) : (

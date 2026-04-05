@@ -219,7 +219,7 @@ export default function StrategiesPage() {
                   <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 bg-[#009D55] rounded-xl animate-pulse" />
-                      <span className="text-xs text-[#009D55] font-medium">Copying</span>
+                      <span className="text-xs text-[#009D55] font-medium">Following</span>
                     </div>
                     {strat && (
                       <Link
@@ -283,7 +283,7 @@ export default function StrategiesPage() {
                       {s.name}
                     </div>
                     <div className="text-sm text-[#737373]">
-                      {s.winRate}% win rate &middot; {s.copiers} copiers
+                      {s.winRate}% win rate &middot; {s.copiers} followers
                     </div>
                   </div>
                   <div className="flex flex-col items-end flex-shrink-0 ml-3">
@@ -293,11 +293,11 @@ export default function StrategiesPage() {
                     {isActive ? (
                       <span className="flex items-center gap-1 text-xs text-[#009D55] font-medium">
                         <span className="w-1.5 h-1.5 bg-[#009D55] rounded-xl animate-pulse" />
-                        Copying
+                        Following
                       </span>
                     ) : (
                       <span className="text-xs text-[#009D55] font-medium">
-                        Start Copying
+                        Start Following
                       </span>
                     )}
                   </div>

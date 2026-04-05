@@ -187,9 +187,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section 2: Copying */}
+      {/* Section 2: Active Traders */}
       <div className="mt-8">
-        <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium mb-3">Copying</p>
+        <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium mb-3">Active Traders</p>
 
         {copyStatus?.active ? (
           <div className="bg-white rounded-2xl border border-black/[0.04] p-4">
@@ -197,7 +197,7 @@ export default function DashboardPage() {
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[#0F0F0F]">
-                  Copying {copyStatus.target_count} trader{copyStatus.target_count !== 1 ? "s" : ""}
+                  Following {copyStatus.target_count} trader{copyStatus.target_count !== 1 ? "s" : ""}
                 </p>
               </div>
               <span className="text-xs text-[#6B7280]">{copyStatus.open_positions} open positions</span>
@@ -208,7 +208,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-black/[0.04] p-6 text-center">
-            <p className="text-sm font-semibold text-[#0F0F0F] mb-1">Start copy trading</p>
+            <p className="text-sm font-semibold text-[#0F0F0F] mb-1">Start automated trading</p>
             <p className="text-sm text-[#6B7280] mb-4">Follow top traders and mirror their positions automatically</p>
             <Link
               href="/strategies"
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                     {t.side}
                   </span>
                   <span className="text-sm text-[#6B7280] flex-1 truncate">
-                    {t.amount_usdc ? `$${Number(t.amount_usdc).toFixed(2)}` : ""} {t.is_copy ? "(copy)" : ""}
+                    {t.amount_usdc ? `$${Number(t.amount_usdc).toFixed(2)}` : ""} {t.is_copy ? "(auto)" : ""}
                   </span>
                   <span className="text-xs text-[#9CA3AF] flex-shrink-0">
                     {t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}

@@ -110,7 +110,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex flex-col overflow-hidden text-nowrap">
                       <p className="overflow-hidden text-sm font-bold -tracking-[0.28px] text-nowrap text-ellipsis text-[#9B9B9B]">
-                        <span className="text-[#009D55]">{s.copiers}</span> Copiers
+                        <span className="text-[#009D55]">{s.copiers}</span> Followers
                       </p>
                       <p className="overflow-hidden text-lg font-bold -tracking-[0.4px] text-nowrap text-ellipsis text-[#121212] lg:text-2xl lg:-tracking-[0.48px]">{s.name}</p>
                       <div className="flex gap-x-1 items-center">
@@ -151,7 +151,7 @@ export default function LandingPage() {
                 <p className="text-sm font-medium text-[#9B9B9B]">MetaMask, Email, or WalletConnect</p>
               </div>
             )},
-            { title: "That's it.", desc: "Your portfolio runs on autopilot. We copy every trade automatically.", card: (
+            { title: "That's it.", desc: "Your portfolio runs on autopilot. Your portfolio runs on autopilot with automated execution.", card: (
               <div className="w-[280px] md:w-[320px] rounded-[22px] shadow-md shadow-black/10 border border-[#F4F4F4] p-6 flex flex-col items-center gap-3">
                 <div className="text-[#009D55] text-4xl font-bold">+127%</div>
                 <p className="text-sm font-medium text-[#9B9B9B]">All-time return</p>
