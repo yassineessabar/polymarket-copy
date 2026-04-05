@@ -297,6 +297,15 @@ class CopyTradeManager:
         # Get bet history for confidence scoring
         bet_history = await self.db.get_bet_history(target)
 
+        # Count how many OTHER targets also have this market (for correlation penalty)
+        all_targets = await self.db.get_targets(telegram_id)
+        overlap_count = 0
+        for t in all_targets:
+            if t["wallet_addr"].lower() != target.lower():
+                other_pos = await self.db.get_open_positions(telegram_id)
+                if any(p.get("condition_id") == condition_id and p.get("target_wallet", "").lower() == t["wallet_addr"].lower() for p in other_pos):
+                    overlap_count += 1
+
         bet, conf, reject = risk_check(
             usdc_size=usdc_size,
             target_portfolio=target_portfolio,
@@ -308,6 +317,7 @@ class CopyTradeManager:
             bet_history=bet_history,
             settings=settings,
             halted=bool(risk.get("halted", 0)),
+            overlapping_targets=overlap_count,
         )
 
         if reject:

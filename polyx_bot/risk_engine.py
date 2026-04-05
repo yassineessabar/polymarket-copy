@@ -7,6 +7,31 @@ import logging
 
 log = logging.getLogger("polyx")
 
+# Trade mode presets — override user settings with tighter/looser limits
+TRADE_MODE_PRESETS = {
+    "cautious": {
+        "max_risk_pct_mult": 0.5,      # halve the max risk per position
+        "confidence_mult": 0.6,         # reduce bet sizing by 40%
+        "min_confidence": 0.4,          # skip low-confidence trades
+        "max_positions_mult": 0.5,      # halve max open positions
+        "exposure_mult": 0.6,           # reduce max exposure
+    },
+    "standard": {
+        "max_risk_pct_mult": 1.0,
+        "confidence_mult": 1.0,
+        "min_confidence": 0.0,
+        "max_positions_mult": 1.0,
+        "exposure_mult": 1.0,
+    },
+    "expert": {
+        "max_risk_pct_mult": 1.5,       # allow 50% larger positions
+        "confidence_mult": 1.3,         # more aggressive sizing
+        "min_confidence": 0.0,          # copy all trades regardless of confidence
+        "max_positions_mult": 1.5,      # allow more open positions
+        "exposure_mult": 1.3,           # higher exposure allowed
+    },
+}
+
 
 def calculate_confidence(usdc_size: float, bet_history: list) -> float:
     if not bet_history or len(bet_history) < 5:
@@ -59,11 +84,13 @@ def risk_check(
     bet_history: list,
     settings: dict,
     halted: bool = False,
+    overlapping_targets: int = 0,
 ) -> tuple[float, float, str | None]:
     """
     Returns (bet_amount, confidence, reject_reason_or_None).
     Pure function — all state passed in, no global access.
     """
+    # Base settings from user config
     max_risk_pct = settings.get("max_risk_pct", 10.0)
     min_bet = settings.get("min_bet", 1.0)
     max_positions = settings.get("max_open_positions", 20)
@@ -71,6 +98,14 @@ def risk_check(
     max_exposure_pct = settings.get("max_exposure_pct", 50.0)
     loss_limit = settings.get("daily_loss_limit_pct", 15.0)
     drawdown_start = settings.get("drawdown_scale_start", 5.0)
+    correlation_penalty = settings.get("correlation_penalty", 0.5)
+    trade_mode = settings.get("trade_mode", "standard")
+
+    # Apply trade_mode multipliers
+    mode = TRADE_MODE_PRESETS.get(trade_mode, TRADE_MODE_PRESETS["standard"])
+    max_risk_pct *= mode["max_risk_pct_mult"]
+    max_positions = int(max_positions * mode["max_positions_mult"])
+    max_exposure_pct *= mode["exposure_mult"]
 
     if halted:
         return 0, 0, "DAILY LOSS LIMIT — halted"
@@ -91,6 +126,11 @@ def risk_check(
         return 0, 0, f"EXPOSURE CAP (${total_exposure:.0f}/${max_exp:.0f})"
 
     conf = calculate_confidence(usdc_size, bet_history)
+
+    # Trade mode: cautious skips low-confidence trades
+    if conf < mode["min_confidence"]:
+        return 0, conf, f"LOW CONFIDENCE ({conf:.2f} < {mode['min_confidence']:.1f}) — cautious mode"
+
     max_bet = (max_risk_pct / 100) * portfolio_value if portfolio_value > 0 else settings.get("quickbuy_amount", 2.0)
 
     # Proportional mimic: bet same % of our portfolio as target bets of theirs
@@ -99,9 +139,17 @@ def risk_check(
         bet = target_pct * portfolio_value * dd
     else:
         # No target portfolio known — use confidence-scaled % of our portfolio
-        # Small trades (low conf) = 1-3%, large trades (high conf) = 5-10%
         pct = 0.01 + conf * 0.09  # 1% to 10% based on confidence
         bet = pct * portfolio_value * dd
+
+    # Apply trade mode confidence multiplier
+    bet *= mode["confidence_mult"]
+
+    # Apply correlation penalty: if multiple targets buy the same market, reduce bet
+    if overlapping_targets > 0 and correlation_penalty > 0:
+        penalty = correlation_penalty ** overlapping_targets
+        bet *= penalty
+        log.debug(f"Correlation penalty: {overlapping_targets} overlaps, multiplier={penalty:.2f}")
 
     bet = round(min(bet, budget, max_bet), 2)
     if bet < min_bet:
