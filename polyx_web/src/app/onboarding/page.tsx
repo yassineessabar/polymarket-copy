@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { copyApi } from "@/lib/api";
+import { copyApi, traderApi } from "@/lib/api";
 import { STRATEGY_LIST } from "@/lib/strategies";
 import Image from "next/image";
 
@@ -160,16 +160,41 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (step !== 7) return;
     const timer = setTimeout(async () => {
+      // Start with static data, then enrich with live Polymarket data
+      let traderList = MOCK_TRADERS;
       try {
         const res = await copyApi.suggested();
         if (res.traders && res.traders.length > 0) {
-          setTraders(res.traders);
-        } else {
-          setTraders(MOCK_TRADERS);
+          traderList = res.traders.map((t: any, i: number) => {
+            const strat = STRATEGY_LIST.find(s => s.wallet.toLowerCase() === (t.wallet || "").toLowerCase());
+            return {
+              ...t,
+              image: strat?.image || MOCK_TRADERS[i % MOCK_TRADERS.length]?.image,
+              returnPct: strat?.returnPct || 0,
+              categories: strat?.categories || [],
+              trades: strat?.trades || "0",
+            };
+          });
         }
-      } catch {
-        setTraders(MOCK_TRADERS);
-      }
+      } catch {}
+      // Enrich with live analytics
+      const enriched = await Promise.all(
+        traderList.map(async (t: any) => {
+          try {
+            const live = await traderApi.one(t.wallet);
+            return {
+              ...t,
+              winRate: live.win_rate ?? t.winRate ?? t.win_rate,
+              pnl: live.total_pnl ? `$${Number(live.total_pnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : t.pnl || t.profit,
+              trades: live.position_count?.toString() || t.trades,
+              returnPct: live.roi ?? t.returnPct,
+            };
+          } catch {
+            return t;
+          }
+        })
+      );
+      setTraders(enriched);
       setStep(8);
     }, 2500);
     return () => clearTimeout(timer);

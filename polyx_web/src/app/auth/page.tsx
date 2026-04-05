@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { authApi, setToken } from "@/lib/api";
+import { authApi, copyApi, setToken } from "@/lib/api";
 
 type AuthStep = "choose" | "wallet-connecting" | "magic-form" | "magic-sent";
 
@@ -46,11 +46,15 @@ function AuthContent() {
       });
 
       // Verify and get JWT
-      const { token, user } = await authApi.verify(address, signature);
+      const { token } = await authApi.verify(address, signature);
       setToken(token);
-      // New users go to onboarding, existing users go to dashboard
-      const isNew = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
-      router.push(isNew ? "/onboarding" : "/dashboard");
+      // Check if user has targets — if none, they're new → onboarding
+      try {
+        const { targets } = await copyApi.targets();
+        router.push(targets && targets.length > 0 ? "/dashboard" : "/onboarding");
+      } catch {
+        router.push("/onboarding");
+      }
     } catch (err: any) {
       const code = err?.code || err?.data?.code || 0;
       const msg = err?.message || "";
@@ -82,10 +86,14 @@ function AuthContent() {
     try {
       const res = await authApi.magicLink(email);
       if (res.dev_token) {
-        const { token, user } = await authApi.magicVerify(res.dev_token);
+        const { token } = await authApi.magicVerify(res.dev_token);
         setToken(token);
-        const isNew = user?.created_at && (Date.now() - new Date(user.created_at).getTime() < 60000);
-        router.push(isNew ? "/onboarding" : "/dashboard");
+        try {
+          const { targets } = await copyApi.targets();
+          router.push(targets && targets.length > 0 ? "/dashboard" : "/onboarding");
+        } catch {
+          router.push("/onboarding");
+        }
         return;
       }
       setStep("magic-sent");
