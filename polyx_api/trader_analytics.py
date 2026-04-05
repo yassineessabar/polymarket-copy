@@ -100,6 +100,9 @@ async def _fetch_trader_data(wallet: str) -> dict:
                     "price": round(float(p.get("curPrice", 0)), 4),
                 })
 
+    total_gains = sum(float(p.get("cashPnl", 0)) for p in (positions if isinstance(positions, list) else []) if float(p.get("cashPnl", 0)) > 0)
+    total_losses_val = sum(float(p.get("cashPnl", 0)) for p in (positions if isinstance(positions, list) else []) if float(p.get("cashPnl", 0)) < 0)
+
     total_decided = wins + losses
     win_rate = round((wins / total_decided * 100) if total_decided > 0 else 0, 1)
     roi = round(((total_pnl / total_invested) * 100) if total_invested > 0 else 0, 1)
@@ -185,6 +188,8 @@ async def _fetch_trader_data(wallet: str) -> dict:
         "win_rate": win_rate,
         "wins": wins,
         "losses": losses,
+        "total_gains": round(total_gains, 2),
+        "total_losses": round(abs(total_losses_val), 2),
         "total_volume": round(total_volume, 2),
         "recent_trades": recent_trades,
         "top_holdings": open_positions[:10],

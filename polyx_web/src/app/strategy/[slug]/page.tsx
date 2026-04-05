@@ -194,13 +194,13 @@ export default function StrategyDetailPage() {
             <div>
               <div className="text-[10px] text-[#9B9B9B] font-medium">Total Gains</div>
               <div className="text-lg font-bold font-mono text-[#009D55]">
-                +{totalPnl !== undefined && totalPnl > 0 ? `$${totalPnl.toLocaleString(undefined, {maximumFractionDigits: 0})}` : strategy.profit}
+                +${liveData?.total_gains !== undefined ? liveData.total_gains.toLocaleString(undefined, {maximumFractionDigits: 0}) : "0"}
               </div>
             </div>
             <div>
               <div className="text-[10px] text-[#9B9B9B] font-medium">Total Losses</div>
               <div className="text-lg font-bold font-mono text-[#DC2626]">
-                -${liveData?.total_losses ? Math.abs(liveData.total_losses).toLocaleString(undefined, {maximumFractionDigits: 0}) : "0"}
+                -${liveData?.total_losses !== undefined ? liveData.total_losses.toLocaleString(undefined, {maximumFractionDigits: 0}) : "0"}
               </div>
             </div>
             <div>
@@ -221,6 +221,24 @@ export default function StrategyDetailPage() {
               {liveData?.position_count || strategy.trades} positions
             </div>
           </div>
+
+          {/* View full stats on Polymarket Analytics */}
+          <a
+            href={`https://polymarketanalytics.com/traders/${strategy.wallet}#trades`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between bg-[#121212] text-white rounded-xl p-3 mt-3 hover:bg-[#333] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <span className="text-xs font-medium">View full verified stats on Polymarket Analytics</span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </a>
+
+          <p className="text-[9px] text-[#9B9B9B] mt-2">
+            Stats shown are from Polymarket positions API. For complete historical PnL including all resolved markets, see Polymarket Analytics.
+          </p>
 
           {/* Category tags */}
           <div className="flex flex-wrap gap-2 mt-3">
