@@ -93,14 +93,14 @@ export default function StrategyDetailPage() {
   const periodReturn = ((endVal - startVal) / startVal) * 100;
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] text-[#121212]">
-      {/* Top nav — back / title / share */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/5">
-        <div className="max-w-[1000px] mx-auto flex items-center justify-between h-[56px] sm:h-[64px] px-4 sm:px-7">
-          <Link href="/" className="flex items-center gap-1 text-[#121212] hover:text-[#121212]/70 transition-colors w-16">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          </Link>
-          <span className="font-bold text-sm -tracking-[0.28px] text-[#121212] truncate">{strategy.name}</span>
+    <div className="max-w-[900px] mx-auto text-[#121212]">
+      {/* Top row — back + title + share */}
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/strategies" className="flex items-center gap-2 text-[#9B9B9B] hover:text-[#121212] transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span className="text-sm font-medium">Back</span>
+        </Link>
+        <span className="font-bold text-sm text-[#121212] truncate mx-4">{strategy.name}</span>
           <button
             onClick={async () => {
               const url = window.location.href;
@@ -119,14 +119,13 @@ export default function StrategyDetailPage() {
               {copied ? "Copied!" : "Share"}
             </span>
           </button>
-        </div>
-      </nav>
+      </div>
 
       {/* Hero with image */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden rounded-2xl mb-4">
         <img alt={strategy.name} src={strategy.image} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/60" />
-        <div className="relative max-w-[1000px] mx-auto px-5 sm:px-7 py-8 sm:py-12">
+        <div className="relative px-5 sm:px-7 py-8 sm:py-12">
           <div className="flex items-center gap-4 mb-4">
             <img alt={strategy.manager} src={strategy.image} className="w-12 h-12 rounded-full object-cover border-2 border-white/30" />
             <div>
@@ -146,7 +145,7 @@ export default function StrategyDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-[1000px] mx-auto px-5 sm:px-7 pb-32">
+      <div className="pb-6">
         {/* Chart */}
         <div className="bg-white rounded-2xl p-4 sm:p-6 mt-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -351,23 +350,21 @@ export default function StrategyDetailPage() {
         </div>
       </div>
 
-      {/* Sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-black/5">
-        <div className="max-w-[1000px] mx-auto px-5 sm:px-7 py-3 sm:py-4 flex gap-3">
-          <Link
-            href={`/invest/${strategy.slug}`}
-            className="flex-1 bg-[#121212] hover:bg-[#333] text-white font-medium py-3 sm:py-3.5 rounded-full transition-all text-center text-sm sm:text-base"
-          >
-            Invest in this Strategy
-          </Link>
-          <Link
-            href={`/invest/${strategy.slug}?demo=1`}
-            className="flex-1 border border-[#121212] text-[#121212] font-medium py-3 sm:py-3.5 rounded-full transition-all text-center text-sm sm:text-base hover:bg-[#F7F7F7]"
-          >
-            Demo
-          </Link>
-        </div>
-      </div>
+      {/* Action button */}
+      <Link
+        href={`/invest/${strategy.slug}`}
+        className="block w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3.5 rounded-full transition-all text-center text-sm mt-4"
+      >
+        Invest in this Strategy
+      </Link>
+      <a
+        href={`https://polymarketanalytics.com/trader/${strategy.wallet}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full text-center text-[#009D55] text-xs font-medium mt-3 hover:underline"
+      >
+        View on Polymarket Analytics
+      </a>
     </div>
   );
 }

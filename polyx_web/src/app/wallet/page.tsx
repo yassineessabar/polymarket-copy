@@ -78,7 +78,9 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [fundTab, setFundTab] = useState<"card" | "crypto" | "withdraw">("card");
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [depositTab, setDepositTab] = useState<"card" | "crypto">("card");
   const [selectedChain, setSelectedChain] = useState<string | null>(null);
   const [withdrawAddress, setWithdrawAddress] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -138,6 +140,7 @@ export default function WalletPage() {
 
   const isDemo = !!settings.demo_mode;
   const balance = profile?.balance_usdc || 0;
+  const demoBalance = settings.demo_balance || 1000;
   const walletAddress = profile?.wallet_address || "";
 
   return (
@@ -146,60 +149,28 @@ export default function WalletPage() {
         Wallet
       </h1>
 
-      {/* Trading Mode */}
-      <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4 shadow-sm">
-        <h3 className="font-bold text-sm sm:text-base text-[#121212] mb-4">Trading Mode</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={switchToDemo}
-            disabled={saving}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${
-              isDemo
-                ? "border-[#121212] bg-[#F7F7F7]"
-                : "border-transparent bg-[#F7F7F7] hover:border-[#E0E0E0]"
-            }`}
-          >
-            <p className="text-sm font-bold text-[#121212]">Demo</p>
-            <p className="text-xs text-[#9B9B9B] mt-1">Virtual funds, zero risk</p>
-            {isDemo && (
-              <span className="inline-block text-xs font-bold text-[#009D55] mt-2 bg-[#009D55]/10 px-2 py-0.5 rounded-full">
-                Active
-              </span>
-            )}
-          </button>
-          <button
-            onClick={switchToLive}
-            disabled={saving}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${
-              !isDemo
-                ? "border-[#121212] bg-[#F7F7F7]"
-                : "border-transparent bg-[#F7F7F7] hover:border-[#E0E0E0]"
-            }`}
-          >
-            <p className="text-sm font-bold text-[#121212]">Live</p>
-            <p className="text-xs text-[#9B9B9B] mt-1">Real USDC, real profits</p>
-            {!isDemo && (
-              <span className="inline-block text-xs font-bold text-[#009D55] mt-2 bg-[#009D55]/10 px-2 py-0.5 rounded-full">
-                Active
-              </span>
-            )}
-          </button>
-        </div>
-
-        {isDemo && (
-          <div className="mt-4 pt-4 border-t border-black/5">
-            <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">
+      {/* ===== DEMO MODE ===== */}
+      {isDemo && (
+        <>
+          {/* Demo Balance Card */}
+          <div className="bg-white rounded-2xl p-6 sm:p-8 mb-4 text-center shadow-sm">
+            <div className="text-xs text-[#9B9B9B] uppercase tracking-wider mb-2 font-medium">
               Demo Balance
-            </label>
-            <div className="flex items-center gap-3">
+            </div>
+            <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight text-[#121212]">
+              {formatUsd(demoBalance)}
+            </div>
+
+            {/* Editable demo balance */}
+            <div className="mt-4 pt-4 border-t border-black/5 flex items-center justify-center gap-3">
               <input
                 type="number"
-                value={Math.round((settings.demo_balance || 1000) * 100) / 100}
+                value={Math.round(demoBalance * 100) / 100}
                 step="0.01"
                 onChange={(e) =>
                   updateSetting("demo_balance", Math.round((parseFloat(e.target.value) || 0) * 100) / 100)
                 }
-                className="bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] w-full max-w-[200px] text-sm"
+                className="bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] w-full max-w-[180px] text-sm text-center font-mono"
               />
               <button
                 onClick={() => saveTradingMode({ demo_balance: settings.demo_balance || 1000 })}
@@ -209,260 +180,336 @@ export default function WalletPage() {
               </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Balance Card */}
-      <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 text-center shadow-sm">
-        <div className="text-xs text-[#9B9B9B] uppercase tracking-wider mb-2 font-medium">
-          USDC Balance
-        </div>
-        <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight text-[#121212]">
-          {formatUsd(balance)}
-        </div>
-        <div className="text-xs text-[#9B9B9B] mt-1 font-medium">on Polygon Network</div>
-      </div>
+          {/* Demo info */}
+          <div className="bg-white rounded-2xl p-5 mb-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#F0F7FF] flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#121212] mb-1">You&apos;re in demo mode</p>
+                <p className="text-xs text-[#9B9B9B] font-medium leading-relaxed">
+                  Practice trading with virtual funds. No real money at risk. Switch to live when you&apos;re ready to trade with real USDC.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={switchToLive}
+              disabled={saving}
+              className="mt-4 w-full bg-[#121212] hover:bg-[#333] disabled:opacity-50 text-white font-medium py-3 rounded-full transition-all text-sm"
+            >
+              Switch to Live
+            </button>
+          </div>
+        </>
+      )}
 
-      {/* Fund Your Account - shown in Live mode */}
+      {/* ===== LIVE MODE ===== */}
       {!isDemo && (
-        <div className="bg-white rounded-2xl p-5 sm:p-6 mb-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-8 h-8 rounded-full bg-[#009D55]/10 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#009D55" strokeWidth="2.5">
-                <path d="M12 4v16m8-8H4" />
+        <>
+          {/* Live Balance Card */}
+          <div className="bg-white rounded-2xl p-6 sm:p-8 mb-4 text-center shadow-sm">
+            <div className="text-xs text-[#9B9B9B] uppercase tracking-wider mb-2 font-medium">
+              USDC Balance
+            </div>
+            <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight text-[#121212]">
+              {formatUsd(balance)}
+            </div>
+            <div className="text-xs text-[#9B9B9B] mt-1 font-medium">on Polygon Network</div>
+          </div>
+
+          {/* Deposit + Withdraw buttons */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => { setShowDeposit(true); setShowWithdraw(false); }}
+              className="bg-[#009D55] hover:bg-[#008548] text-white rounded-2xl p-5 text-left transition-all shadow-sm"
+            >
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <p className="text-base font-bold">Deposit</p>
+              <p className="text-xs text-white/70 mt-0.5">Add funds to your wallet</p>
+            </button>
+            <button
+              onClick={() => { setShowWithdraw(true); setShowDeposit(false); }}
+              className="bg-white hover:bg-[#FAFAFA] border border-black/5 rounded-2xl p-5 text-left transition-all shadow-sm"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#F7F7F7] flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121212" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 20V4m-6 6l6-6 6 6" />
+                </svg>
+              </div>
+              <p className="text-base font-bold text-[#121212]">Withdraw</p>
+              <p className="text-xs text-[#9B9B9B] mt-0.5">Send funds out</p>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ===== DEPOSIT MODAL ===== */}
+      {showDeposit && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDeposit(false); setSelectedChain(null); }} />
+          <div className="relative bg-white w-full max-w-[500px] rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto p-5 sm:p-6 shadow-xl">
+            {/* Close button */}
+            <button
+              onClick={() => { setShowDeposit(false); setSelectedChain(null); }}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
               </svg>
+            </button>
+
+            <h2 className="text-lg font-bold text-[#121212] mb-5">Fund Your Wallet</h2>
+
+            {/* Card / Crypto tabs */}
+            <div className="flex bg-[#F7F7F7] rounded-full p-1 mb-5">
+              {(["card", "crypto"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setDepositTab(tab); setSelectedChain(null); }}
+                  className={`flex-1 text-sm font-medium py-2 rounded-full transition-all capitalize ${
+                    depositTab === tab
+                      ? "bg-[#121212] text-white shadow-sm"
+                      : "text-[#656565] hover:text-[#121212]"
+                  }`}
+                >
+                  {tab === "card" ? "Card" : "Crypto"}
+                </button>
+              ))}
             </div>
-            <h3 className="font-bold text-sm sm:text-base text-[#121212]">Fund Your Account</h3>
-          </div>
 
-          {/* Tab Bar */}
-          <div className="flex bg-[#F7F7F7] rounded-full p-1 mb-5">
-            {(["card", "crypto", "withdraw"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => {
-                  setFundTab(tab);
-                  setSelectedChain(null);
-                }}
-                className={`flex-1 text-sm font-medium py-2 rounded-full transition-all capitalize ${
-                  fundTab === tab
-                    ? "bg-[#121212] text-white shadow-sm"
-                    : "text-[#656565] hover:text-[#121212]"
-                }`}
-              >
-                {tab === "card" ? "Card" : tab === "crypto" ? "Crypto" : "Withdraw"}
-              </button>
-            ))}
-          </div>
-
-          {/* Card Tab */}
-          {fundTab === "card" && (
-            <div>
-              {/* MoonPay Banner */}
-              <div className="bg-[#7B3FE4] rounded-2xl h-32 flex items-center justify-center mb-5 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute top-3 right-6 w-20 h-20 rounded-full border-2 border-white/30" />
-                  <div className="absolute bottom-2 left-8 w-14 h-14 rounded-full border-2 border-white/20" />
-                </div>
-                <div className="text-center z-10">
-                  <div className="text-white/80 text-xs font-medium mb-1">Powered by</div>
-                  <div className="text-white text-2xl font-bold tracking-tight">MoonPay</div>
-                  <div className="text-white/60 text-xs mt-1">Credit & Debit Cards Accepted</div>
-                </div>
-              </div>
-
-              <h4 className="font-bold text-sm text-[#121212] mb-3">Pay with MoonPay</h4>
-              <div className="space-y-3 mb-5">
-                {[
-                  "Click the button below to open MoonPay",
-                  "Enter your card details and the amount of USDC",
-                  "USDC will be sent directly to your trading wallet",
-                ].map((step, i) => (
-                  <div key={i} className="flex gap-3 items-start">
-                    <span className="w-6 h-6 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                      {i + 1}
-                    </span>
-                    <p className="text-sm text-[#656565] font-medium">{step}</p>
+            {/* Card Tab */}
+            {depositTab === "card" && (
+              <div>
+                <div className="bg-[#7B3FE4] rounded-2xl h-32 flex items-center justify-center mb-5 relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-3 right-6 w-20 h-20 rounded-full border-2 border-white/30" />
+                    <div className="absolute bottom-2 left-8 w-14 h-14 rounded-full border-2 border-white/20" />
                   </div>
-                ))}
-              </div>
+                  <div className="text-center z-10">
+                    <div className="text-white/80 text-xs font-medium mb-1">Powered by</div>
+                    <div className="text-white text-2xl font-bold tracking-tight">MoonPay</div>
+                    <div className="text-white/60 text-xs mt-1">Credit & Debit Cards Accepted</div>
+                  </div>
+                </div>
 
-              <a
-                href={`https://www.moonpay.com/buy/usdc_polygon?walletAddress=${walletAddress}&currencyCode=usdc_polygon`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-[#7B3FE4] hover:bg-[#6930C3] text-white font-medium py-3 rounded-full transition-all text-sm"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="1" y="4" width="22" height="16" rx="2" />
-                  <path d="M1 10h22" />
-                </svg>
-                Continue to MoonPay
-              </a>
-            </div>
-          )}
-
-          {/* Crypto Tab */}
-          {fundTab === "crypto" && !selectedChain && (
-            <div>
-              <p className="text-sm text-[#656565] mb-4 font-medium">
-                Select the blockchain you&apos;ll send from:
-              </p>
-              <div className="space-y-2">
-                {CHAINS.map((chain) => (
-                  <button
-                    key={chain.id}
-                    onClick={() => setSelectedChain(chain.id)}
-                    className="w-full flex items-center gap-4 p-4 bg-[#F7F7F7] hover:bg-[#EBEBEB] rounded-2xl transition-all text-left"
-                  >
-                    <div className="flex-shrink-0">{chain.icon}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-bold text-[#121212]">{chain.name}</p>
-                        <p className="text-xs text-[#9B9B9B]">Min: {chain.minDeposit}</p>
-                      </div>
-                      <p className="text-xs text-[#9B9B9B] mt-0.5">{chain.description}</p>
+                <h4 className="font-bold text-sm text-[#121212] mb-3">Pay with MoonPay</h4>
+                <div className="space-y-3 mb-5">
+                  {[
+                    "Click the button below to open MoonPay",
+                    "Enter your card details and the amount of USDC",
+                    "USDC will be sent directly to your trading wallet",
+                  ].map((step, i) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <span className="w-6 h-6 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {i + 1}
+                      </span>
+                      <p className="text-sm text-[#656565] font-medium">{step}</p>
                     </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9B9B9B" strokeWidth="2">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </button>
-                ))}
+                  ))}
+                </div>
+
+                <a
+                  href={`https://www.moonpay.com/buy/usdc_polygon?walletAddress=${walletAddress}&currencyCode=usdc_polygon`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 bg-[#7B3FE4] hover:bg-[#6930C3] text-white font-medium py-3 rounded-full transition-all text-sm"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="1" y="4" width="22" height="16" rx="2" />
+                    <path d="M1 10h22" />
+                  </svg>
+                  Continue to MoonPay
+                </a>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Crypto Tab - Chain Selected - Show Address + QR */}
-          {fundTab === "crypto" && selectedChain && (
-            <div>
-              <button
-                onClick={() => setSelectedChain(null)}
-                className="flex items-center gap-1 text-sm text-[#656565] hover:text-[#121212] mb-4 transition-colors font-medium"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-                Back to networks
-              </button>
-
-              <div className="text-center mb-4">
-                <div className="inline-flex items-center gap-2 bg-[#F7F7F7] rounded-full px-4 py-2 mb-4">
-                  {CHAINS.find((c) => c.id === selectedChain)?.icon}
-                  <span className="text-sm font-bold text-[#121212]">
-                    {CHAINS.find((c) => c.id === selectedChain)?.name}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center gap-4">
-                <div className="bg-[#F7F7F7] p-4 rounded-2xl">
-                  <QRCodeSVG value={walletAddress} size={160} />
-                </div>
-                <div className="w-full">
-                  <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">
-                    Your deposit address
-                  </label>
-                  <div className="bg-[#F7F7F7] border border-black/5 rounded-2xl px-4 py-3 font-mono text-[11px] sm:text-xs break-all text-[#121212] mb-3">
-                    {walletAddress}
-                  </div>
-                  <button
-                    onClick={copyAddress}
-                    className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3 rounded-full transition-all text-sm flex items-center justify-center gap-2"
-                  >
-                    {copied ? (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" />
-                          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                        </svg>
-                        Copy Address
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {selectedChain !== "polygon" && (
-                <div className="mt-4 p-3 bg-[#FFF8E1] rounded-xl">
-                  <p className="text-xs text-[#856404]">
-                    <strong>Note:</strong> Funds sent on {CHAINS.find((c) => c.id === selectedChain)?.name} will be automatically bridged to Polygon. This may take a few minutes.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Withdraw Tab */}
-          {fundTab === "withdraw" && (
-            <div>
-              <div className="bg-[#F7F7F7] rounded-2xl p-4 mb-5">
-                <div className="text-xs text-[#9B9B9B] font-medium mb-1">Available Balance</div>
-                <div className="text-2xl font-bold font-mono text-[#121212]">
-                  {formatUsd(balance)}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">
-                    Recipient Address
-                  </label>
-                  <input
-                    type="text"
-                    value={withdrawAddress}
-                    onChange={(e) => setWithdrawAddress(e.target.value)}
-                    placeholder="0x..."
-                    className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] outline-none focus:border-[#121212] text-sm font-mono placeholder:text-[#9B9B9B] placeholder:font-sans"
-                  />
-                </div>
-
-                <div className="p-3 bg-[#FFF8E1] rounded-xl">
-                  <p className="text-xs text-[#856404]">
-                    <strong>Important:</strong> Withdrawals send USDC.e on the Polygon network. Make sure your recipient address supports USDC.e on Polygon.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">Amount</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 pr-20 text-[#121212] outline-none focus:border-[#121212] text-sm font-mono placeholder:text-[#9B9B9B]"
-                    />
+            {/* Crypto Tab - Chain List */}
+            {depositTab === "crypto" && !selectedChain && (
+              <div>
+                <p className="text-sm text-[#656565] mb-4 font-medium">
+                  Select the blockchain you&apos;ll send from:
+                </p>
+                <div className="space-y-2">
+                  {CHAINS.map((chain) => (
                     <button
-                      onClick={() => setWithdrawAmount(String(balance))}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-[#121212] bg-white border border-black/10 rounded-full px-3 py-1.5 hover:bg-[#EBEBEB] transition-colors"
+                      key={chain.id}
+                      onClick={() => setSelectedChain(chain.id)}
+                      className="w-full flex items-center gap-4 p-4 bg-[#F7F7F7] hover:bg-[#EBEBEB] rounded-2xl transition-all text-left"
                     >
-                      MAX
+                      <div className="flex-shrink-0">{chain.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-[#121212]">{chain.name}</p>
+                          <p className="text-xs text-[#9B9B9B]">Min: {chain.minDeposit}</p>
+                        </div>
+                        <p className="text-xs text-[#9B9B9B] mt-0.5">{chain.description}</p>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9B9B9B" strokeWidth="2">
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Crypto Tab - Chain Selected - QR + Address */}
+            {depositTab === "crypto" && selectedChain && (
+              <div>
+                <button
+                  onClick={() => setSelectedChain(null)}
+                  className="flex items-center gap-1 text-sm text-[#656565] hover:text-[#121212] mb-4 transition-colors font-medium"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                  Back to networks
+                </button>
+
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center gap-2 bg-[#F7F7F7] rounded-full px-4 py-2 mb-4">
+                    {CHAINS.find((c) => c.id === selectedChain)?.icon}
+                    <span className="text-sm font-bold text-[#121212]">
+                      {CHAINS.find((c) => c.id === selectedChain)?.name}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-4">
+                  <div className="bg-[#F7F7F7] p-4 rounded-2xl">
+                    <QRCodeSVG value={walletAddress} size={160} />
+                  </div>
+                  <div className="w-full">
+                    <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">
+                      Your deposit address
+                    </label>
+                    <div className="bg-[#F7F7F7] border border-black/5 rounded-2xl px-4 py-3 font-mono text-[11px] sm:text-xs break-all text-[#121212] mb-3">
+                      {walletAddress}
+                    </div>
+                    <button
+                      onClick={copyAddress}
+                      className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3 rounded-full transition-all text-sm flex items-center justify-center gap-2"
+                    >
+                      {copied ? (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                          </svg>
+                          Copy Address
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
 
-                <button
-                  disabled={!withdrawAddress || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
-                  className="w-full bg-[#121212] hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium py-3 rounded-full transition-all text-sm"
-                >
-                  Withdraw USDC
-                </button>
+                {selectedChain !== "polygon" && (
+                  <div className="mt-4 p-3 bg-[#FFF8E1] rounded-xl">
+                    <p className="text-xs text-[#856404]">
+                      <strong>Note:</strong> Funds sent on {CHAINS.find((c) => c.id === selectedChain)?.name} will be automatically bridged to Polygon. This may take a few minutes.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
-      {/* Your Trading Wallet */}
+      {/* ===== WITHDRAW MODAL ===== */}
+      {showWithdraw && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowWithdraw(false)} />
+          <div className="relative bg-white w-full max-w-[500px] rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto p-5 sm:p-6 shadow-xl">
+            {/* Close button */}
+            <button
+              onClick={() => setShowWithdraw(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-lg font-bold text-[#121212] mb-5">Withdraw</h2>
+
+            {/* Available balance */}
+            <div className="bg-[#F7F7F7] rounded-2xl p-4 mb-5">
+              <div className="text-xs text-[#9B9B9B] font-medium mb-1">Available Balance</div>
+              <div className="text-2xl font-bold font-mono text-[#121212]">
+                {formatUsd(balance)}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">
+                  Recipient Address
+                </label>
+                <input
+                  type="text"
+                  value={withdrawAddress}
+                  onChange={(e) => setWithdrawAddress(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] outline-none focus:border-[#121212] text-sm font-mono placeholder:text-[#9B9B9B] placeholder:font-sans"
+                />
+              </div>
+
+              <div className="p-3 bg-[#FFF8E1] rounded-xl">
+                <p className="text-xs text-[#856404]">
+                  <strong>Important:</strong> Withdrawals send USDC.e on the Polygon network. Make sure your recipient address supports USDC.e on Polygon.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">Amount</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 pr-20 text-[#121212] outline-none focus:border-[#121212] text-sm font-mono placeholder:text-[#9B9B9B]"
+                  />
+                  <button
+                    onClick={() => setWithdrawAmount(String(balance))}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-[#121212] bg-white border border-black/10 rounded-full px-3 py-1.5 hover:bg-[#EBEBEB] transition-colors"
+                  >
+                    MAX
+                  </button>
+                </div>
+              </div>
+
+              <button
+                disabled={!withdrawAddress || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                className="w-full bg-[#121212] hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium py-3 rounded-full transition-all text-sm"
+              >
+                Withdraw USDC
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== YOUR WALLET (always visible) ===== */}
       <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 shadow-sm">
-        <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Your Trading Wallet</h3>
+        <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Your Wallet</h3>
 
         <div className="flex flex-col items-center gap-5">
           <div className="bg-[#F7F7F7] p-4 rounded-2xl">
@@ -497,6 +544,17 @@ export default function WalletPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* ===== Mode toggle link (always visible) ===== */}
+      <div className="text-center pb-6">
+        <button
+          onClick={isDemo ? switchToLive : switchToDemo}
+          disabled={saving}
+          className="text-xs text-[#9B9B9B] hover:text-[#121212] font-medium transition-colors disabled:opacity-50"
+        >
+          {isDemo ? "Switch to Live Trading" : "Switch to Demo Mode"}
+        </button>
       </div>
     </div>
   );

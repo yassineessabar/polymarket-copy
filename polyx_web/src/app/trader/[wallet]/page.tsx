@@ -307,6 +307,14 @@ export default function TraderDetailPage() {
                 #{trader.rank}
               </span>
             )}
+            <a
+              href={`https://polymarketanalytics.com/trader/${trader.wallet}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#009D55] font-medium hover:underline"
+            >
+              Polymarket Analytics
+            </a>
           </div>
         </div>
 
