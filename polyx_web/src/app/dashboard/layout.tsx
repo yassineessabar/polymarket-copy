@@ -7,21 +7,68 @@ import { isLoggedIn, clearToken, userApi, notificationsApi } from "@/lib/api";
 import { truncateAddress } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
-  { href: "/portfolio", label: "Portfolio", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
-  { href: "/strategies", label: "Strategies", icon: "M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" },
-  { href: "/wallet", label: "Wallet", icon: "M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4M4 6v12c0 1.1.9 2 2 2h14v-4M18 12a2 2 0 000 4h4v-4h-4z" },
-  { href: "/refer", label: "Refer", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
-  { href: "/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    href: "/strategies",
+    label: "Strategies",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
+    href: "/portfolio",
+    label: "Portfolio",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+        <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
+      </svg>
+    ),
+  },
+  {
+    href: "/wallet",
+    label: "Wallet",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+        <line x1="1" y1="10" x2="23" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+      </svg>
+    ),
+  },
 ];
 
-const MOBILE_NAV = NAV_ITEMS.slice(0, 5);
+const MOBILE_NAV = [NAV_ITEMS[0], NAV_ITEMS[1], NAV_ITEMS[3], NAV_ITEMS[4]]; // Dashboard, Strategies, Wallet, Settings
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [wallet, setWallet] = useState("");
   const [unread, setUnread] = useState(0);
+  const [sidebarHover, setSidebarHover] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -42,91 +89,187 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return pathname?.startsWith(href);
   };
 
+  const initials = wallet ? wallet.slice(2, 4).toUpperCase() : "PC";
+
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-[#F7F7F7] flex">
+    <div className="min-h-screen min-h-[100dvh] bg-white flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-[240px] flex-col bg-white border-r border-black/5 fixed top-0 left-0 bottom-0 z-40">
-        <div className="p-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#121212] flex items-center justify-center font-bold text-sm text-white">P</div>
-            <span className="text-lg font-bold text-[#121212]">PolyX</span>
+      <aside
+        onMouseEnter={() => setSidebarHover(true)}
+        onMouseLeave={() => setSidebarHover(false)}
+        className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-40 bg-white border-r border-[#F4F4F5] transition-all duration-200 ease-in-out"
+        style={{ width: sidebarHover ? 240 : 72 }}
+      >
+        {/* Logo */}
+        <div className="h-[72px] flex items-center px-4 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-3 overflow-hidden">
+            <div className="w-9 h-9 rounded-full bg-[#00C805] flex items-center justify-center font-bold text-[15px] text-white flex-shrink-0">
+              P
+            </div>
+            <span
+              className="text-lg font-bold text-[#121212] whitespace-nowrap transition-opacity duration-200"
+              style={{ opacity: sidebarHover ? 1 : 0 }}
+            >
+              Polycool
+            </span>
           </Link>
         </div>
 
-        <nav className="flex-1 px-3">
+        {/* Nav */}
+        <nav className="flex-1 px-4 mt-2">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl mb-1 text-sm font-medium transition-all ${
+                className={`relative flex items-center gap-3 mb-1 transition-all duration-150 rounded-xl overflow-hidden ${
+                  sidebarHover ? "px-3 py-2.5" : "justify-center py-2.5"
+                } ${
                   active
-                    ? "bg-[#F7F7F7] text-[#121212] font-bold"
-                    : "text-[#9B9B9B] hover:text-[#121212] hover:bg-[#F7F7F7]"
+                    ? "bg-[#F4F4F5] text-[#121212]"
+                    : "text-[#737373] hover:text-[#121212]"
                 }`}
+                style={!sidebarHover ? { width: 40, height: 40, margin: "0 auto 4px auto", display: "flex" } : {}}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={item.icon} />
-                </svg>
-                {item.label}
+                {active && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#00C805] rounded-r-full" />
+                )}
+                <span className="flex-shrink-0">{item.icon}</span>
+                {sidebarHover && (
+                  <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
+                )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-black/5">
-          <div className="text-xs text-[#9B9B9B] mb-2 truncate font-mono">{truncateAddress(wallet)}</div>
-          <button onClick={logout} className="text-xs text-[#9B9B9B] hover:text-[#DC2626] transition-colors font-medium">
-            Sign Out
-          </button>
+        {/* Bottom: user avatar + logout */}
+        <div className="px-4 pb-5 flex-shrink-0">
+          <div
+            className={`flex items-center gap-3 transition-all duration-200 ${
+              sidebarHover ? "" : "justify-center"
+            }`}
+          >
+            <div className="w-9 h-9 rounded-full bg-[#00C805] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {initials}
+            </div>
+            {sidebarHover && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-[#737373] font-mono truncate">{truncateAddress(wallet)}</p>
+                <button
+                  onClick={logout}
+                  className="text-xs text-[#737373] hover:text-[#FF5000] transition-colors font-medium mt-0.5"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-[240px] w-full">
+      <main className="flex-1 md:ml-[72px] w-full">
         {/* Top header */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-black/5">
-          <div className="flex items-center justify-between h-14 sm:h-16 px-5 sm:px-6">
-            <Link href="/" className="md:hidden flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-[#121212] flex items-center justify-center font-bold text-xs text-white">P</div>
-              <span className="font-bold text-sm text-[#121212]">PolyX</span>
-            </Link>
+        <header className="sticky top-0 z-30 bg-white border-b border-[#F4F4F5] h-14">
+          <div className="flex items-center justify-between h-full px-4 sm:px-6">
+            {/* Mobile: page title / logo */}
+            <div className="md:hidden flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-[#00C805] flex items-center justify-center font-bold text-sm text-white">
+                P
+              </div>
+              <span className="font-bold text-[15px] text-[#121212]">Polycool</span>
+            </div>
             <div className="hidden md:block" />
 
-            <div className="flex items-center gap-3 sm:gap-4">
-              <Link href="/notifications" className="relative text-[#9B9B9B] hover:text-[#121212] transition-colors p-1">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+            <div className="flex items-center gap-3">
+              {/* Notification bell */}
+              <Link href="/notifications" className="relative text-[#737373] hover:text-[#121212] transition-colors p-1.5">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 01-3.46 0" />
                 </svg>
                 {unread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#DC2626] rounded-full text-[10px] font-bold flex items-center justify-center text-white">{unread}</span>
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-[#FF5000] rounded-full text-[10px] font-bold flex items-center justify-center text-white">
+                    {unread}
+                  </span>
                 )}
               </Link>
 
-              <div className="hidden sm:block text-xs text-[#9B9B9B] bg-[#F7F7F7] rounded-full px-3 py-1.5 truncate max-w-[160px] font-mono">
-                {truncateAddress(wallet)}
-              </div>
-
-              <button onClick={logout} className="md:hidden text-[#9B9B9B] hover:text-[#DC2626] transition-colors p-1">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden text-[#737373] hover:text-[#121212] transition-colors p-1.5"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  {mobileMenuOpen ? (
+                    <>
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </>
+                  ) : (
+                    <>
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </>
+                  )}
+                </svg>
               </button>
             </div>
           </div>
         </header>
 
-        <div className="p-5 sm:p-6 pb-24 md:pb-6">{children}</div>
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 top-14 z-30 bg-white">
+            <nav className="p-4 space-y-1">
+              {NAV_ITEMS.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-[#F4F4F5] text-[#121212]"
+                        : "text-[#737373] hover:text-[#121212] hover:bg-[#F4F4F5]"
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="absolute bottom-24 left-0 right-0 px-8">
+              <div className="text-xs text-[#737373] font-mono mb-2">{truncateAddress(wallet)}</div>
+              <button onClick={logout} className="text-sm text-[#737373] hover:text-[#FF5000] transition-colors font-medium">
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
 
-        {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-black/5 flex z-40 mobile-bottom-nav">
+        <div className="p-4 sm:p-6 pb-20 md:pb-6">{children}</div>
+
+        {/* Mobile bottom nav — 4 items, no labels */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#F4F4F5] flex z-40"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
           {MOBILE_NAV.map((item) => {
             const active = isActive(item.href);
             return (
-              <Link key={item.href} href={item.href} className={`flex-1 flex flex-col items-center py-2.5 pb-3 text-[10px] gap-0.5 font-medium ${active ? "text-[#121212]" : "text-[#9B9B9B]"}`}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2" : "1.5"} strokeLinecap="round" strokeLinejoin="round">
-                  <path d={item.icon} />
-                </svg>
-                {item.label}
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex-1 flex items-center justify-center py-4 transition-colors ${
+                  active ? "text-[#00C805]" : "text-[#737373]"
+                }`}
+              >
+                {item.icon}
               </Link>
             );
           })}

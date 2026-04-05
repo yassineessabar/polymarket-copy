@@ -1,38 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { copyApi, userApi } from "@/lib/api";
 import { STRATEGY_LIST, STRATEGIES } from "@/lib/strategies";
 import type { CopyTarget } from "@/lib/types";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
-
-const TIME_FILTERS = ["1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"] as const;
 
 export default function StrategiesPage() {
   const [targets, setTargets] = useState<CopyTarget[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [showCustomAdd, setShowCustomAdd] = useState(false);
   const [customWallet, setCustomWallet] = useState("");
   const [customName, setCustomName] = useState("");
   const [adding, setAdding] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
-  const [confirmStop, setConfirmStop] = useState<{ wallet: string; name: string } | null>(null);
-  const [settingsFor, setSettingsFor] = useState<{ wallet: string; name: string } | null>(null);
-  const [settings, setSettings] = useState<any>({});
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadTargets();
-    userApi.me().then((d) => setSettings(d.settings || {})).catch(() => {});
   }, []);
 
   async function loadTargets() {
@@ -49,7 +36,7 @@ export default function StrategiesPage() {
     try {
       await copyApi.addTarget(customWallet, customName || "Custom Trader");
       await loadTargets();
-      setShowAddModal(false);
+      setShowCustomAdd(false);
       setCustomWallet("");
       setCustomName("");
     } catch {}
@@ -75,308 +62,251 @@ export default function StrategiesPage() {
     setToggling(null);
   }
 
-  function updateSetting(key: string, value: any) {
-    setSettings((s: any) => ({ ...s, [key]: value }));
-  }
-
-  async function saveSettings() {
-    setSaving(true);
-    try {
-      await userApi.updateSettings(settings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {}
-    setSaving(false);
-  }
-
   const activeWallets = new Set(targets.map((t) => t.wallet_addr.toLowerCase()));
 
-  return (
-    <div className="max-w-[900px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#121212]">Strategies</h1>
+  const filtered = STRATEGY_LIST.filter((s) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.manager.toLowerCase().includes(q) ||
+      s.categories.some((c) => c.toLowerCase().includes(q))
+    );
+  });
 
-      {/* Your Active Strategies */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 mb-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-sm sm:text-base text-[#121212]">Your Active Strategies</h2>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="text-xs text-[#121212] font-medium underline"
+  return (
+    <div className="max-w-[600px] mx-auto px-4 pb-8">
+      {/* Search bar */}
+      <div className="relative mt-2 mb-6">
+        <div
+          className={`flex items-center bg-[#F4F4F5] rounded-full h-12 px-4 transition-all ${
+            searchFocused ? "ring-2 ring-[#00C805]/30" : ""
+          }`}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#737373"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="flex-shrink-0"
           >
-            + Add Custom
-          </button>
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search traders..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+            className="flex-1 bg-transparent outline-none text-[#121212] placeholder-[#737373] text-sm ml-3"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="text-[#737373] hover:text-[#121212]"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center h-20">
-            <div className="w-6 h-6 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
+        {/* Add custom wallet link */}
+        {(searchFocused || showCustomAdd) && (
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setShowCustomAdd(true);
+              setSearchFocused(false);
+            }}
+            className="mt-2 text-sm text-[#00C805] font-medium hover:underline"
+          >
+            + Add by wallet address
+          </button>
+        )}
+      </div>
+
+      {/* Inline custom wallet add */}
+      {showCustomAdd && (
+        <div className="bg-[#F4F4F5] rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-[#121212]">Add Custom Wallet</span>
+            <button
+              onClick={() => setShowCustomAdd(false)}
+              className="text-[#737373] hover:text-[#121212]"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        ) : targets.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-[#9B9B9B] font-medium mb-3">No active strategies yet</p>
-            <p className="text-xs text-[#9B9B9B] font-medium">Pick a strategy below to start copying</p>
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {targets.map((t) => {
+          <input
+            type="text"
+            placeholder="0x..."
+            value={customWallet}
+            onChange={(e) => setCustomWallet(e.target.value)}
+            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#00C805] mb-2"
+          />
+          <input
+            type="text"
+            placeholder="Display name (optional)"
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#00C805] mb-3"
+          />
+          <button
+            onClick={addCustomTarget}
+            disabled={adding || !customWallet.startsWith("0x")}
+            className="w-full bg-[#00C805] hover:bg-[#00B004] text-white text-sm font-bold py-2.5 rounded-full transition-colors disabled:opacity-40"
+          >
+            {adding ? "Adding..." : "Add"}
+          </button>
+        </div>
+      )}
+
+      {/* Your Traders */}
+      {targets.length > 0 && (
+        <div className="mb-8">
+          <p className="text-xs text-[#737373] uppercase tracking-wider font-medium mb-3">
+            Your Traders
+          </p>
+          <div className="bg-white rounded-xl overflow-hidden">
+            {targets.map((t, i) => {
               const strat = Object.values(STRATEGIES).find(
                 (s) => s.wallet.toLowerCase() === t.wallet_addr.toLowerCase()
               );
               return (
-                <div key={t.id} className="flex items-center justify-between py-3 border-b border-black/5 last:border-0">
-                  <div className="flex items-center gap-3">
-                    {strat && (
-                      <img src={strat.image} alt={strat.name} className="w-9 h-9 rounded-xl object-cover" />
+                <div
+                  key={t.id}
+                  className={`flex items-center px-4 py-3.5 hover:bg-[#F4F4F5] transition-colors ${
+                    i < targets.length - 1 ? "border-b border-[#F4F4F5]" : ""
+                  }`}
+                >
+                  <Link
+                    href={strat ? `/strategy/${strat.slug}` : "#"}
+                    className="flex items-center flex-1 min-w-0"
+                  >
+                    {strat ? (
+                      <img
+                        src={strat.image}
+                        alt={strat.name}
+                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#F4F4F5] flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg text-[#737373]">?</span>
+                      </div>
                     )}
-                    <div>
-                      <div className="text-sm font-bold text-[#121212]">{t.display_name || t.wallet_addr.slice(0, 10)}</div>
-                      <div className="text-[10px] text-[#9B9B9B] font-mono font-medium">
-                        {t.wallet_addr.slice(0, 8)}...{t.wallet_addr.slice(-6)}
+                    <div className="ml-3 min-w-0 flex-1">
+                      <div className="text-base font-medium text-[#121212] truncate">
+                        {t.display_name || t.wallet_addr.slice(0, 10)}
+                      </div>
+                      <div className="text-sm text-[#737373]">
+                        {strat
+                          ? `${strat.winRate}% win rate`
+                          : `${t.wallet_addr.slice(0, 6)}...${t.wallet_addr.slice(-4)}`}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+                  </Link>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-[#00C805] rounded-full animate-pulse" />
+                      <span className="text-xs text-[#00C805] font-medium">Copying</span>
+                    </div>
+                    {strat && (
+                      <Link
+                        href={`/strategy/${strat.slug}`}
+                        className="w-8 h-8 rounded-full hover:bg-[#F4F4F5] flex items-center justify-center"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </Link>
+                    )}
                     <button
-                      onClick={() => setSettingsFor({ wallet: t.wallet_addr, name: t.display_name || t.wallet_addr.slice(0, 10) })}
-                      className="w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#F0F0F0] flex items-center justify-center transition-colors"
-                      title="Risk Settings"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    </button>
-                    <a
-                      href={`https://polymarketanalytics.com/traders/${t.wallet_addr}#trades`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-[#009D55] font-medium hover:underline"
-                    >
-                      Analytics
-                    </a>
-                    <button
-                      onClick={() => setConfirmStop({ wallet: t.wallet_addr, name: t.display_name || t.wallet_addr.slice(0, 10) })}
+                      onClick={() => removeTarget(t.wallet_addr)}
                       disabled={toggling === t.wallet_addr}
-                      className="text-xs text-[#DC2626] font-medium hover:underline disabled:opacity-50"
+                      className="text-xs text-[#FF5000] font-medium hover:underline disabled:opacity-50"
                     >
-                      {toggling === t.wallet_addr ? "Stopping..." : "Stop"}
+                      {toggling === t.wallet_addr ? "..." : "Stop"}
                     </button>
                   </div>
                 </div>
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Discover Strategies */}
+      {/* Popular Traders */}
       <div>
-        <h2 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Discover Strategies</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {STRATEGY_LIST.map((s) => {
-            const isActive = activeWallets.has(s.wallet.toLowerCase());
-            return (
-              <div key={s.slug} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-                <Link href={`/strategy/${s.slug}`} className="block h-36 sm:h-40 relative overflow-hidden">
-                  <img src={s.image} alt={s.name} className="absolute inset-0 w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                  {s.featured && (
-                    <div className="absolute top-2.5 right-2.5 bg-white/90 text-[#121212] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Featured</div>
-                  )}
-                  <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
-                    <div className="flex items-center gap-2">
-                      <img src={s.image} alt={s.manager} className="w-8 h-8 rounded-full object-cover border-2 border-white/30" />
-                      <span className="text-white text-sm font-bold drop-shadow-sm">{s.name}</span>
-                    </div>
-                    <span className="text-white/90 font-bold font-mono text-xs bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5">+{s.returnPct}%</span>
-                  </div>
-                </Link>
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <Link href={`/strategy/${s.slug}`} className="font-bold text-sm text-[#121212] hover:underline transition-colors">
+        <p className="text-xs text-[#737373] uppercase tracking-wider font-medium mb-3">
+          Popular
+        </p>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="w-6 h-6 border-2 border-[#00C805] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-sm text-[#737373]">No traders found for "{search}"</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl overflow-hidden">
+            {filtered.map((s, i) => {
+              const isActive = activeWallets.has(s.wallet.toLowerCase());
+              return (
+                <Link
+                  key={s.slug}
+                  href={`/strategy/${s.slug}`}
+                  className={`flex items-center px-4 py-3.5 hover:bg-[#F4F4F5] transition-colors ${
+                    i < filtered.length - 1 ? "border-b border-[#F4F4F5]" : ""
+                  }`}
+                >
+                  <img
+                    src={s.image}
+                    alt={s.name}
+                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                  />
+                  <div className="ml-3 min-w-0 flex-1">
+                    <div className="text-base font-medium text-[#121212] truncate">
                       {s.name}
-                    </Link>
-                    <span className="text-[#009D55] font-bold font-mono text-xs">+{s.returnPct}%</span>
                     </div>
-                    <p className="text-[10px] text-[#9B9B9B] font-medium mb-3">
-                      {s.winRate}% win &middot; {s.copiers} copiers &middot; {s.trades} trades
-                    </p>
+                    <div className="text-sm text-[#737373]">
+                      {s.winRate}% win rate &middot; {s.copiers} copiers
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end flex-shrink-0 ml-3">
+                    <span className="text-lg font-bold font-mono text-[#00C805]">
+                      +{s.returnPct}%
+                    </span>
                     {isActive ? (
-                      <div className="flex items-center gap-2 text-[#009D55] text-xs font-bold">
-                        <span className="w-2 h-2 bg-[#009D55] rounded-full animate-pulse" />
-                        Active
-                      </div>
+                      <span className="flex items-center gap-1 text-xs text-[#00C805] font-medium">
+                        <span className="w-1.5 h-1.5 bg-[#00C805] rounded-full animate-pulse" />
+                        Copying
+                      </span>
                     ) : (
-                      <button
-                        onClick={() => addStrategyTarget(s.wallet, s.name)}
-                        disabled={toggling === s.wallet}
-                        className="w-full bg-[#121212] hover:bg-[#333] text-white text-xs font-medium py-2.5 rounded-full transition-all disabled:opacity-50"
-                      >
-                        {toggling === s.wallet ? "Adding..." : "Start Copying"}
-                      </button>
+                      <span className="text-xs text-[#00C805] font-medium">
+                        Start Copying
+                      </span>
                     )}
                   </div>
-              </div>
-            );
-          })}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
-
-      {/* Add Custom Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-5">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-[420px] shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base text-[#121212]">Add Custom Wallet</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-[#9B9B9B] hover:text-[#121212]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <p className="text-sm text-[#9B9B9B] font-medium mb-4">
-              Paste any Polymarket wallet address to start copying their trades.
-            </p>
-            <input
-              type="text"
-              placeholder="0x..."
-              value={customWallet}
-              onChange={(e) => setCustomWallet(e.target.value)}
-              className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] placeholder-[#BFBFBF] outline-none focus:border-[#121212] transition-colors mb-3"
-            />
-            <input
-              type="text"
-              placeholder="Display name (optional)"
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] placeholder-[#BFBFBF] outline-none focus:border-[#121212] transition-colors mb-4"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 border border-[#121212] text-[#121212] font-medium py-2.5 rounded-full transition-all text-sm hover:bg-[#F7F7F7]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addCustomTarget}
-                disabled={adding || !customWallet.startsWith("0x")}
-                className="flex-1 bg-[#121212] hover:bg-[#333] text-white font-medium py-2.5 rounded-full transition-all disabled:opacity-50 text-sm"
-              >
-                {adding ? "Adding..." : "Add Target"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stop Strategy Confirmation Modal */}
-      {confirmStop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-5">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-[400px] shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-[#DC2626]/10 flex items-center justify-center flex-shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M15 9l-6 6M9 9l6 6" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-[#121212]">Stop Copying?</h3>
-                <p className="text-xs text-[#9B9B9B]">{confirmStop.name}</p>
-              </div>
-            </div>
-            <p className="text-sm text-[#656565] mb-6">
-              Are you sure you want to stop copying this trader? Your existing open positions will remain until they are closed manually or by the market.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmStop(null)}
-                className="flex-1 border border-[#121212] text-[#121212] font-medium py-2.5 rounded-full transition-all text-sm hover:bg-[#F7F7F7]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  await removeTarget(confirmStop.wallet);
-                  setConfirmStop(null);
-                }}
-                disabled={toggling === confirmStop.wallet}
-                className="flex-1 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-medium py-2.5 rounded-full transition-all text-sm disabled:opacity-50"
-              >
-                {toggling === confirmStop.wallet ? "Stopping..." : "Stop Copying"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Risk Settings Modal */}
-      {settingsFor && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm px-0 sm:px-5">
-          <div className="bg-white w-full sm:w-auto sm:max-w-[480px] sm:rounded-2xl rounded-t-2xl p-6 shadow-lg max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="font-bold text-base text-[#121212]">Risk Settings</h3>
-                <p className="text-xs text-[#9B9B9B] mt-0.5">{settingsFor.name}</p>
-              </div>
-              <button onClick={() => setSettingsFor(null)} className="w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#EBEBEB] flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: "trade_mode", label: "Trade Mode", type: "select", options: ["cautious", "standard", "expert"] },
-                { key: "quickbuy_amount", label: "Default Bet ($)", type: "number" },
-                { key: "max_risk_pct", label: "Max Risk (%)", type: "number" },
-                { key: "min_bet", label: "Min Bet ($)", type: "number" },
-                { key: "max_open_positions", label: "Max Positions", type: "number" },
-                { key: "max_per_event", label: "Max per Event", type: "number" },
-                { key: "max_exposure_pct", label: "Max Exposure (%)", type: "number" },
-                { key: "daily_loss_limit_pct", label: "Daily Loss Limit (%)", type: "number" },
-              ].map((field) => (
-                <div key={field.key}>
-                  <label className="text-xs text-[#9B9B9B] mb-1 block font-medium">{field.label}</label>
-                  {field.type === "select" ? (
-                    <select
-                      value={settings[field.key] || "standard"}
-                      onChange={(e) => updateSetting(field.key, e.target.value)}
-                      className="w-full bg-[#F7F7F7] border border-black/5 rounded-xl px-3 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm appearance-none"
-                    >
-                      {field.options!.map((o) => (
-                        <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="number"
-                      value={settings[field.key] ?? ""}
-                      onChange={(e) => updateSetting(field.key, parseFloat(e.target.value) || 0)}
-                      className="w-full bg-[#F7F7F7] border border-black/5 rounded-xl px-3 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => setSettingsFor(null)}
-                className="flex-1 border border-black/10 text-[#656565] font-medium py-2.5 rounded-full text-sm hover:bg-[#F7F7F7]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => { await saveSettings(); setSettingsFor(null); }}
-                disabled={saving}
-                className="flex-1 bg-[#121212] hover:bg-[#333] text-white font-medium py-2.5 rounded-full text-sm disabled:opacity-50"
-              >
-                {saving ? "Saving..." : saved ? "Saved!" : "Save Settings"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
