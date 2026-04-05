@@ -294,7 +294,7 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📛 @{user.get('username', '?')}\n"
                 f"📅 Joined: {joined}\n"
                 f"⚙️ Mode: {mode_label}\n"
-                f"🤖 Copy Trading: {'🟢 Running' if is_running else '🔴 Stopped'}\n\n"
+                f"Copy Trading: {'🟢 Running' if is_running else '🔴 Stopped'}\n\n"
                 f"<b>💰 Portfolio</b>\n"
                 f"├ Balance: ${balance:,.2f}\n"
                 f"├ Positions: ${pos_val:,.2f}\n"

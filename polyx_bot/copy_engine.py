@@ -152,7 +152,7 @@ class CopyTradeManager:
                 mode_label = "LIVE"
 
             await self._notify(telegram_id,
-                f"🤖 <b>Copy Trading Started</b>\n"
+                f"<b>Copy Trading Started</b>\n"
                 f"Mode: {mode_label}")
 
             cycle = 0

@@ -20,7 +20,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "⚙️ <b>Settings</b>\n\n"
         f"📍 Mode: <b>{mode_label}</b>\n"
-        f"🤖 Copy Trading: <b>{'🟢 Running' if copy_active else '🔴 Stopped'}</b>\n\n"
+        f"Copy Trading: <b>{'🟢 Running' if copy_active else '🔴 Stopped'}</b>\n\n"
         "📊 <b>Risk & Sizing</b> — Adjust risk parameters\n"
         "🔑 <b>Export Key</b> — Export your wallet private key\n"
         "👥 <b>Referral Hub</b> — Invite friends & earn rewards"
