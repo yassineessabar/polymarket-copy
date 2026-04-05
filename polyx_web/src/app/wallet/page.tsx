@@ -311,49 +311,23 @@ export default function WalletPage() {
               ))}
             </div>
 
-            {/* Card Tab */}
+            {/* Card Tab — Embedded MoonPay Widget */}
             {depositTab === "card" && (
               <div>
-                <div className="bg-[#7B3FE4] rounded-2xl h-32 flex items-center justify-center mb-5 relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-3 right-6 w-20 h-20 rounded-full border-2 border-white/30" />
-                    <div className="absolute bottom-2 left-8 w-14 h-14 rounded-full border-2 border-white/20" />
-                  </div>
-                  <div className="text-center z-10">
-                    <div className="text-white/80 text-xs font-medium mb-1">Powered by</div>
-                    <div className="text-white text-2xl font-bold tracking-tight">MoonPay</div>
-                    <div className="text-white/60 text-xs mt-1">Credit & Debit Cards Accepted</div>
-                  </div>
+                <div className="rounded-2xl overflow-hidden border border-black/5 bg-white" style={{ height: "560px" }}>
+                  <iframe
+                    src={`https://buy.moonpay.com?apiKey=pk_test_Yh1ao0Ys5snWHLqkeLQfbfFaYHnVjRP&currencyCode=usdc_polygon&walletAddress=${walletAddress}&colorCode=%237B3FE4&language=en&baseCurrencyCode=usd&theme=light`}
+                    allow="accelerometer; autoplay; camera; gyroscope; payment; microphone"
+                    width="100%"
+                    height="100%"
+                    style={{ border: "none" }}
+                    title="Buy USDC with MoonPay"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
+                  />
                 </div>
-
-                <h4 className="font-bold text-sm text-[#121212] mb-3">Pay with MoonPay</h4>
-                <div className="space-y-3 mb-5">
-                  {[
-                    "Click the button below to open MoonPay",
-                    "Enter your card details and the amount of USDC",
-                    "USDC will be sent directly to your trading wallet",
-                  ].map((step, i) => (
-                    <div key={i} className="flex gap-3 items-start">
-                      <span className="w-6 h-6 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {i + 1}
-                      </span>
-                      <p className="text-sm text-[#656565] font-medium">{step}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <a
-                  href={`https://www.moonpay.com/buy/usdc_polygon?walletAddress=${walletAddress}&currencyCode=usdc_polygon`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-[#7B3FE4] hover:bg-[#6930C3] text-white font-medium py-3 rounded-full transition-all text-sm"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="1" y="4" width="22" height="16" rx="2" />
-                    <path d="M1 10h22" />
-                  </svg>
-                  Continue to MoonPay
-                </a>
+                <p className="text-[10px] text-[#9B9B9B] text-center mt-3">
+                  Powered by MoonPay. USDC will be sent directly to your wallet on Polygon.
+                </p>
               </div>
             )}
 
