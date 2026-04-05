@@ -151,7 +151,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-black/5">
+                <div className={`grid ${tab === "closed" ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-5"} gap-2 mt-3 pt-3 border-t border-black/5`}>
                   <div>
                     <div className="text-[10px] text-[#9B9B9B] font-medium">Entry</div>
                     <div className="text-sm font-mono font-medium text-[#121212]">{entryPct}c</div>
@@ -173,9 +173,15 @@ export default function PortfolioPage() {
                     <div className="text-sm font-mono font-medium text-[#121212]">{formatUsd(pos.bet_amount)}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-[#9B9B9B] font-medium">{tab === "open" ? "Opened" : "Closed"}</div>
-                    <div className="text-xs text-[#9B9B9B]">{formatDate(tab === "open" ? pos.opened_at : pos.closed_at || "")}</div>
+                    <div className="text-[10px] text-[#9B9B9B] font-medium">Opened</div>
+                    <div className="text-xs text-[#9B9B9B]">{formatDate(pos.opened_at)}</div>
                   </div>
+                  {tab === "closed" && pos.closed_at && (
+                    <div>
+                      <div className="text-[10px] text-[#9B9B9B] font-medium">Closed</div>
+                      <div className="text-xs text-[#9B9B9B]">{formatDate(pos.closed_at)}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

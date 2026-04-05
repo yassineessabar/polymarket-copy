@@ -24,6 +24,7 @@ export default function StrategiesPage() {
   const [customName, setCustomName] = useState("");
   const [adding, setAdding] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [confirmStop, setConfirmStop] = useState<{ wallet: string; name: string } | null>(null);
 
   useEffect(() => {
     loadTargets();
@@ -125,11 +126,11 @@ export default function StrategiesPage() {
                       Analytics
                     </a>
                     <button
-                      onClick={() => removeTarget(t.wallet_addr)}
+                      onClick={() => setConfirmStop({ wallet: t.wallet_addr, name: t.display_name || t.wallet_addr.slice(0, 10) })}
                       disabled={toggling === t.wallet_addr}
                       className="text-xs text-[#DC2626] font-medium hover:underline disabled:opacity-50"
                     >
-                      {toggling === t.wallet_addr ? "..." : "Stop"}
+                      {toggling === t.wallet_addr ? "Stopping..." : "Stop"}
                     </button>
                   </div>
                 </div>
@@ -232,6 +233,47 @@ export default function StrategiesPage() {
                 className="flex-1 bg-[#121212] hover:bg-[#333] text-white font-medium py-2.5 rounded-full transition-all disabled:opacity-50 text-sm"
               >
                 {adding ? "Adding..." : "Add Target"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stop Strategy Confirmation Modal */}
+      {confirmStop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-5">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-[400px] shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[#DC2626]/10 flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-[#121212]">Stop Copying?</h3>
+                <p className="text-xs text-[#9B9B9B]">{confirmStop.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-[#656565] mb-6">
+              Are you sure you want to stop copying this trader? Your existing open positions will remain until they are closed manually or by the market.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmStop(null)}
+                className="flex-1 border border-[#121212] text-[#121212] font-medium py-2.5 rounded-full transition-all text-sm hover:bg-[#F7F7F7]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await removeTarget(confirmStop.wallet);
+                  setConfirmStop(null);
+                }}
+                disabled={toggling === confirmStop.wallet}
+                className="flex-1 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-medium py-2.5 rounded-full transition-all text-sm disabled:opacity-50"
+              >
+                {toggling === confirmStop.wallet ? "Stopping..." : "Stop Copying"}
               </button>
             </div>
           </div>
