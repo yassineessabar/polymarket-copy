@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { copyApi, traderApi } from "@/lib/api";
-import { STRATEGY_LIST } from "@/lib/strategies";
+import { STRATEGY_LIST, STRATEGIES } from "@/lib/strategies";
 import Image from "next/image";
 
 /* ------------------------------------------------------------------ */
@@ -207,7 +207,15 @@ export default function OnboardingPage() {
     } catch {
       // ignore errors for now
     }
-    router.push("/dashboard");
+    // Find the strategy slug to redirect to the invest/amount page
+    const strat = Object.values(STRATEGIES).find(
+      (s) => s.wallet.toLowerCase() === traderWallet.toLowerCase()
+    );
+    if (strat) {
+      router.push(`/invest/${strat.slug}`);
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   /* quiz step mapping: steps 3-6 map to quiz questions 1-4 */
