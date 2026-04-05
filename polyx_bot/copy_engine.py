@@ -303,7 +303,7 @@ class CopyTradeManager:
         for t in all_targets:
             if t["wallet_addr"].lower() != target.lower():
                 other_pos = await self.db.get_open_positions(telegram_id)
-                if any(p.get("condition_id") == condition_id and p.get("target_wallet", "").lower() == t["wallet_addr"].lower() for p in other_pos):
+                if any(p.get("condition_id") == cid and p.get("target_wallet", "").lower() == t["wallet_addr"].lower() for p in other_pos):
                     overlap_count += 1
 
         bet, conf, reject = risk_check(
