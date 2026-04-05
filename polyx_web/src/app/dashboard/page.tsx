@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { portfolioApi, copyApi, notificationsApi, traderApi } from "@/lib/api";
+import { portfolioApi, copyApi, notificationsApi } from "@/lib/api";
 import { formatUsd, formatPnl } from "@/lib/utils";
 import type { PortfolioSummary, CopyStatus, Notification } from "@/lib/types";
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
-} from "recharts";
+import { Button, Card, Badge, Spinner } from "@/components/ui";
+import { EquityChart, EmptyState } from "@/components";
 
 type TimePeriod = "1W" | "1M" | "3M" | "YTD" | "ALL";
 
@@ -88,13 +87,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="pt-4">
-        <div className="animate-pulse">
-          <div className="h-3 w-16 bg-black/[0.04] rounded mb-3" />
-          <div className="h-10 w-48 bg-black/[0.04] rounded mb-2" />
-          <div className="h-4 w-32 bg-black/[0.04] rounded mb-6" />
-          <div className="h-[180px] bg-black/[0.04] rounded-2xl" />
-        </div>
+      <div className="flex items-center justify-center pt-24">
+        <Spinner />
       </div>
     );
   }
@@ -126,64 +120,14 @@ export default function DashboardPage() {
           </span>
         </p>
 
-        {/* Equity chart */}
-        {equityData.length > 1 && (
-          <div className="h-[180px] mt-4 -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityData}>
-                <defs>
-                  <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={isUp ? "#10B981" : "#EF4444"} stopOpacity={0.04} />
-                    <stop offset="100%" stopColor={isUp ? "#10B981" : "#EF4444"} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" hide />
-                <YAxis hide domain={["auto", "auto"]} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#fff",
-                    border: "1px solid rgba(0,0,0,0.04)",
-                    borderRadius: "12px",
-                    fontSize: "13px",
-                    color: "#0F0F0F",
-                    boxShadow: "none",
-                    padding: "8px 12px",
-                  }}
-                  formatter={(v: number) => [formatUsd(v), ""]}
-                  labelFormatter={(l) => {
-                    const d = new Date(l);
-                    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke={isUp ? "#10B981" : "#EF4444"}
-                  strokeWidth={1.5}
-                  fill="url(#heroGrad)"
-                  dot={false}
-                  activeDot={{ r: 3.5, strokeWidth: 0, fill: isUp ? "#10B981" : "#EF4444" }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Time pills */}
-        <div className="flex gap-1 mt-3">
-          {(["1W", "1M", "3M", "YTD", "ALL"] as TimePeriod[]).map((period) => (
-            <button
-              key={period}
-              onClick={() => setEquityPeriod(period)}
-              className={`text-xs font-medium px-3 py-1 rounded-lg transition-all duration-150 ${
-                equityPeriod === period
-                  ? "bg-[#0F0F0F] text-white"
-                  : "text-[#9CA3AF] hover:text-[#6B7280]"
-              }`}
-            >
-              {period}
-            </button>
-          ))}
+        <div className="mt-4 -mx-2">
+          <EquityChart
+            data={equityData}
+            height={180}
+            positive={isUp}
+            period={equityPeriod}
+            onPeriodChange={(p) => setEquityPeriod(p as TimePeriod)}
+          />
         </div>
       </div>
 
@@ -192,7 +136,7 @@ export default function DashboardPage() {
         <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium mb-3">Active Traders</p>
 
         {copyStatus?.active ? (
-          <div className="bg-white rounded-2xl border border-black/[0.04] p-4">
+          <Card>
             <div className="flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse flex-shrink-0" />
               <div className="flex-1 min-w-0">
@@ -201,22 +145,15 @@ export default function DashboardPage() {
                 </p>
               </div>
               <span className="text-xs text-[#6B7280]">{copyStatus.open_positions} open positions</span>
-              <Link href="/strategies" className="text-xs text-[#0F0F0F] font-semibold hover:underline ml-1">
-                View
-              </Link>
+              <Button variant="ghost" size="sm" href="/strategies">View</Button>
             </div>
-          </div>
+          </Card>
         ) : (
-          <div className="bg-white rounded-2xl border border-black/[0.04] p-6 text-center">
-            <p className="text-sm font-semibold text-[#0F0F0F] mb-1">Start automated trading</p>
-            <p className="text-sm text-[#6B7280] mb-4">Follow top traders and mirror their positions automatically</p>
-            <Link
-              href="/strategies"
-              className="inline-flex items-center justify-center h-10 bg-[#0F0F0F] text-white text-sm font-semibold px-5 rounded-xl hover:bg-[#262626] transition-all duration-150"
-            >
-              Browse Traders
-            </Link>
-          </div>
+          <EmptyState
+            title="Start automated trading"
+            subtitle="Follow top traders and mirror their positions automatically"
+            action={<Button href="/strategies">Browse Traders</Button>}
+          />
         )}
       </div>
 
@@ -225,14 +162,12 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium">Recent</p>
           {(notifications.length > 0 || recentTrades.length > 0) && (
-            <Link href="/notifications" className="text-xs text-[#9CA3AF] hover:text-[#0F0F0F] transition-colors duration-150">
-              See all
-            </Link>
+            <Button variant="ghost" size="sm" href="/notifications">See all</Button>
           )}
         </div>
 
         {notifications.length > 0 ? (
-          <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             {notifications.slice(0, 5).map((n) => {
               let text = n.payload;
               try { text = JSON.parse(n.payload).text || n.payload; } catch {}
@@ -242,9 +177,7 @@ export default function DashboardPage() {
               return (
                 <div key={n.id} className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.04] last:border-0">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#10B981]" : isSell ? "bg-[#EF4444]" : "bg-[#9CA3AF]"}`} />
-                  <span className={`text-xs font-semibold flex-shrink-0 ${isBuy ? "text-[#10B981]" : isSell ? "text-[#EF4444]" : "text-[#6B7280]"}`}>
-                    {n.type}
-                  </span>
+                  <Badge variant={isBuy ? "success" : isSell ? "danger" : "neutral"}>{n.type}</Badge>
                   <span className="text-sm text-[#6B7280] flex-1 truncate">{clean.slice(0, 80)}</span>
                   <span className="text-xs text-[#9CA3AF] flex-shrink-0">
                     {new Date(n.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -252,17 +185,15 @@ export default function DashboardPage() {
                 </div>
               );
             })}
-          </div>
+          </Card>
         ) : recentTrades.length > 0 ? (
-          <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             {recentTrades.slice(0, 5).map((t: any, i: number) => {
               const isBuy = t.side === "BUY";
               return (
                 <div key={t.id || i} className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.04] last:border-0">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#10B981]" : "bg-[#EF4444]"}`} />
-                  <span className={`text-xs font-semibold flex-shrink-0 ${isBuy ? "text-[#10B981]" : "text-[#EF4444]"}`}>
-                    {t.side}
-                  </span>
+                  <Badge variant={isBuy ? "success" : "danger"}>{t.side}</Badge>
                   <span className="text-sm text-[#6B7280] flex-1 truncate">
                     {t.amount_usdc ? `$${Number(t.amount_usdc).toFixed(2)}` : ""} {t.is_copy ? "(auto)" : ""}
                   </span>
@@ -272,11 +203,9 @@ export default function DashboardPage() {
                 </div>
               );
             })}
-          </div>
+          </Card>
         ) : (
-          <div className="bg-white rounded-2xl border border-black/[0.04] p-6 text-center">
-            <p className="text-sm text-[#9CA3AF]">No activity yet</p>
-          </div>
+          <EmptyState title="No activity yet" />
         )}
       </div>
     </div>

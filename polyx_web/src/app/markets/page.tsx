@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { marketsApi } from "@/lib/api";
+import { Card, Badge, Spinner } from "@/components/ui";
+import { PageHeader, EmptyState } from "@/components";
 
 const CATEGORIES = ["Trending", "Crypto", "Politics", "Sports", "Science", "Culture"];
 
@@ -27,7 +29,7 @@ export default function MarketsPage() {
 
   return (
     <div className="max-w-[900px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#0F0F0F]">Markets</h1>
+      <PageHeader title="Markets" />
 
       {/* Category pills */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-4 -mx-5 px-5 sm:mx-0 sm:px-0 mb-4">
@@ -48,26 +50,22 @@ export default function MarketsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-[#0F0F0F] border-t-transparent rounded-full animate-spin" />
+          <Spinner />
         </div>
       ) : markets.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm">
-          <h3 className="font-bold mb-2 text-[#0F0F0F]">No markets found</h3>
-          <p className="text-sm text-[#6B7280] font-medium">
-            Try a different category or check back later.
-          </p>
-        </div>
+        <EmptyState
+          title="No markets found"
+          subtitle="Try a different category or check back later."
+        />
       ) : (
         <div className="space-y-2">
           {markets.map((market, i) => (
-            <div key={market.id || i} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+            <Card key={market.id || i} className="hover:shadow-md transition-all shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-sm mb-1 text-[#0F0F0F]">{market.title || market.question}</div>
                   {market.category && (
-                    <span className="inline-block bg-[#F5F5F5] text-[#6B7280] text-[10px] px-2.5 py-0.5 rounded-full font-medium">
-                      {market.category}
-                    </span>
+                    <Badge variant="neutral">{market.category}</Badge>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -88,7 +86,7 @@ export default function MarketsPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
