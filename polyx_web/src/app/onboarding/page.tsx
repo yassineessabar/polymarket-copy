@@ -200,9 +200,10 @@ export default function OnboardingPage() {
     return () => clearTimeout(timer);
   }, [step]);
 
-  const handleCopy = async (traderName: string) => {
+  const handleCopy = async (traderWallet: string, traderName: string) => {
     try {
-      await copyApi.addTarget(traderName);
+      await copyApi.addTarget(traderWallet, traderName);
+      await copyApi.start();
     } catch {
       // ignore errors for now
     }
@@ -616,7 +617,7 @@ export default function OnboardingPage() {
                   {/* Action */}
                   <div className="p-3">
                     <button
-                      onClick={() => handleCopy(trader.name)}
+                      onClick={() => handleCopy(trader.wallet, trader.name)}
                       className="w-full bg-[#121212] text-white text-sm font-semibold py-2.5 rounded-full transition-all hover:bg-[#333] active:scale-[0.98]"
                     >
                       Start Copying
