@@ -60,13 +60,13 @@ export default function DashboardPage() {
 
   const chartData = useMemo(() => {
     if (perfData.length > 0) return perfData;
+    // No fake data — show flat line at current balance for new users
+    const val = summary?.net_worth || 0;
     const data = [];
-    let val = summary?.net_worth || 1000;
-    for (let i = 30; i >= 0; i--) {
+    for (let i = 7; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      data.push({ date: d.toISOString().split("T")[0], value: Math.round(val * 100) / 100 });
-      val += (Math.random() - 0.45) * (val * 0.02);
+      data.push({ date: d.toISOString().split("T")[0], value: val });
     }
     return data;
   }, [perfData, summary]);

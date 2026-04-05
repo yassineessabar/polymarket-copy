@@ -149,6 +149,35 @@ export default function WalletPage() {
         Wallet
       </h1>
 
+      {/* Trading Mode Toggle — always visible */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 mb-4 shadow-sm">
+        <p className="text-xs text-[#9B9B9B] uppercase tracking-wider font-medium mb-3">Trading Mode</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={switchToDemo}
+            disabled={saving}
+            className={`p-4 rounded-xl border-2 text-left transition-all ${
+              isDemo ? "border-[#121212] bg-[#F7F7F7]" : "border-transparent bg-[#F7F7F7] hover:border-[#E0E0E0]"
+            }`}
+          >
+            <p className="text-sm font-bold text-[#121212]">Demo</p>
+            <p className="text-xs text-[#9B9B9B] mt-0.5">Virtual funds, zero risk</p>
+            {isDemo && <p className="text-xs font-bold text-[#009D55] mt-2">Active</p>}
+          </button>
+          <button
+            onClick={switchToLive}
+            disabled={saving}
+            className={`p-4 rounded-xl border-2 text-left transition-all ${
+              !isDemo ? "border-[#121212] bg-[#F7F7F7]" : "border-transparent bg-[#F7F7F7] hover:border-[#E0E0E0]"
+            }`}
+          >
+            <p className="text-sm font-bold text-[#121212]">Live</p>
+            <p className="text-xs text-[#9B9B9B] mt-0.5">Real USDC, real profits</p>
+            {!isDemo && <p className="text-xs font-bold text-[#009D55] mt-2">Active</p>}
+          </button>
+        </div>
+      </div>
+
       {/* ===== DEMO MODE ===== */}
       {isDemo && (
         <>
@@ -193,17 +222,10 @@ export default function WalletPage() {
               <div>
                 <p className="text-sm font-bold text-[#121212] mb-1">You&apos;re in demo mode</p>
                 <p className="text-xs text-[#9B9B9B] font-medium leading-relaxed">
-                  Practice trading with virtual funds. No real money at risk. Switch to live when you&apos;re ready to trade with real USDC.
+                  Practice trading with virtual funds. No real money at risk. Use the toggle above to switch to live trading.
                 </p>
               </div>
             </div>
-            <button
-              onClick={switchToLive}
-              disabled={saving}
-              className="mt-4 w-full bg-[#121212] hover:bg-[#333] disabled:opacity-50 text-white font-medium py-3 rounded-full transition-all text-sm"
-            >
-              Switch to Live
-            </button>
           </div>
         </>
       )}
