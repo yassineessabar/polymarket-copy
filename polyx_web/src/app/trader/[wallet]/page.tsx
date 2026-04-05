@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { traderApi } from "@/lib/api";
 import { STRATEGIES, generateEquityData, generateHoldings } from "@/lib/strategies";
 import {
@@ -14,12 +15,15 @@ import {
   ReferenceDot,
 } from "recharts";
 
-const GRADIENTS = [
-  "from-amber-400 to-pink-500",
-  "from-pink-400 to-yellow-400",
-  "from-blue-400 to-cyan-300",
-  "from-green-400 to-emerald-600",
-  "from-purple-500 to-indigo-600",
+const DOT_COLORS = [
+  "#009D55",
+  "#22c55e",
+  "#60a5fa",
+  "#f59e0b",
+  "#DC2626",
+  "#a78bfa",
+  "#06b6d4",
+  "#ec4899",
 ];
 
 const CHART_PERIODS = ["7D", "30D", "90D"];
@@ -35,7 +39,7 @@ interface TraderData {
   tradesPerDay: string;
   topCategories: string;
   rank: number;
-  gradient: string;
+  colorIndex: number;
   positions: { title: string; outcome: string; pnl: number; image?: string }[];
   equityData: { day: number; value: number }[];
 }
@@ -43,11 +47,6 @@ interface TraderData {
 function truncateWallet(wallet: string): string {
   if (wallet.length <= 14) return wallet;
   return `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
-}
-
-function truncateName(wallet: string): string {
-  if (wallet.length <= 14) return wallet;
-  return `${wallet.slice(0, 12)}...`;
 }
 
 function formatPnl(value: number): string {
@@ -86,10 +85,11 @@ export default function TraderDetailPage() {
       (s) => s.wallet.toLowerCase() === wallet.toLowerCase()
     );
 
+    const colorIdx = Math.abs(wallet.charCodeAt(2) || 0) % DOT_COLORS.length;
+
     if (strat) {
       const equityData = generateEquityData(strat.returnPct, 90);
       const holdings = generateHoldings(strat);
-      const idx = Math.abs(wallet.charCodeAt(2) || 0) % GRADIENTS.length;
       setTrader({
         wallet: strat.wallet,
         name: strat.name,
@@ -109,7 +109,7 @@ export default function TraderDetailPage() {
         ).toFixed(1),
         topCategories: strat.categories.slice(0, 2).join(", "),
         rank: 1,
-        gradient: GRADIENTS[idx],
+        colorIndex: colorIdx,
         positions: holdings.map((h) => ({
           title: h.market,
           outcome: h.outcome,
@@ -128,7 +128,6 @@ export default function TraderDetailPage() {
 
     try {
       const data = await traderApi.one(wallet);
-      const idx = Math.abs(wallet.charCodeAt(2) || 0) % GRADIENTS.length;
       setTrader({
         wallet,
         name: data.name || wallet.slice(0, 10),
@@ -141,7 +140,7 @@ export default function TraderDetailPage() {
         topCategories:
           (data.categories || []).slice(0, 2).join(", ") || "Overall",
         rank: data.rank || 0,
-        gradient: GRADIENTS[idx],
+        colorIndex: colorIdx,
         positions: (data.positions || []).map((p: any) => ({
           title: p.title || "Unknown Market",
           outcome: p.outcome || "Yes",
@@ -151,7 +150,6 @@ export default function TraderDetailPage() {
         equityData: data.equity_data || generateEquityData(50, 90),
       });
     } catch {
-      const idx = Math.abs(wallet.charCodeAt(2) || 0) % GRADIENTS.length;
       setTrader({
         wallet,
         name: wallet.slice(0, 10),
@@ -163,7 +161,7 @@ export default function TraderDetailPage() {
         tradesPerDay: "0",
         topCategories: "Overall",
         rank: 0,
-        gradient: GRADIENTS[idx],
+        colorIndex: colorIdx,
         positions: [],
         equityData: generateEquityData(10, 90),
       });
@@ -197,58 +195,84 @@ export default function TraderDetailPage() {
 
   if (loading) {
     return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: "#080B16" }}
-      >
-        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-6 h-6 border-2 border-[#F4F4F4] border-t-[#121212] rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!trader) {
     return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: "#080B16" }}
-      >
-        <p className="text-[#5A5F7A]">Trader not found</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-[#9B9B9B] text-sm font-medium">Trader not found</p>
       </div>
     );
   }
 
   const isPositivePnl = trader.pnlNum >= 0;
+  const dotColor = DOT_COLORS[trader.colorIndex % DOT_COLORS.length];
+
+  const stats = [
+    {
+      label: "PNL",
+      value: `${isPositivePnl ? "+" : ""}${trader.pnl}`,
+      colored: true,
+    },
+    {
+      label: "Trades",
+      value: trader.totalTrades.toLocaleString(),
+      colored: false,
+    },
+    {
+      label: "Win Rate",
+      value: `${trader.winRate}%`,
+      colored: true,
+      isWinRate: true,
+    },
+    {
+      label: "Avg Size",
+      value: trader.avgSize,
+      colored: false,
+    },
+    {
+      label: "Trades/Day",
+      value: trader.tradesPerDay,
+      colored: false,
+    },
+    {
+      label: "Categories",
+      value: trader.topCategories,
+      colored: false,
+      isText: true,
+    },
+  ];
 
   return (
-    <div
-      className="max-w-[600px] mx-auto min-h-screen pb-24"
-      style={{ backgroundColor: "#080B16" }}
-    >
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <button
-          onClick={() => router.push("/strategies")}
-          className="text-white p-1"
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+    <div className="pb-24">
+      <div className="max-w-[700px] mx-auto">
+        {/* Top nav */}
+        <div className="flex items-center justify-between mb-4">
+          <Link
+            href="/strategies"
+            className="text-[#9B9B9B] hover:text-[#121212] p-1 transition-colors"
           >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="flex items-center gap-3">
-          {/* Share icon (arrow-up-from-square) */}
-          <button className="text-[#8B8FA3] p-1">
             <svg
               width="20"
               height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <button className="text-[#9B9B9B] hover:text-[#121212] p-1 transition-colors">
+            <svg
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -261,266 +285,209 @@ export default function TraderDetailPage() {
               <line x1="12" y1="2" x2="12" y2="15" />
             </svg>
           </button>
-          {/* Bell icon */}
-          <button className="text-[#8B8FA3] p-1">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-            </svg>
-          </button>
         </div>
-      </div>
 
-      {/* Trader identity */}
-      <div className="mt-4 px-4">
-        <div className="flex items-start gap-4">
-          <div
-            className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${trader.gradient} shrink-0`}
-          />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-white font-bold text-lg truncate">
-                {truncateName(trader.wallet)}
-              </h1>
-              {/* Blue external link icon */}
-              <a
-                href={`https://polymarket.com/profile/${trader.wallet}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 shrink-0"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                </svg>
-              </a>
-            </div>
-            <p className="text-[#5A5F7A] font-mono text-xs mt-0.5">
+        {/* Hero */}
+        <div className="animate-fade-up">
+          <div className="flex items-center gap-3 mb-2">
+            <div
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: dotColor }}
+            />
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#121212]">
+              {trader.name}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#9B9B9B] font-mono">
               {truncateWallet(trader.wallet)}
-            </p>
+            </span>
             {trader.rank > 0 && (
-              <span className="inline-block mt-1.5 bg-[#FFB800]/20 text-[#FFB800] rounded-full px-2 py-0.5 text-xs font-bold">
+              <span className="text-xs text-[#656565] bg-[#F7F7F7] border border-black/5 px-2.5 py-0.5 rounded-full font-medium">
                 #{trader.rank}
               </span>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-3 mt-5 px-4">
-        {/* Row 1 */}
-        <div>
-          <div className="text-xs text-[#5A5F7A]">PnL</div>
-          <div
-            className={`text-lg font-bold ${
-              isPositivePnl ? "text-[#00C853]" : "text-[#DC2626]"
-            }`}
-          >
-            {isPositivePnl ? "+" : ""}
-            {trader.pnl}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-[#5A5F7A]">Trades</div>
-          <div className="text-lg font-bold text-white">
-            {trader.totalTrades.toLocaleString()}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-[#5A5F7A]">Win Rate</div>
-          <div
-            className={`text-lg font-bold ${
-              trader.winRate >= 50 ? "text-[#00C853]" : "text-[#DC2626]"
-            }`}
-          >
-            {trader.winRate}%
-          </div>
-        </div>
+        <div className="my-6 h-[1px] bg-[#F4F4F4]" />
 
-        {/* Row 2 */}
-        <div>
-          <div className="text-xs text-[#5A5F7A]">Avg Size</div>
-          <div className="text-lg font-bold text-white">{trader.avgSize}</div>
-        </div>
-        <div>
-          <div className="text-xs text-[#5A5F7A]">Trades/Day</div>
-          <div className="text-lg font-bold text-white">
-            {trader.tradesPerDay}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-[#5A5F7A]">Top Categories</div>
-          <div className="text-sm font-medium text-white">
-            {trader.topCategories}
-          </div>
-        </div>
-      </div>
-
-      {/* Equity chart */}
-      <div className="mt-4">
-        <div className="h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={filteredEquity}
-              margin={{ top: 20, right: 20, bottom: 5, left: 20 }}
-            >
-              <XAxis dataKey="day" hide />
-              <YAxis hide domain={["auto", "auto"]} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1A1F35",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: "8px",
-                  color: "#fff",
-                  fontSize: "12px",
-                }}
-                formatter={(value: number) => [
-                  `$${value.toLocaleString()}`,
-                  "Value",
-                ]}
-                labelFormatter={(label: number) => `Day ${label}`}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#00C853"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{
-                  r: 4,
-                  fill: "#00C853",
-                  stroke: "#080B16",
-                  strokeWidth: 2,
-                }}
-              />
-              {peakPoint && (
-                <ReferenceDot
-                  x={peakPoint.day}
-                  y={peakPoint.value}
-                  r={0}
-                  label={{
-                    value: formatPnl(peakPoint.value),
-                    position: "top",
-                    fill: "#00C853",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                />
-              )}
-              {troughPoint && troughPoint.value < 0 && (
-                <ReferenceDot
-                  x={troughPoint.day}
-                  y={troughPoint.value}
-                  r={0}
-                  label={{
-                    value: formatPnl(troughPoint.value),
-                    position: "bottom",
-                    fill: "#5A5F7A",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Time selector */}
-        <div className="flex gap-2 justify-center mt-2">
-          {CHART_PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setChartPeriod(p)}
-              className={`rounded-full px-3 py-1 text-sm transition-colors ${
-                chartPeriod === p
-                  ? "bg-[#1E2235] text-white font-medium"
-                  : "text-[#5A5F7A]"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Positions section */}
-      <div className="mt-6 px-4">
-        <h2 className="text-lg font-bold text-white">Positions</h2>
-        {trader.positions.length > 0 ? (
-          <div className="space-y-2 mt-2">
-            {trader.positions.map((p, i) => {
-              const isPositive = p.pnl >= 0;
-              return (
-                <div
-                  key={i}
-                  className="bg-[#141728] rounded-xl p-3 flex items-center gap-3"
-                >
-                  {/* Position icon/image */}
-                  <div className="w-10 h-10 rounded-lg bg-[#1E2235] shrink-0 overflow-hidden flex items-center justify-center">
-                    {p.image ? (
-                      <img
-                        src={p.image}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#5A5F7A"
-                        strokeWidth="1.5"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
-                    )}
+        {/* Stats grid */}
+        <div className="animate-fade-up delay-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {stats.map((s, i) => (
+              <div key={i} className="bg-white rounded-2xl shadow-sm p-4">
+                <div className="text-xs text-[#9B9B9B] font-medium mb-1.5">
+                  {s.label}
+                </div>
+                {s.isText ? (
+                  <div className="text-sm font-medium text-[#121212]">
+                    {s.value}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-white text-sm font-medium truncate">
-                      {p.title}
-                    </div>
-                  </div>
+                ) : (
                   <div
-                    className={`text-sm font-bold shrink-0 ${
-                      isPositive ? "text-[#00C853]" : "text-[#DC2626]"
+                    className={`text-xl sm:text-2xl font-bold ${
+                      s.colored
+                        ? s.isWinRate
+                          ? trader.winRate >= 50
+                            ? "text-[#009D55]"
+                            : "text-[#DC2626]"
+                          : isPositivePnl
+                          ? "text-[#009D55]"
+                          : "text-[#DC2626]"
+                        : "text-[#121212]"
                     }`}
                   >
-                    {formatPositionPnl(p.pnl)}
+                    {s.value}
                   </div>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="bg-[#141728] rounded-xl p-6 text-center mt-2">
-            <p className="text-[#5A5F7A] text-sm">No open positions</p>
-          </div>
-        )}
-      </div>
+        </div>
 
-      {/* Sticky bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#141728] border-t border-white/[0.08] p-4 z-40">
-        <div className="max-w-[600px] mx-auto">
+        {/* Equity chart */}
+        <div className="mt-6 animate-fade-up delay-3">
+          <div className="bg-white rounded-2xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-[#121212]">
+                Equity Curve
+              </span>
+              <div className="flex gap-1 bg-[#F7F7F7] rounded-full p-1">
+                {CHART_PERIODS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setChartPeriod(p)}
+                    className={`text-xs font-medium px-3 py-1 rounded-full transition-all cursor-pointer ${
+                      chartPeriod === p
+                        ? "bg-[#121212] text-white"
+                        : "text-[#9B9B9B] hover:text-[#656565]"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-[160px] sm:h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={filteredEquity}
+                  margin={{ top: 20, right: 20, bottom: 5, left: 20 }}
+                >
+                  <XAxis dataKey="day" hide />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #F4F4F4",
+                      borderRadius: "12px",
+                      color: "#121212",
+                      fontSize: "12px",
+                      padding: "8px 12px",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                    }}
+                    formatter={(value: number) => [
+                      `$${value.toLocaleString()}`,
+                      "Value",
+                    ]}
+                    labelFormatter={(label: number) => `Day ${label}`}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#009D55"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{
+                      r: 4,
+                      fill: "#009D55",
+                      stroke: "#fff",
+                      strokeWidth: 2,
+                    }}
+                  />
+                  {peakPoint && (
+                    <ReferenceDot
+                      x={peakPoint.day}
+                      y={peakPoint.value}
+                      r={0}
+                      label={{
+                        value: formatPnl(peakPoint.value),
+                        position: "top",
+                        fill: "#009D55",
+                        fontSize: 10,
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
+                  {troughPoint && troughPoint.value < 0 && (
+                    <ReferenceDot
+                      x={troughPoint.day}
+                      y={troughPoint.value}
+                      r={0}
+                      label={{
+                        value: formatPnl(troughPoint.value),
+                        position: "bottom",
+                        fill: "#DC2626",
+                        fontSize: 10,
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        <div className="my-6 h-[1px] bg-[#F4F4F4]" />
+
+        {/* Positions */}
+        <div className="animate-fade-up delay-4">
+          <h2 className="text-xl font-bold text-[#121212] mb-3">Positions</h2>
+          {trader.positions.length > 0 ? (
+            <div className="space-y-2">
+              {trader.positions.map((p, i) => {
+                const isPositive = p.pnl >= 0;
+                return (
+                  <div
+                    key={i}
+                    className="bg-white rounded-2xl shadow-sm p-4 flex justify-between items-center gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-[#121212] truncate">
+                        {p.title}
+                      </div>
+                    </div>
+                    <div
+                      className={`text-sm font-semibold shrink-0 ${
+                        isPositive ? "text-[#009D55]" : "text-[#DC2626]"
+                      }`}
+                    >
+                      {formatPositionPnl(p.pnl)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+              <p className="text-[#9B9B9B] text-2xl font-bold">&mdash;</p>
+              <p className="text-[#9B9B9B] text-sm mt-2">
+                No open positions.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom CTA */}
+        <div className="mt-8 mb-4">
           <button
             onClick={() => router.push("/wallet")}
-            className="w-full bg-white text-[#0B0E1C] rounded-full py-3.5 font-semibold text-center text-sm"
+            className="w-full h-14 bg-[#121212] text-white text-sm font-medium rounded-full transition-all hover:bg-[#121212]/90"
           >
-            Deposit funds to start copy trading
+            Deposit Funds
           </button>
         </div>
       </div>

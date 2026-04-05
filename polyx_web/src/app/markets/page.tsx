@@ -27,7 +27,7 @@ export default function MarketsPage() {
 
   return (
     <div className="max-w-[900px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-white">Markets</h1>
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#121212]">Markets</h1>
 
       {/* Category pills */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-4 -mx-5 px-5 sm:mx-0 sm:px-0 mb-4">
@@ -37,8 +37,8 @@ export default function MarketsPage() {
             onClick={() => setCategory(cat)}
             className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               category === cat
-                ? "bg-[#1A1F35] text-white"
-                : "bg-[#141728] text-[#5A5F7A] hover:text-white border border-white/[0.06]"
+                ? "bg-[#121212] text-white"
+                : "bg-white text-[#9B9B9B] hover:text-[#121212] shadow-sm"
             }`}
           >
             {cat}
@@ -48,37 +48,37 @@ export default function MarketsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-[#3B5BFE] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : markets.length === 0 ? (
-        <div className="bg-[#141728] rounded-2xl p-8 sm:p-12 text-center border border-white/[0.06]">
-          <h3 className="font-bold mb-2 text-white">No markets found</h3>
-          <p className="text-sm text-[#8B8FA3] font-medium">
+        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm">
+          <h3 className="font-bold mb-2 text-[#121212]">No markets found</h3>
+          <p className="text-sm text-[#9B9B9B] font-medium">
             Try a different category or check back later.
           </p>
         </div>
       ) : (
         <div className="space-y-2">
           {markets.map((market, i) => (
-            <div key={market.id || i} className="bg-[#141728] rounded-2xl p-4 sm:p-5 border border-white/[0.06] hover:bg-[#1A1F35] transition-all">
+            <div key={market.id || i} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm mb-1 text-white">{market.title || market.question}</div>
+                  <div className="font-bold text-sm mb-1 text-[#121212]">{market.title || market.question}</div>
                   {market.category && (
-                    <span className="inline-block bg-[#1A1F35] text-[#8B8FA3] text-[10px] px-2.5 py-0.5 rounded-full font-medium">
+                    <span className="inline-block bg-[#F7F7F7] text-[#9B9B9B] text-[10px] px-2.5 py-0.5 rounded-full font-medium">
                       {market.category}
                     </span>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
                   {market.volume !== undefined && (
-                    <div className="text-xs text-[#8B8FA3] font-medium">
+                    <div className="text-xs text-[#9B9B9B] font-medium">
                       Vol: ${typeof market.volume === "number" ? market.volume.toLocaleString() : market.volume}
                     </div>
                   )}
                   {market.yes_price !== undefined && (
                     <div className="flex gap-3 mt-1">
-                      <span className="text-xs font-mono font-bold text-[#00C853]">
+                      <span className="text-xs font-mono font-bold text-[#009D55]">
                         Yes {(market.yes_price * 100).toFixed(0)}c
                       </span>
                       <span className="text-xs font-mono font-bold text-[#DC2626]">

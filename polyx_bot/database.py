@@ -192,6 +192,16 @@ class Database:
                 await db.execute("ALTER TABLE user_settings ADD COLUMN demo_balance REAL NOT NULL DEFAULT 0.0")
             except Exception:
                 pass
+            # Backfill user_id on positions/trades where it's NULL
+            try:
+                await db.execute(
+                    "UPDATE positions SET user_id = (SELECT user_id FROM users WHERE users.telegram_id = positions.telegram_id) "
+                    "WHERE user_id IS NULL AND telegram_id IS NOT NULL")
+                await db.execute(
+                    "UPDATE trades SET user_id = (SELECT user_id FROM users WHERE users.telegram_id = trades.telegram_id) "
+                    "WHERE user_id IS NULL AND telegram_id IS NOT NULL")
+            except Exception:
+                pass
             await db.commit()
         # Run user_id migration (idempotent)
         try:
@@ -311,11 +321,19 @@ class Database:
                             entry_price: float, bet_amount: float, target_usdc_size: float,
                             event_slug: str) -> int:
         async with aiosqlite.connect(self.path) as db:
+            # Look up user_id for this telegram_id so web API can find positions
+            user_id = None
+            async with db.execute(
+                "SELECT user_id FROM users WHERE telegram_id=?", (telegram_id,)
+            ) as ucur:
+                row = await ucur.fetchone()
+                if row:
+                    user_id = row[0]
             cur = await db.execute(
-                "INSERT INTO positions (telegram_id, target_wallet, condition_id, outcome_index, "
+                "INSERT INTO positions (telegram_id, user_id, target_wallet, condition_id, outcome_index, "
                 "token_id, title, outcome, entry_price, bet_amount, target_usdc_size, event_slug) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (telegram_id, target_wallet, condition_id, outcome_index, token_id,
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (telegram_id, user_id, target_wallet, condition_id, outcome_index, token_id,
                  title, outcome, entry_price, bet_amount, target_usdc_size, event_slug))
             await db.commit()
             return cur.lastrowid
@@ -354,10 +372,18 @@ class Database:
                            amount: float, price: float, fee: float, is_copy: bool,
                            source_wallet: str = "", dry_run: bool = False) -> int:
         async with aiosqlite.connect(self.path) as db:
+            # Look up user_id so web API can find trades
+            user_id = None
+            async with db.execute(
+                "SELECT user_id FROM users WHERE telegram_id=?", (telegram_id,)
+            ) as ucur:
+                row = await ucur.fetchone()
+                if row:
+                    user_id = row[0]
             cur = await db.execute(
-                "INSERT INTO trades (telegram_id, position_id, side, token_id, amount_usdc, price, "
-                "fee_usdc, is_copy, source_wallet, dry_run) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (telegram_id, position_id, side, token_id, amount, price, fee,
+                "INSERT INTO trades (telegram_id, user_id, position_id, side, token_id, amount_usdc, price, "
+                "fee_usdc, is_copy, source_wallet, dry_run) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (telegram_id, user_id, position_id, side, token_id, amount, price, fee,
                  1 if is_copy else 0, source_wallet, 1 if dry_run else 0))
             await db.commit()
             return cur.lastrowid

@@ -7,107 +7,15 @@ import { isLoggedIn, clearToken, userApi, notificationsApi } from "@/lib/api";
 import { truncateAddress } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  {
-    href: "/portfolio",
-    label: "Portfolio",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/strategies",
-    label: "Copy Trading",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/markets",
-    label: "Markets",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-        <path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ),
-  },
+  { href: "/dashboard", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { href: "/portfolio", label: "Portfolio", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
+  { href: "/strategies", label: "Strategies", icon: "M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" },
+  { href: "/wallet", label: "Wallet", icon: "M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4M4 6v12c0 1.1.9 2 2 2h14v-4M18 12a2 2 0 000 4h4v-4h-4z" },
+  { href: "/refer", label: "Refer", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { href: "/settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
-const MOBILE_NAV = [
-  {
-    href: "/portfolio",
-    label: "Portfolio",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="12" width="4" height="9" rx="1" />
-        <rect x="10" y="7" width="4" height="14" rx="1" />
-        <rect x="17" y="3" width="4" height="18" rx="1" />
-      </svg>
-    ),
-    isSpecial: false,
-  },
-  {
-    href: "/strategies",
-    label: "Copy",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-    isSpecial: true,
-  },
-  {
-    href: "/markets",
-    label: "Markets",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-    isSpecial: false,
-  },
-  {
-    href: "/dashboard",
-    label: "AI",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-        <path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
-      </svg>
-    ),
-    isSpecial: false,
-  },
-  {
-    href: "/settings",
-    label: "Profile",
-    icon: null,
-    isSpecial: false,
-    isCircle: true,
-  },
-];
+const MOBILE_NAV = NAV_ITEMS.slice(0, 5);
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -135,46 +43,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-[#0B0E1C] flex">
+    <div className="min-h-screen min-h-[100dvh] bg-[#F7F7F7] flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-[240px] flex-col bg-[#0B0E1C] border-r border-white/[0.06] fixed top-0 left-0 bottom-0 z-40">
+      <aside className="hidden md:flex w-[240px] flex-col bg-white border-r border-black/5 fixed top-0 left-0 bottom-0 z-40">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#3B5BFE] to-[#6C5CE7] flex items-center justify-center font-bold text-sm text-white">
-              P
-            </div>
-            <span className="text-lg font-bold text-white">Polycool</span>
+            <div className="w-8 h-8 rounded-full bg-[#121212] flex items-center justify-center font-bold text-sm text-white">P</div>
+            <span className="text-lg font-bold text-[#121212]">PolyX</span>
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 mt-2">
+        <nav className="flex-1 px-3">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl mb-1 text-sm transition-all ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl mb-1 text-sm font-medium transition-all ${
                   active
-                    ? "bg-[#141728] text-white font-bold"
-                    : "text-[#5A5F7A] hover:text-white hover:bg-[#141728]/50"
+                    ? "bg-[#F7F7F7] text-[#121212] font-bold"
+                    : "text-[#9B9B9B] hover:text-[#121212] hover:bg-[#F7F7F7]"
                 }`}
               >
-                {item.icon}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={item.icon} />
+                </svg>
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="text-xs text-[#5A5F7A] mb-2 truncate font-mono">
-            {truncateAddress(wallet)}
-          </div>
-          <button
-            onClick={logout}
-            className="text-xs text-[#5A5F7A] hover:text-red-500 transition-colors font-medium"
-          >
+        <div className="p-4 border-t border-black/5">
+          <div className="text-xs text-[#9B9B9B] mb-2 truncate font-mono">{truncateAddress(wallet)}</div>
+          <button onClick={logout} className="text-xs text-[#9B9B9B] hover:text-[#DC2626] transition-colors font-medium">
             Sign Out
           </button>
         </div>
@@ -182,35 +85,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content */}
       <main className="flex-1 md:ml-[240px] w-full">
-        <div className="pb-24 md:pb-6">{children}</div>
+        {/* Top header */}
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-black/5">
+          <div className="flex items-center justify-between h-14 sm:h-16 px-5 sm:px-6">
+            <Link href="/" className="md:hidden flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-[#121212] flex items-center justify-center font-bold text-xs text-white">P</div>
+              <span className="font-bold text-sm text-[#121212]">PolyX</span>
+            </Link>
+            <div className="hidden md:block" />
+
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link href="/notifications" className="relative text-[#9B9B9B] hover:text-[#121212] transition-colors p-1">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+                </svg>
+                {unread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#DC2626] rounded-full text-[10px] font-bold flex items-center justify-center text-white">{unread}</span>
+                )}
+              </Link>
+
+              <div className="hidden sm:block text-xs text-[#9B9B9B] bg-[#F7F7F7] rounded-full px-3 py-1.5 truncate max-w-[160px] font-mono">
+                {truncateAddress(wallet)}
+              </div>
+
+              <button onClick={logout} className="md:hidden text-[#9B9B9B] hover:text-[#DC2626] transition-colors p-1">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-5 sm:p-6 pb-24 md:pb-6">{children}</div>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#080B16] border-t border-white/[0.08] flex z-40" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-black/5 flex z-40 mobile-bottom-nav">
           {MOBILE_NAV.map((item) => {
             const active = isActive(item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex-1 flex flex-col items-center pt-2 pb-1.5 text-[10px] gap-0.5 font-medium transition-colors ${
-                  active ? "text-white" : "text-[#5A5F7A]"
-                }`}
-              >
-                {(item as any).isCircle ? (
-                  <div className="flex items-center justify-center w-8 h-8">
-                    <div className="w-[28px] h-[28px] rounded-full bg-[#3B5BFE]" />
-                  </div>
-                ) : (
-                  <div
-                    className={`flex items-center justify-center transition-colors ${
-                      active && item.isSpecial
-                        ? "bg-[#3B5BFE] rounded-xl px-3 py-1.5"
-                        : "w-8 h-8"
-                    }`}
-                  >
-                    {item.icon}
-                  </div>
-                )}
+              <Link key={item.href} href={item.href} className={`flex-1 flex flex-col items-center py-2.5 pb-3 text-[10px] gap-0.5 font-medium ${active ? "text-[#121212]" : "text-[#9B9B9B]"}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2" : "1.5"} strokeLinecap="round" strokeLinejoin="round">
+                  <path d={item.icon} />
+                </svg>
                 {item.label}
               </Link>
             );

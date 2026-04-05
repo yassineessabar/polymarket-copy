@@ -6,30 +6,27 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          primary: "#080B16",
-          secondary: "#111427",
-          card: "#141728",
-          hover: "#1A1F35",
+          primary: "#F7F7F7",
+          secondary: "#F0F0F0",
+          card: "#FFFFFF",
+          hover: "#EBEBEB",
         },
         accent: {
-          DEFAULT: "#3B5BFE",
-          hover: "#2A4AED",
-          purple: "#6C5CE7",
+          DEFAULT: "#121212",
+          hover: "#333333",
         },
         border: {
-          DEFAULT: "rgba(255,255,255,0.06)",
-          hover: "rgba(255,255,255,0.12)",
+          DEFAULT: "rgba(0,0,0,0.08)",
+          hover: "rgba(0,0,0,0.15)",
         },
         text: {
-          primary: "#FFFFFF",
-          secondary: "#8B8FA3",
-          muted: "#5A5F7A",
+          primary: "#121212",
+          secondary: "#9B9B9B",
+          muted: "#656565",
         },
-        green: { DEFAULT: "#00C853" },
+        green: { DEFAULT: "#009D55" },
         red: { DEFAULT: "#DC2626" },
-        amber: { DEFAULT: "#FFB800" },
-        placeholder: "#5A5F7A",
-        input: "#1A1F35",
+        placeholder: "#BFBFBF",
       },
       fontFamily: {
         sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
