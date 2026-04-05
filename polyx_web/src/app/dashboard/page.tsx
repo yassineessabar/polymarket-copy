@@ -77,7 +77,6 @@ export default function DashboardPage() {
     return chartData.filter((d: any) => d.date >= cutoffStr);
   }, [chartData, equityPeriod]);
 
-  // Compute period return
   const periodReturn = useMemo(() => {
     if (equityData.length < 2) return { amount: 0, pct: 0 };
     const first = equityData[0]?.value || 0;
@@ -89,12 +88,12 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="max-w-[680px] mx-auto pt-8">
+      <div className="pt-4">
         <div className="animate-pulse">
-          <div className="h-5 w-24 bg-black/5 rounded mb-3" />
-          <div className="h-12 w-56 bg-black/5 rounded mb-2" />
-          <div className="h-5 w-40 bg-black/5 rounded mb-8" />
-          <div className="h-[200px] bg-black/5 rounded-xl" />
+          <div className="h-3 w-16 bg-black/[0.04] rounded mb-3" />
+          <div className="h-10 w-48 bg-black/[0.04] rounded mb-2" />
+          <div className="h-4 w-32 bg-black/[0.04] rounded mb-6" />
+          <div className="h-[180px] bg-black/[0.04] rounded-2xl" />
         </div>
       </div>
     );
@@ -105,36 +104,37 @@ export default function DashboardPage() {
   const isUp = periodReturn.amount >= 0;
 
   return (
-    <div className="max-w-[680px] mx-auto">
+    <div>
       {error && (
-        <div className="bg-[#DC2626]/5 text-[#DC2626] text-sm p-3 rounded-xl mb-6 flex items-center justify-between">
+        <div className="bg-[#FEF2F2] text-[#EF4444] text-sm p-3 rounded-xl mb-6 flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => loadData()} className="text-xs underline ml-2">Retry</button>
+          <button onClick={() => loadData()} className="text-xs font-medium underline ml-2">Retry</button>
         </div>
       )}
 
-      {/* Section 1: Portfolio Value (hero) */}
-      <div className="pt-4 sm:pt-8 mb-8">
-        {/* Large portfolio number */}
-        <p className="text-[32px] sm:text-[42px] font-bold tracking-tight text-[#121212] leading-none font-mono">
+      {/* Section 1: Portfolio Value */}
+      <div className="pt-2 mb-8">
+        <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium mb-1">Portfolio</p>
+        <p className="text-[36px] font-bold -tracking-[0.02em] text-[#0F0F0F] leading-none font-mono">
           {formatUsd(netWorth)}
         </p>
-
-        {/* Period return */}
-        <p className={`text-base mt-1.5 font-medium ${isUp ? "text-[#009D55]" : "text-[#DC2626]"}`}>
+        <p className={`text-sm font-medium mt-1.5 ${isUp ? "text-[#10B981]" : "text-[#EF4444]"}`}>
           {isUp ? "+" : ""}{formatPnl(periodReturn.amount)}{" "}
-          ({isUp ? "+" : ""}{periodReturn.pct.toFixed(2)}%) {equityPeriod === "1W" ? "this week" : equityPeriod === "1M" ? "this month" : equityPeriod === "3M" ? "3 months" : equityPeriod === "YTD" ? "this year" : "all time"}
+          ({isUp ? "+" : ""}{periodReturn.pct.toFixed(2)}%){" "}
+          <span className="text-[#9CA3AF] font-normal">
+            {equityPeriod === "1W" ? "this week" : equityPeriod === "1M" ? "this month" : equityPeriod === "3M" ? "3 months" : equityPeriod === "YTD" ? "this year" : "all time"}
+          </span>
         </p>
 
         {/* Equity chart */}
         {equityData.length > 1 && (
-          <div className="h-[200px] mt-6 -mx-2">
+          <div className="h-[180px] mt-4 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={equityData}>
                 <defs>
                   <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={isUp ? "#009D55" : "#DC2626"} stopOpacity={0.08} />
-                    <stop offset="100%" stopColor={isUp ? "#009D55" : "#DC2626"} stopOpacity={0} />
+                    <stop offset="0%" stopColor={isUp ? "#10B981" : "#EF4444"} stopOpacity={0.04} />
+                    <stop offset="100%" stopColor={isUp ? "#10B981" : "#EF4444"} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" hide />
@@ -142,11 +142,11 @@ export default function DashboardPage() {
                 <Tooltip
                   contentStyle={{
                     background: "#fff",
-                    border: "none",
+                    border: "1px solid rgba(0,0,0,0.04)",
                     borderRadius: "12px",
                     fontSize: "13px",
-                    color: "#121212",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                    color: "#0F0F0F",
+                    boxShadow: "none",
                     padding: "8px 12px",
                   }}
                   formatter={(v: number) => [formatUsd(v), ""]}
@@ -158,27 +158,27 @@ export default function DashboardPage() {
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke={isUp ? "#009D55" : "#DC2626"}
-                  strokeWidth={2}
+                  stroke={isUp ? "#10B981" : "#EF4444"}
+                  strokeWidth={1.5}
                   fill="url(#heroGrad)"
                   dot={false}
-                  activeDot={{ r: 4, strokeWidth: 0, fill: isUp ? "#009D55" : "#DC2626" }}
+                  activeDot={{ r: 3.5, strokeWidth: 0, fill: isUp ? "#10B981" : "#EF4444" }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* Time period pills */}
-        <div className="flex gap-2 mt-4">
+        {/* Time pills */}
+        <div className="flex gap-1 mt-3">
           {(["1W", "1M", "3M", "YTD", "ALL"] as TimePeriod[]).map((period) => (
             <button
               key={period}
               onClick={() => setEquityPeriod(period)}
-              className={`text-sm px-3 py-1 rounded-full transition-colors ${
+              className={`text-xs font-medium px-3 py-1 rounded-lg transition-all duration-150 ${
                 equityPeriod === period
-                  ? "bg-[#121212] text-white font-bold"
-                  : "text-[#9B9B9B] hover:text-[#121212]"
+                  ? "bg-[#0F0F0F] text-white"
+                  : "text-[#9CA3AF] hover:text-[#6B7280]"
               }`}
             >
               {period}
@@ -187,63 +187,52 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section 2: Copying (active strategies) */}
-      <div className="mb-8">
-        <p className="text-xs text-[#9B9B9B] uppercase tracking-wider font-medium mb-3">Copying</p>
+      {/* Section 2: Copying */}
+      <div className="mt-8">
+        <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium mb-3">Copying</p>
 
         {copyStatus?.active ? (
-          <div className="bg-white rounded-2xl shadow-sm p-4">
-            {/* Active copy status row */}
+          <div className="bg-white rounded-2xl border border-black/[0.04] p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#009D55]/10 flex items-center justify-center flex-shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#009D55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
-              </div>
+              <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#121212]">
-                  {copyStatus.target_count} trader{copyStatus.target_count !== 1 ? "s" : ""}
+                <p className="text-sm font-medium text-[#0F0F0F]">
+                  Copying {copyStatus.target_count} trader{copyStatus.target_count !== 1 ? "s" : ""}
                 </p>
-                <p className="text-xs text-[#9B9B9B]">{copyStatus.open_positions} open positions</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs text-[#009D55] font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#009D55] animate-pulse" />
-                  Active
-                </span>
-              </div>
+              <span className="text-xs text-[#6B7280]">{copyStatus.open_positions} open positions</span>
+              <Link href="/strategies" className="text-xs text-[#0F0F0F] font-semibold hover:underline ml-1">
+                View
+              </Link>
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
-            <p className="text-sm text-[#9B9B9B] mb-4">Start copying top traders</p>
+          <div className="bg-white rounded-2xl border border-black/[0.04] p-6 text-center">
+            <p className="text-sm font-semibold text-[#0F0F0F] mb-1">Start copy trading</p>
+            <p className="text-sm text-[#6B7280] mb-4">Follow top traders and mirror their positions automatically</p>
             <Link
               href="/strategies"
-              className="inline-flex items-center gap-2 bg-[#121212] text-white text-sm font-medium px-6 py-2.5 rounded-full hover:bg-[#333] transition-colors"
+              className="inline-flex items-center justify-center h-10 bg-[#0F0F0F] text-white text-sm font-semibold px-5 rounded-xl hover:bg-[#262626] transition-all duration-150"
             >
               Browse Traders
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
             </Link>
           </div>
         )}
       </div>
 
-      {/* Section 3: Recent Activity */}
-      <div className="mb-8">
+      {/* Section 3: Activity */}
+      <div className="mt-8">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-[#9B9B9B] uppercase tracking-wider font-medium">Activity</p>
+          <p className="text-[#9CA3AF] text-xs uppercase tracking-[0.05em] font-medium">Recent</p>
           {(notifications.length > 0 || recentTrades.length > 0) && (
-            <Link href="/notifications" className="text-xs text-[#9B9B9B] hover:text-[#121212] transition-colors">
+            <Link href="/notifications" className="text-xs text-[#9CA3AF] hover:text-[#0F0F0F] transition-colors duration-150">
               See all
             </Link>
           )}
         </div>
 
         {notifications.length > 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
             {notifications.slice(0, 5).map((n) => {
               let text = n.payload;
               try { text = JSON.parse(n.payload).text || n.payload; } catch {}
@@ -251,10 +240,13 @@ export default function DashboardPage() {
               const isBuy = n.type === "BUY";
               const isSell = n.type === "SELL" || n.type === "CLOSE";
               return (
-                <div key={n.id} className="flex items-center gap-3 py-3 px-4 border-b border-black/5 last:border-0">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#009D55]" : isSell ? "bg-[#DC2626]" : "bg-[#9B9B9B]"}`} />
-                  <span className="text-sm text-[#121212] flex-1 truncate">{clean.slice(0, 80)}</span>
-                  <span className="text-xs text-[#9B9B9B] flex-shrink-0">
+                <div key={n.id} className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.04] last:border-0">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#10B981]" : isSell ? "bg-[#EF4444]" : "bg-[#9CA3AF]"}`} />
+                  <span className={`text-xs font-semibold flex-shrink-0 ${isBuy ? "text-[#10B981]" : isSell ? "text-[#EF4444]" : "text-[#6B7280]"}`}>
+                    {n.type}
+                  </span>
+                  <span className="text-sm text-[#6B7280] flex-1 truncate">{clean.slice(0, 80)}</span>
+                  <span className="text-xs text-[#9CA3AF] flex-shrink-0">
                     {new Date(n.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
@@ -262,16 +254,19 @@ export default function DashboardPage() {
             })}
           </div>
         ) : recentTrades.length > 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden">
             {recentTrades.slice(0, 5).map((t: any, i: number) => {
               const isBuy = t.side === "BUY";
               return (
-                <div key={t.id || i} className="flex items-center gap-3 py-3 px-4 border-b border-black/5 last:border-0">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#009D55]" : "bg-[#DC2626]"}`} />
-                  <span className="text-sm text-[#121212] flex-1 truncate">
-                    {t.side} {t.amount_usdc ? `$${Number(t.amount_usdc).toFixed(2)}` : ""} {t.is_copy ? "(copy)" : ""}
+                <div key={t.id || i} className="flex items-center gap-3 px-4 py-3 border-b border-black/[0.04] last:border-0">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBuy ? "bg-[#10B981]" : "bg-[#EF4444]"}`} />
+                  <span className={`text-xs font-semibold flex-shrink-0 ${isBuy ? "text-[#10B981]" : "text-[#EF4444]"}`}>
+                    {t.side}
                   </span>
-                  <span className="text-xs text-[#9B9B9B] flex-shrink-0">
+                  <span className="text-sm text-[#6B7280] flex-1 truncate">
+                    {t.amount_usdc ? `$${Number(t.amount_usdc).toFixed(2)}` : ""} {t.is_copy ? "(copy)" : ""}
+                  </span>
+                  <span className="text-xs text-[#9CA3AF] flex-shrink-0">
                     {t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
                   </span>
                 </div>
@@ -279,18 +274,8 @@ export default function DashboardPage() {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm py-8 text-center">
-            <p className="text-sm text-[#9B9B9B] mb-4">No trades yet</p>
-            <Link
-              href="/strategies"
-              className="inline-flex items-center gap-2 bg-[#121212] text-white text-sm font-medium px-6 py-2.5 rounded-full hover:bg-[#333] transition-colors"
-            >
-              Pick a Strategy
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </Link>
+          <div className="bg-white rounded-2xl border border-black/[0.04] p-6 text-center">
+            <p className="text-sm text-[#9CA3AF]">No activity yet</p>
           </div>
         )}
       </div>

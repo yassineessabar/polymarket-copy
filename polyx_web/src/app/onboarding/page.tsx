@@ -65,8 +65,8 @@ function OptionCard({
       onClick={onClick}
       className={`w-full text-left p-4 rounded-2xl cursor-pointer transition-all flex items-center gap-4 ${
         selected
-          ? "border-2 border-[#121212] bg-[#F7F7F7] shadow-sm"
-          : "border-2 border-transparent bg-white shadow-sm hover:border-[#121212]"
+          ? "border-2 border-[#0F0F0F] bg-[#F5F5F5] border border-black/[0.04]"
+          : "border-2 border-transparent bg-white border border-black/[0.04] hover:border-[#0F0F0F]"
       }`}
     >
       {imageUrl && (
@@ -79,14 +79,14 @@ function OptionCard({
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-[#121212]">{title}</div>
-        <div className="text-xs text-[#9B9B9B] mt-1 leading-relaxed">
+        <div className="text-sm font-bold text-[#0F0F0F]">{title}</div>
+        <div className="text-xs text-[#6B7280] mt-1 leading-relaxed">
           {description}
         </div>
       </div>
       <div
-        className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-          selected ? "border-[#121212] bg-[#121212]" : "border-[#D1D1D1]"
+        className={`w-5 h-5 rounded-xl border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+          selected ? "border-[#0F0F0F] bg-[#0F0F0F]" : "border-[#D1D1D1]"
         }`}
       >
         {selected && (
@@ -112,9 +112,9 @@ function OptionCard({
 function ProgressBar({ current, total }: { current: number; total: number }) {
   const pct = Math.round((current / total) * 100);
   return (
-    <div className="w-full h-1 bg-[#EBEBEB] rounded-full overflow-hidden">
+    <div className="w-full h-1 bg-[#EBEBEB] rounded-xl overflow-hidden">
       <div
-        className="h-full bg-[#121212] rounded-full transition-all duration-500 ease-out"
+        className="h-full bg-[#0F0F0F] rounded-xl transition-all duration-500 ease-out"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -223,7 +223,7 @@ export default function OnboardingPage() {
   /* ---------------------------------------------------------------- */
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] text-[#121212]">
+    <div className="min-h-screen bg-[#F5F5F5] text-[#0F0F0F]">
       {/* ============================================================ */}
       {/*  STEP 1: Referral Code                                       */}
       {/* ============================================================ */}
@@ -231,19 +231,19 @@ export default function OnboardingPage() {
         <div className="flex flex-col min-h-screen px-6 items-center justify-center">
           <div className="max-w-[480px] w-full text-center">
             {/* Icon */}
-            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-8">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#121212" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-16 h-16 bg-white rounded-2xl border border-black/[0.04] flex items-center justify-center mx-auto mb-8">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F0F0F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
                 <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
                 <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" />
               </svg>
             </div>
 
-            <h1 className="text-2xl font-bold text-[#121212]">
+            <h1 className="text-2xl font-bold text-[#0F0F0F]">
               Got a referral code?
             </h1>
 
-            <p className="text-[#9B9B9B] text-sm mt-3 leading-relaxed">
+            <p className="text-[#6B7280] text-sm mt-3 leading-relaxed">
               Enter it below to get 15% off on all your trading fees.
             </p>
 
@@ -253,20 +253,20 @@ export default function OnboardingPage() {
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                 placeholder="Enter code"
-                className="w-full bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#121212] h-12 text-[#121212] text-center text-lg tracking-widest placeholder:text-[#C5C5C5] placeholder:tracking-normal outline-none transition-colors rounded-full px-5 font-medium"
+                className="w-full bg-[#F5F5F5] border border-[#E5E5E5] focus:border-[#0F0F0F] h-12 text-[#0F0F0F] text-center text-lg tracking-widest placeholder:text-[#C5C5C5] placeholder:tracking-normal outline-none transition-colors rounded-xl px-5 font-medium"
               />
             </div>
 
             <div className="mt-8 space-y-3">
               <button
                 onClick={() => setStep(2)}
-                className="w-full h-12 bg-[#121212] text-white text-sm font-semibold rounded-full transition-all hover:bg-[#121212]/90 active:scale-[0.98]"
+                className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
               >
                 Continue
               </button>
               <button
                 onClick={() => setStep(2)}
-                className="text-[#9B9B9B] text-sm font-medium transition-colors hover:text-[#656565] cursor-pointer block mx-auto py-2"
+                className="text-[#6B7280] text-sm font-medium transition-colors hover:text-[#6B7280] cursor-pointer block mx-auto py-2"
               >
                 I don&apos;t have a code
               </button>
@@ -291,7 +291,7 @@ export default function OnboardingPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#009D55] animate-pulse" />
+                  <div className="w-2 h-2 rounded-xl bg-[#009D55] animate-pulse" />
                   <span className="text-white/80 text-xs font-medium">1,500+ active traders</span>
                 </div>
               </div>
@@ -300,18 +300,18 @@ export default function OnboardingPage() {
 
           {/* Content */}
           <div className="max-w-[480px] w-full px-6 mt-8 text-center flex-1 flex flex-col">
-            <h2 className="text-2xl font-bold text-[#121212]">
+            <h2 className="text-2xl font-bold text-[#0F0F0F]">
               Copy top traders in one tap.
             </h2>
 
-            <p className="text-[#9B9B9B] text-sm mt-3 leading-relaxed">
+            <p className="text-[#6B7280] text-sm mt-3 leading-relaxed">
               Thousands of top traders. We find the right one for you.
             </p>
 
             <div className="mt-auto pb-12">
               <button
                 onClick={() => setStep(3)}
-                className="w-full h-12 bg-[#121212] text-white text-sm font-semibold rounded-full transition-all hover:bg-[#121212]/90 active:scale-[0.98]"
+                className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
               >
                 Start Copy Trading
               </button>
@@ -329,10 +329,10 @@ export default function OnboardingPage() {
             <ProgressBar current={1} total={totalQuizSteps} />
 
             <div className="mt-8">
-              <h2 className="text-xl font-bold text-[#121212]">
+              <h2 className="text-xl font-bold text-[#0F0F0F]">
                 What&apos;s your risk comfort?
               </h2>
-              <p className="text-[#9B9B9B] text-sm mt-2">
+              <p className="text-[#6B7280] text-sm mt-2">
                 Choose how much volatility you can handle
               </p>
             </div>
@@ -363,7 +363,7 @@ export default function OnboardingPage() {
 
             <button
               onClick={() => setStep(4)}
-              className="w-full h-12 bg-[#121212] text-white text-sm font-semibold rounded-full mt-8 transition-all hover:bg-[#121212]/90 active:scale-[0.98]"
+              className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl mt-8 transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
             >
               Continue
             </button>
@@ -380,10 +380,10 @@ export default function OnboardingPage() {
             <ProgressBar current={2} total={totalQuizSteps} />
 
             <div className="mt-8">
-              <h2 className="text-xl font-bold text-[#121212]">
+              <h2 className="text-xl font-bold text-[#0F0F0F]">
                 Pick your markets
               </h2>
-              <p className="text-[#9B9B9B] text-sm mt-2">
+              <p className="text-[#6B7280] text-sm mt-2">
                 Select one or more categories you want to trade
               </p>
             </div>
@@ -402,8 +402,8 @@ export default function OnboardingPage() {
                   onClick={() => toggleCategory(label)}
                   className={`flex flex-col items-center justify-center gap-2 py-5 rounded-2xl cursor-pointer transition-all ${
                     categories.has(label)
-                      ? "border-2 border-[#121212] text-[#121212] bg-[#F7F7F7] shadow-sm"
-                      : "border-2 border-transparent text-[#656565] bg-white shadow-sm hover:border-[#121212]"
+                      ? "border-2 border-[#0F0F0F] text-[#0F0F0F] bg-[#F5F5F5] border border-black/[0.04]"
+                      : "border-2 border-transparent text-[#6B7280] bg-white border border-black/[0.04] hover:border-[#0F0F0F]"
                   }`}
                 >
                   <div className="w-10 h-10 rounded-xl overflow-hidden">
@@ -416,7 +416,7 @@ export default function OnboardingPage() {
 
             <button
               onClick={() => setStep(5)}
-              className="w-full h-12 bg-[#121212] text-white text-sm font-semibold rounded-full mt-8 transition-all hover:bg-[#121212]/90 active:scale-[0.98]"
+              className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl mt-8 transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
             >
               Continue
             </button>
@@ -433,10 +433,10 @@ export default function OnboardingPage() {
             <ProgressBar current={3} total={totalQuizSteps} />
 
             <div className="mt-8">
-              <h2 className="text-xl font-bold text-[#121212]">
+              <h2 className="text-xl font-bold text-[#0F0F0F]">
                 Trading style?
               </h2>
-              <p className="text-[#9B9B9B] text-sm mt-2">
+              <p className="text-[#6B7280] text-sm mt-2">
                 Pick the approach that resonates with you
               </p>
             </div>
@@ -467,7 +467,7 @@ export default function OnboardingPage() {
 
             <button
               onClick={() => setStep(6)}
-              className="w-full h-12 bg-[#121212] text-white text-sm font-semibold rounded-full mt-8 transition-all hover:bg-[#121212]/90 active:scale-[0.98]"
+              className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl mt-8 transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
             >
               Continue
             </button>
@@ -484,10 +484,10 @@ export default function OnboardingPage() {
             <ProgressBar current={4} total={totalQuizSteps} />
 
             <div className="mt-8">
-              <h2 className="text-xl font-bold text-[#121212]">
+              <h2 className="text-xl font-bold text-[#0F0F0F]">
                 How active do you want to be?
               </h2>
-              <p className="text-[#9B9B9B] text-sm mt-2">
+              <p className="text-[#6B7280] text-sm mt-2">
                 Match your availability and trading frequency
               </p>
             </div>
@@ -518,7 +518,7 @@ export default function OnboardingPage() {
 
             <button
               onClick={() => setStep(7)}
-              className="w-full h-12 bg-[#121212] text-white text-sm font-semibold rounded-full mt-8 transition-all hover:bg-[#121212]/90 active:scale-[0.98]"
+              className="w-full h-12 bg-[#0F0F0F] text-white text-sm font-semibold rounded-xl mt-8 transition-all hover:bg-[#0F0F0F]/90 active:scale-[0.98]"
             >
               Continue
             </button>
@@ -534,23 +534,23 @@ export default function OnboardingPage() {
           <div className="text-center">
             {/* Animated spinner */}
             <div className="relative w-16 h-16 mx-auto mb-8">
-              <div className="absolute inset-0 rounded-full border-2 border-[#EBEBEB]" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#121212] animate-spin" />
-              <div className="absolute inset-3 rounded-full border-2 border-transparent border-b-[#121212]/40 animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
+              <div className="absolute inset-0 rounded-xl border-2 border-[#EBEBEB]" />
+              <div className="absolute inset-0 rounded-xl border-2 border-transparent border-t-[#0F0F0F] animate-spin" />
+              <div className="absolute inset-3 rounded-xl border-2 border-transparent border-b-[#0F0F0F]/40 animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
             </div>
 
-            <h2 className="text-xl font-bold text-[#121212]">
+            <h2 className="text-xl font-bold text-[#0F0F0F]">
               Finding your best matches...
             </h2>
-            <p className="text-[#9B9B9B] text-sm mt-3">
+            <p className="text-[#6B7280] text-sm mt-3">
               Analyzing 1,500+ traders across all markets
             </p>
 
             {/* Animated dots */}
             <div className="flex items-center justify-center gap-1.5 mt-6">
-              <div className="w-2 h-2 rounded-full bg-[#121212] animate-bounce" style={{ animationDelay: "0s" }} />
-              <div className="w-2 h-2 rounded-full bg-[#121212] animate-bounce" style={{ animationDelay: "0.15s" }} />
-              <div className="w-2 h-2 rounded-full bg-[#121212] animate-bounce" style={{ animationDelay: "0.3s" }} />
+              <div className="w-2 h-2 rounded-xl bg-[#0F0F0F] animate-bounce" style={{ animationDelay: "0s" }} />
+              <div className="w-2 h-2 rounded-xl bg-[#0F0F0F] animate-bounce" style={{ animationDelay: "0.15s" }} />
+              <div className="w-2 h-2 rounded-xl bg-[#0F0F0F] animate-bounce" style={{ animationDelay: "0.3s" }} />
             </div>
           </div>
         </div>
@@ -563,15 +563,15 @@ export default function OnboardingPage() {
         <div className="flex flex-col min-h-screen px-6 items-center pt-16 pb-12">
           <div className="max-w-[480px] w-full">
             <div className="text-center mb-8">
-              <div className="w-12 h-12 bg-[#121212] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 bg-[#0F0F0F] rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-[#121212]">
+              <h2 className="text-xl font-bold text-[#0F0F0F]">
                 Your Top Matches
               </h2>
-              <p className="text-[#9B9B9B] text-sm mt-2">
+              <p className="text-[#6B7280] text-sm mt-2">
                 Based on your preferences, these traders are the best fit
               </p>
             </div>
@@ -580,19 +580,19 @@ export default function OnboardingPage() {
               {traders.map((trader: any, i: number) => (
                 <div
                   key={i}
-                  className="bg-white rounded-2xl shadow-sm overflow-hidden transition-all hover:shadow-md"
+                  className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden transition-all hover:shadow-md"
                 >
                   {/* Hero image */}
                   <div className="h-28 relative overflow-hidden">
                     <img src={trader.image} alt={trader.name} className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute top-2.5 right-2.5 bg-white text-[#121212] text-[10px] font-bold px-2.5 py-1 rounded-full">
+                    <div className="absolute top-2.5 right-2.5 bg-white text-[#0F0F0F] text-[10px] font-bold px-2.5 py-1 rounded-xl">
                       {trader.match}% match
                     </div>
                     <div className="absolute bottom-3 left-4 flex items-center gap-2">
-                      <img src={trader.image} alt={trader.name} className="w-9 h-9 rounded-full object-cover border-2 border-white/40" />
+                      <img src={trader.image} alt={trader.name} className="w-9 h-9 rounded-xl object-cover border-2 border-white/40" />
                       <div>
-                        <p className="text-white font-bold text-sm drop-shadow-sm">{trader.name}</p>
+                        <p className="text-white font-bold text-sm drop-border border-black/[0.04]">{trader.name}</p>
                         <p className="text-white/70 text-[10px]">{trader.categories?.join(", ") || "Overall"}</p>
                       </div>
                     </div>
@@ -602,19 +602,19 @@ export default function OnboardingPage() {
                   <div className="grid grid-cols-4 gap-px bg-black/5">
                     <div className="bg-white p-3 text-center">
                       <p className="text-xs font-bold font-mono text-[#009D55]">{trader.pnl}</p>
-                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">P&L</p>
+                      <p className="text-[9px] text-[#6B7280] mt-0.5">P&L</p>
                     </div>
                     <div className="bg-white p-3 text-center">
-                      <p className="text-xs font-bold font-mono text-[#121212]">{trader.winRate}%</p>
-                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">Win Rate</p>
+                      <p className="text-xs font-bold font-mono text-[#0F0F0F]">{trader.winRate}%</p>
+                      <p className="text-[9px] text-[#6B7280] mt-0.5">Win Rate</p>
                     </div>
                     <div className="bg-white p-3 text-center">
-                      <p className="text-xs font-bold font-mono text-[#121212]">{trader.trades}</p>
-                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">Positions</p>
+                      <p className="text-xs font-bold font-mono text-[#0F0F0F]">{trader.trades}</p>
+                      <p className="text-[9px] text-[#6B7280] mt-0.5">Positions</p>
                     </div>
                     <div className="bg-white p-3 text-center">
-                      <p className="text-xs font-bold font-mono text-[#121212]">+{trader.returnPct}%</p>
-                      <p className="text-[9px] text-[#9B9B9B] mt-0.5">Return</p>
+                      <p className="text-xs font-bold font-mono text-[#0F0F0F]">+{trader.returnPct}%</p>
+                      <p className="text-[9px] text-[#6B7280] mt-0.5">Return</p>
                     </div>
                   </div>
 
@@ -622,7 +622,7 @@ export default function OnboardingPage() {
                   <div className="p-3">
                     <button
                       onClick={() => handleCopy(trader.wallet, trader.name)}
-                      className="w-full bg-[#121212] text-white text-sm font-semibold py-2.5 rounded-full transition-all hover:bg-[#333] active:scale-[0.98]"
+                      className="w-full bg-[#0F0F0F] text-white text-sm font-semibold py-2.5 rounded-xl transition-all hover:bg-[#333] active:scale-[0.98]"
                     >
                       Start Copying
                     </button>
@@ -635,7 +635,7 @@ export default function OnboardingPage() {
             <div className="mt-8 text-center">
               <button
                 onClick={() => setStep(3)}
-                className="text-[#9B9B9B] text-sm font-medium transition-colors hover:text-[#656565] cursor-pointer"
+                className="text-[#6B7280] text-sm font-medium transition-colors hover:text-[#6B7280] cursor-pointer"
               >
                 Retake Quiz
               </button>

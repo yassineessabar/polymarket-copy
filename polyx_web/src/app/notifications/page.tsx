@@ -34,7 +34,7 @@ export default function NotificationsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
-        <div className="w-8 h-8 border-2 border-[#121212] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#0F0F0F] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -42,13 +42,13 @@ export default function NotificationsPage() {
   function badgeStyle(type: string) {
     switch (type) {
       case "BUY":
-        return "bg-[#E6F7EF] text-[#009D55]";
+        return "bg-[#E6F7EF] text-[#10B981]";
       case "SELL":
-        return "bg-[#FEE2E2] text-[#DC2626]";
+        return "bg-[#FEE2E2] text-[#EF4444]";
       case "CLOSE":
         return "bg-[#FFF3E0] text-[#D97706]";
       default:
-        return "bg-[#F3F3F3] text-[#9B9B9B]";
+        return "bg-[#F3F3F3] text-[#6B7280]";
     }
   }
 
@@ -56,7 +56,7 @@ export default function NotificationsPage() {
     <div className="max-w-[700px] mx-auto">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-[#9B9B9B] hover:text-[#121212] transition-colors mb-5"
+        className="inline-flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#0F0F0F] transition-colors mb-5"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -65,16 +65,16 @@ export default function NotificationsPage() {
       </Link>
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#121212]">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0F0F0F]">
           Notifications
           {unread > 0 && (
-            <span className="ml-2 inline-flex items-center justify-center text-xs font-bold bg-[#121212] text-white rounded-full w-5 h-5 align-middle">
+            <span className="ml-2 inline-flex items-center justify-center text-xs font-bold bg-[#0F0F0F] text-white rounded-full w-5 h-5 align-middle">
               {unread > 99 ? "99+" : unread}
             </span>
           )}
         </h1>
         {unread > 0 && (
-          <button onClick={markAllRead} className="text-xs text-[#121212] font-medium underline hover:text-[#656565] transition-colors">
+          <button onClick={markAllRead} className="text-xs text-[#0F0F0F] font-medium underline hover:text-[#6B7280] transition-colors">
             Mark all read
           </button>
         )}
@@ -85,8 +85,8 @@ export default function NotificationsPage() {
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" className="mx-auto mb-4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
           </svg>
-          <h3 className="font-bold mb-1 text-[#121212]">No notifications yet</h3>
-          <p className="text-sm text-[#9B9B9B] font-medium">Trade activity and alerts will appear here.</p>
+          <h3 className="font-bold mb-1 text-[#0F0F0F]">No notifications yet</h3>
+          <p className="text-sm text-[#6B7280] font-medium">Trade activity and alerts will appear here.</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -111,15 +111,15 @@ export default function NotificationsPage() {
                   {n.type}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm leading-snug ${isUnread ? "text-[#121212]" : "text-[#656565]"}`}>
+                  <p className={`text-sm leading-snug ${isUnread ? "text-[#0F0F0F]" : "text-[#6B7280]"}`}>
                     {clean.length > 140 ? clean.slice(0, 140) + "..." : clean}
                   </p>
-                  <span className="text-[11px] text-[#9B9B9B] mt-1 block">
+                  <span className="text-[11px] text-[#6B7280] mt-1 block">
                     {time.toLocaleDateString()} {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
                 {isUnread && (
-                  <div className="w-2 h-2 rounded-full bg-[#121212] flex-shrink-0 mt-2" />
+                  <div className="w-2 h-2 rounded-full bg-[#0F0F0F] flex-shrink-0 mt-2" />
                 )}
               </div>
             );

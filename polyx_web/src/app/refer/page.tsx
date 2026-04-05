@@ -73,19 +73,19 @@ export default function ReferPage() {
 
   return (
     <div className="max-w-[600px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#121212]">
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#0F0F0F]">
         Refer Friends
       </h1>
 
       {/* Hero Illustration */}
       <div className="bg-[#F0F0F0] rounded-2xl p-8 text-center mb-4">
-        <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
+        <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center mx-auto mb-4 border border-black/[0.04]">
           <svg
             width="32"
             height="32"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#121212"
+            stroke="#0F0F0F"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -93,26 +93,26 @@ export default function ReferPage() {
             <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
-        <h2 className="text-xl font-bold text-[#121212] mb-2">
+        <h2 className="text-xl font-bold text-[#0F0F0F] mb-2">
           Invite friends, earn together
         </h2>
-        <p className="text-sm text-[#9B9B9B] font-medium max-w-[380px] mx-auto leading-relaxed">
+        <p className="text-sm text-[#6B7280] font-medium max-w-[380px] mx-auto leading-relaxed">
           Share your referral link. When they sign up and start trading, you both benefit.
         </p>
       </div>
 
       {/* Your Referral Link Card */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-        <p className="text-xs text-[#9B9B9B] uppercase tracking-wider font-medium mb-2">
+      <div className="bg-white rounded-2xl p-5 border border-black/[0.04] mb-4">
+        <p className="text-xs text-[#6B7280] uppercase tracking-wider font-medium mb-2">
           Your Referral Link
         </p>
-        <div className="bg-[#F7F7F7] border border-black/5 rounded-xl px-4 py-3 font-mono text-xs break-all text-[#121212] mb-4">
+        <div className="bg-[#F5F5F5] border border-black/5 rounded-xl px-4 py-3 font-mono text-xs break-all text-[#0F0F0F] mb-4">
           {referralLink || "Loading..."}
         </div>
         <div className="flex gap-2">
           <button
             onClick={copyLink}
-            className="flex-1 rounded-full bg-[#121212] text-white text-sm font-medium py-2.5 transition-all hover:bg-[#333] flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl bg-[#0F0F0F] text-white text-sm font-medium py-2.5 transition-all hover:bg-[#333] flex items-center justify-center gap-2"
           >
             {copied ? (
               <>
@@ -133,7 +133,7 @@ export default function ReferPage() {
           </button>
           <button
             onClick={shareLink}
-            className="flex-1 rounded-full border border-[#121212] text-[#121212] text-sm font-medium py-2.5 transition-all hover:bg-[#F7F7F7] flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl border border-[#0F0F0F] text-[#0F0F0F] text-sm font-medium py-2.5 transition-all hover:bg-[#F5F5F5] flex items-center justify-center gap-2"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" />
@@ -148,27 +148,27 @@ export default function ReferPage() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
-          <div className="text-2xl font-bold text-[#121212] font-mono">{stats.referrals}</div>
-          <div className="text-xs text-[#9B9B9B] font-medium mt-1">Referrals</div>
+        <div className="bg-white rounded-2xl p-4 border border-black/[0.04] text-center">
+          <div className="text-2xl font-bold text-[#0F0F0F] font-mono">{stats.referrals}</div>
+          <div className="text-xs text-[#6B7280] font-medium mt-1">Referrals</div>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
+        <div className="bg-white rounded-2xl p-4 border border-black/[0.04] text-center">
           <div className="text-2xl font-bold text-[#009D55] font-mono">
             ${stats.earned.toFixed(2)}
           </div>
-          <div className="text-xs text-[#9B9B9B] font-medium mt-1">Earned</div>
+          <div className="text-xs text-[#6B7280] font-medium mt-1">Earned</div>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
-          <div className="text-2xl font-bold text-[#121212] font-mono">
+        <div className="bg-white rounded-2xl p-4 border border-black/[0.04] text-center">
+          <div className="text-2xl font-bold text-[#0F0F0F] font-mono">
             ${stats.pending.toFixed(2)}
           </div>
-          <div className="text-xs text-[#9B9B9B] font-medium mt-1">Pending</div>
+          <div className="text-xs text-[#6B7280] font-medium mt-1">Pending</div>
         </div>
       </div>
 
       {/* How it Works */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-        <h3 className="font-bold text-sm text-[#121212] mb-4">How it Works</h3>
+      <div className="bg-white rounded-2xl p-5 border border-black/[0.04] mb-4">
+        <h3 className="font-bold text-sm text-[#0F0F0F] mb-4">How it Works</h3>
         <div className="space-y-4">
           {[
             {
@@ -188,12 +188,12 @@ export default function ReferPage() {
             },
           ].map((s) => (
             <div key={s.step} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#121212] flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-[#0F0F0F] flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
                 {s.step}
               </div>
               <div className="pt-0.5">
-                <p className="text-sm font-bold text-[#121212]">{s.title}</p>
-                <p className="text-xs text-[#9B9B9B] font-medium mt-0.5">{s.desc}</p>
+                <p className="text-sm font-bold text-[#0F0F0F]">{s.title}</p>
+                <p className="text-xs text-[#6B7280] font-medium mt-0.5">{s.desc}</p>
               </div>
             </div>
           ))}
@@ -201,9 +201,9 @@ export default function ReferPage() {
       </div>
 
       {/* Referral Code Input */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
-        <h3 className="font-bold text-sm text-[#121212] mb-1">Have a referral code?</h3>
-        <p className="text-xs text-[#9B9B9B] font-medium mb-4">
+      <div className="bg-white rounded-2xl p-5 border border-black/[0.04] mb-6">
+        <h3 className="font-bold text-sm text-[#0F0F0F] mb-1">Have a referral code?</h3>
+        <p className="text-xs text-[#6B7280] font-medium mb-4">
           Enter a code from a friend to connect your accounts.
         </p>
         <div className="flex gap-2">
@@ -215,12 +215,12 @@ export default function ReferPage() {
               setApplyStatus("idle");
             }}
             placeholder="Enter code"
-            className="flex-1 bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm placeholder:text-[#9B9B9B]"
+            className="flex-1 bg-[#F5F5F5] border border-black/5 rounded-xl px-5 py-2.5 text-[#0F0F0F] outline-none focus:border-[#0F0F0F] text-sm placeholder:text-[#6B7280]"
           />
           <button
             onClick={applyCode}
             disabled={!refInput.trim() || applyStatus === "loading"}
-            className="bg-[#121212] hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-6 py-2.5 rounded-full transition-all"
+            className="bg-[#0F0F0F] hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-6 py-2.5 rounded-xl transition-all"
           >
             {applyStatus === "loading" ? "..." : "Apply"}
           </button>

@@ -64,9 +64,9 @@ export default function StrategyDetailPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4 text-[#121212]">404</div>
-          <h1 className="text-xl font-bold mb-2 text-[#121212]">Trader Not Found</h1>
-          <Link href="/strategies" className="text-[#009D55] font-medium text-sm">Back to Traders</Link>
+          <div className="text-4xl mb-4 text-[#0F0F0F]">404</div>
+          <h1 className="text-xl font-bold mb-2 text-[#0F0F0F]">Trader Not Found</h1>
+          <Link href="/strategies" className="text-[#10B981] font-medium text-sm">Back to Traders</Link>
         </div>
       </div>
     );
@@ -97,7 +97,7 @@ export default function StrategyDetailPage() {
           href="/strategies"
           className="w-10 h-10 rounded-full hover:bg-[#F4F4F5] flex items-center justify-center transition-colors"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121212" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F0F0F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
@@ -115,7 +115,7 @@ export default function StrategyDetailPage() {
           }}
           className="w-10 h-10 rounded-full hover:bg-[#F4F4F5] flex items-center justify-center transition-colors"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#121212" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F0F0F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
             <polyline points="16 6 12 2 8 6" />
             <line x1="12" y1="2" x2="12" y2="15" />
@@ -125,9 +125,9 @@ export default function StrategyDetailPage() {
 
       {/* Hero: Name + Return */}
       <div className="mb-2">
-        <h1 className="text-2xl font-bold text-[#121212]">{strategy.name}</h1>
+        <h1 className="text-2xl font-bold text-[#0F0F0F]">{strategy.name}</h1>
         <div className="flex items-baseline gap-2 mt-1">
-          <span className={`text-xl font-bold font-mono ${isPositive ? "text-[#009D55]" : "text-[#DC2626]"}`}>
+          <span className={`text-xl font-bold font-mono ${isPositive ? "text-[#10B981]" : "text-[#EF4444]"}`}>
             {isPositive ? "+" : ""}{periodReturn.toFixed(1)}%
           </span>
           <span className="text-sm text-[#737373]">{timeFilter}</span>
@@ -140,8 +140,8 @@ export default function StrategyDetailPage() {
           <AreaChart data={filteredData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={isPositive ? "#009D55" : "#DC2626"} stopOpacity={0.08} />
-                <stop offset="100%" stopColor={isPositive ? "#009D55" : "#DC2626"} stopOpacity={0} />
+                <stop offset="0%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity={0.08} />
+                <stop offset="100%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="date" hide />
@@ -152,18 +152,18 @@ export default function StrategyDetailPage() {
                 border: "none",
                 borderRadius: "8px",
                 fontSize: "13px",
-                color: "#121212",
+                color: "#0F0F0F",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                 padding: "8px 12px",
               }}
               formatter={(value: number) => [`$${value.toFixed(2)}`, ""]}
               labelFormatter={() => ""}
-              cursor={{ stroke: isPositive ? "#009D55" : "#DC2626", strokeWidth: 1, strokeDasharray: "4 4" }}
+              cursor={{ stroke: isPositive ? "#10B981" : "#EF4444", strokeWidth: 1, strokeDasharray: "4 4" }}
             />
             <Area
               type="monotone"
               dataKey="value"
-              stroke={isPositive ? "#009D55" : "#DC2626"}
+              stroke={isPositive ? "#10B981" : "#EF4444"}
               strokeWidth={2}
               fill="url(#chartGrad)"
             />
@@ -179,8 +179,8 @@ export default function StrategyDetailPage() {
             onClick={() => setTimeFilter(f)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
               timeFilter === f
-                ? "bg-[#121212] text-white"
-                : "text-[#737373] hover:text-[#121212] hover:bg-[#F4F4F5]"
+                ? "bg-[#0F0F0F] text-white"
+                : "text-[#737373] hover:text-[#0F0F0F] hover:bg-[#F4F4F5]"
             }`}
           >
             {f}
@@ -194,22 +194,22 @@ export default function StrategyDetailPage() {
           {
             label: "PnL",
             value: pnlDisplay,
-            color: totalPnl !== undefined ? (totalPnl >= 0 ? "text-[#009D55]" : "text-[#DC2626]") : "text-[#121212]",
+            color: totalPnl !== undefined ? (totalPnl >= 0 ? "text-[#10B981]" : "text-[#EF4444]") : "text-[#0F0F0F]",
           },
           {
             label: "Win Rate",
             value: `${winRate}%`,
-            color: "text-[#121212]",
+            color: "text-[#0F0F0F]",
           },
           {
             label: "Positions",
             value: positionsCount,
-            color: "text-[#121212]",
+            color: "text-[#0F0F0F]",
           },
           {
             label: "Volume",
             value: volumeDisplay,
-            color: "text-[#121212]",
+            color: "text-[#0F0F0F]",
           },
         ].map((stat) => (
           <div key={stat.label} className="bg-[#F4F4F5] rounded-xl p-3">
@@ -232,7 +232,7 @@ export default function StrategyDetailPage() {
               className="w-12 h-12 rounded-full object-cover"
             />
             <div className="flex-1 min-w-0">
-              <div className="text-base font-medium text-[#121212]">{strategy.name}</div>
+              <div className="text-base font-medium text-[#0F0F0F]">{strategy.name}</div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-[#737373] font-mono">
                   {strategy.wallet.slice(0, 6)}...{strategy.wallet.slice(-4)}
@@ -243,10 +243,10 @@ export default function StrategyDetailPage() {
                     setWalletCopied(true);
                     setTimeout(() => setWalletCopied(false), 2000);
                   }}
-                  className="text-[#737373] hover:text-[#121212] transition-colors"
+                  className="text-[#737373] hover:text-[#0F0F0F] transition-colors"
                 >
                   {walletCopied ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#009D55" strokeWidth="2"><path d="M20 6L9 17l-5-5" /></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2"><path d="M20 6L9 17l-5-5" /></svg>
                   ) : (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                   )}
@@ -272,7 +272,7 @@ export default function StrategyDetailPage() {
               href={`https://polymarket.com/profile/${strategy.wallet}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#009D55] font-medium hover:underline"
+              className="text-sm text-[#10B981] font-medium hover:underline"
             >
               View on Polymarket
             </a>
@@ -280,7 +280,7 @@ export default function StrategyDetailPage() {
               href={`https://polymarketanalytics.com/traders/${strategy.wallet}#trades`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#009D55] font-medium hover:underline"
+              className="text-sm text-[#10B981] font-medium hover:underline"
             >
               View Analytics
             </a>
@@ -321,11 +321,11 @@ export default function StrategyDetailPage() {
                   >
                     <div
                       className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                        isBuy ? "bg-[#009D55]" : "bg-[#DC2626]"
+                        isBuy ? "bg-[#10B981]" : "bg-[#EF4444]"
                       }`}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[#121212] truncate">{title}</div>
+                      <div className="text-sm font-medium text-[#0F0F0F] truncate">{title}</div>
                     </div>
                     <span className="text-xs text-[#737373] flex-shrink-0">{date}</span>
                   </div>
@@ -342,7 +342,7 @@ export default function StrategyDetailPage() {
           <button
             onClick={() => addStrategyTarget(strategy.wallet, strategy.name)}
             disabled={toggling === strategy.wallet}
-            className="w-full bg-[#009D55] hover:bg-[#008548] text-white rounded-full h-14 text-base font-bold transition-colors disabled:opacity-50 active:scale-[0.98]"
+            className="w-full bg-[#10B981] hover:bg-[#008548] text-white rounded-full h-14 text-base font-bold transition-colors disabled:opacity-50 active:scale-[0.98]"
           >
             {toggling === strategy.wallet
               ? "Starting..."

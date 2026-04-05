@@ -79,7 +79,7 @@ export default function StrategiesPage() {
       {/* Search bar */}
       <div className="relative mt-2 mb-6">
         <div
-          className={`flex items-center bg-[#F4F4F5] rounded-full h-12 px-4 transition-all ${
+          className={`flex items-center bg-[#F4F4F5] rounded-xl h-12 px-4 transition-all ${
             searchFocused ? "ring-2 ring-[#009D55]/30" : ""
           }`}
         >
@@ -105,12 +105,12 @@ export default function StrategiesPage() {
             onChange={(e) => setSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-            className="flex-1 bg-transparent outline-none text-[#121212] placeholder-[#737373] text-sm ml-3"
+            className="flex-1 bg-transparent outline-none text-[#0F0F0F] placeholder-[#737373] text-sm ml-3"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="text-[#737373] hover:text-[#121212]"
+              className="text-[#737373] hover:text-[#0F0F0F]"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12" />
@@ -138,10 +138,10 @@ export default function StrategiesPage() {
       {showCustomAdd && (
         <div className="bg-[#F4F4F5] rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-[#121212]">Add Custom Wallet</span>
+            <span className="text-sm font-medium text-[#0F0F0F]">Add Custom Wallet</span>
             <button
               onClick={() => setShowCustomAdd(false)}
-              className="text-[#737373] hover:text-[#121212]"
+              className="text-[#737373] hover:text-[#0F0F0F]"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12" />
@@ -153,19 +153,19 @@ export default function StrategiesPage() {
             placeholder="0x..."
             value={customWallet}
             onChange={(e) => setCustomWallet(e.target.value)}
-            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#009D55] mb-2"
+            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#0F0F0F] placeholder-[#737373] outline-none border border-transparent focus:border-[#009D55] mb-2"
           />
           <input
             type="text"
             placeholder="Display name (optional)"
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
-            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#009D55] mb-3"
+            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#0F0F0F] placeholder-[#737373] outline-none border border-transparent focus:border-[#009D55] mb-3"
           />
           <button
             onClick={addCustomTarget}
             disabled={adding || !customWallet.startsWith("0x")}
-            className="w-full bg-[#009D55] hover:bg-[#008548] text-white text-sm font-bold py-2.5 rounded-full transition-colors disabled:opacity-40"
+            className="w-full bg-[#009D55] hover:bg-[#008548] text-white text-sm font-bold py-2.5 rounded-xl transition-colors disabled:opacity-40"
           >
             {adding ? "Adding..." : "Add"}
           </button>
@@ -198,15 +198,15 @@ export default function StrategiesPage() {
                       <img
                         src={strat.image}
                         alt={strat.name}
-                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-[#F4F4F5] flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-[#F4F4F5] flex items-center justify-center flex-shrink-0">
                         <span className="text-lg text-[#737373]">?</span>
                       </div>
                     )}
                     <div className="ml-3 min-w-0 flex-1">
-                      <div className="text-base font-medium text-[#121212] truncate">
+                      <div className="text-base font-medium text-[#0F0F0F] truncate">
                         {t.display_name || t.wallet_addr.slice(0, 10)}
                       </div>
                       <div className="text-sm text-[#737373]">
@@ -218,13 +218,13 @@ export default function StrategiesPage() {
                   </Link>
                   <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 bg-[#009D55] rounded-full animate-pulse" />
+                      <span className="w-2 h-2 bg-[#009D55] rounded-xl animate-pulse" />
                       <span className="text-xs text-[#009D55] font-medium">Copying</span>
                     </div>
                     {strat && (
                       <Link
                         href={`/strategy/${strat.slug}`}
-                        className="w-8 h-8 rounded-full hover:bg-[#F4F4F5] flex items-center justify-center"
+                        className="w-8 h-8 rounded-xl hover:bg-[#F4F4F5] flex items-center justify-center"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -255,7 +255,7 @@ export default function StrategiesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-32">
-            <div className="w-6 h-6 border-2 border-[#009D55] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#009D55] border-t-transparent rounded-xl animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
@@ -276,10 +276,10 @@ export default function StrategiesPage() {
                   <img
                     src={s.image}
                     alt={s.name}
-                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                    className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
                   />
                   <div className="ml-3 min-w-0 flex-1">
-                    <div className="text-base font-medium text-[#121212] truncate">
+                    <div className="text-base font-medium text-[#0F0F0F] truncate">
                       {s.name}
                     </div>
                     <div className="text-sm text-[#737373]">
@@ -292,7 +292,7 @@ export default function StrategiesPage() {
                     </span>
                     {isActive ? (
                       <span className="flex items-center gap-1 text-xs text-[#009D55] font-medium">
-                        <span className="w-1.5 h-1.5 bg-[#009D55] rounded-full animate-pulse" />
+                        <span className="w-1.5 h-1.5 bg-[#009D55] rounded-xl animate-pulse" />
                         Copying
                       </span>
                     ) : (
