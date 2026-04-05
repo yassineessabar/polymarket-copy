@@ -44,6 +44,7 @@ class SettingsUpdate(BaseModel):
     dry_run: Optional[int] = None
     demo_mode: Optional[int] = None
     demo_balance: Optional[float] = None
+    copy_factor: Optional[float] = None
 
 
 # ── Copy Trading ──
