@@ -24,11 +24,29 @@ export default function StrategyDetailPage() {
   const [liveData, setLiveData] = useState<any>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [walletCopied, setWalletCopied] = useState(false);
+  const [settings, setSettings] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!strategy) return;
     traderApi.one(strategy.wallet).then(setLiveData).catch(() => {});
+    userApi.me().then((d) => setSettings(d.settings || {})).catch(() => {});
   }, [strategy]);
+
+  function updateSetting(key: string, value: any) {
+    setSettings((s: any) => ({ ...s, [key]: value }));
+  }
+
+  async function saveSettings() {
+    setSaving(true);
+    try {
+      await userApi.updateSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {}
+    setSaving(false);
+  }
 
   async function addStrategyTarget(wallet: string, name: string) {
     setToggling(wallet);
@@ -336,13 +354,81 @@ export default function StrategyDetailPage() {
         </div>
       </div>
 
+      {/* Copy Settings */}
+      <div className="bg-white rounded-2xl border border-black/[0.04] p-4 mt-6">
+        <h3 className="text-sm font-semibold text-[#0F0F0F] mb-3">Copy Settings</h3>
+        <div className="space-y-4">
+          {/* Copy Factor */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs text-[#6B7280] font-medium">Copy Factor</label>
+              <span className="text-xs font-bold text-[#0F0F0F] font-mono">{(settings.copy_factor || 1.0).toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.1"
+              max="5.0"
+              step="0.1"
+              value={settings.copy_factor || 1.0}
+              onChange={(e) => updateSetting("copy_factor", parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-[#F5F5F5] rounded-full appearance-none cursor-pointer accent-[#0F0F0F]"
+            />
+            <div className="flex justify-between text-[10px] text-[#9CA3AF] mt-1">
+              <span>0.1x (conservative)</span>
+              <span>1x (mirror)</span>
+              <span>5x (aggressive)</span>
+            </div>
+            <p className="text-[10px] text-[#9CA3AF] mt-2">
+              If the trader invests 10% of their portfolio, you invest 10% × {(settings.copy_factor || 1.0).toFixed(1)} = {(10 * (settings.copy_factor || 1.0)).toFixed(0)}% of yours.
+            </p>
+          </div>
+
+          {/* Quick settings row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-[#9CA3AF] font-medium block mb-1">Max Risk per Trade</label>
+              <div className="flex items-center bg-[#F5F5F5] rounded-xl h-10 px-3">
+                <input
+                  type="number"
+                  value={settings.max_risk_pct ?? 10}
+                  onChange={(e) => updateSetting("max_risk_pct", parseFloat(e.target.value) || 10)}
+                  className="flex-1 bg-transparent text-sm text-[#0F0F0F] outline-none font-mono w-full"
+                />
+                <span className="text-xs text-[#9CA3AF]">%</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-[#9CA3AF] font-medium block mb-1">Min Bet</label>
+              <div className="flex items-center bg-[#F5F5F5] rounded-xl h-10 px-3">
+                <span className="text-xs text-[#9CA3AF] mr-1">$</span>
+                <input
+                  type="number"
+                  value={settings.min_bet ?? 0.1}
+                  onChange={(e) => updateSetting("min_bet", parseFloat(e.target.value) || 0.1)}
+                  className="flex-1 bg-transparent text-sm text-[#0F0F0F] outline-none font-mono w-full"
+                  step="0.1"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={saveSettings}
+            disabled={saving}
+            className="w-full h-10 rounded-xl bg-[#0F0F0F] hover:bg-[#262626] text-white text-sm font-semibold transition-colors disabled:opacity-50"
+          >
+            {saving ? "Saving..." : saved ? "Saved!" : "Save Settings"}
+          </button>
+        </div>
+      </div>
+
       {/* Sticky CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-lg border-t border-[#F4F4F5] sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:p-0 sm:mt-4">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-lg border-t border-black/[0.04] sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:p-0 sm:mt-4">
         <div className="max-w-[600px] mx-auto">
           <button
             onClick={() => addStrategyTarget(strategy.wallet, strategy.name)}
             disabled={toggling === strategy.wallet}
-            className="w-full bg-[#10B981] hover:bg-[#008548] text-white rounded-full h-14 text-base font-bold transition-colors disabled:opacity-50 active:scale-[0.98]"
+            className="w-full bg-[#0F0F0F] hover:bg-[#262626] text-white rounded-xl h-14 text-base font-semibold transition-colors disabled:opacity-50"
           >
             {toggling === strategy.wallet
               ? "Starting..."

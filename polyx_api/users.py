@@ -56,7 +56,7 @@ async def update_settings(
         "trade_mode", "quickbuy_amount", "max_risk_pct", "min_bet",
         "max_open_positions", "max_per_event", "max_exposure_pct",
         "daily_loss_limit_pct", "drawdown_scale_start", "correlation_penalty",
-        "dry_run", "demo_mode", "demo_balance",
+        "dry_run", "demo_mode", "demo_balance", "copy_factor",
     }
 
     updates = body.model_dump(exclude_none=True)

@@ -99,6 +99,7 @@ def risk_check(
     loss_limit = settings.get("daily_loss_limit_pct", 15.0)
     drawdown_start = settings.get("drawdown_scale_start", 5.0)
     correlation_penalty = settings.get("correlation_penalty", 0.5)
+    copy_factor = settings.get("copy_factor", 1.0)  # multiplier on proportional bet (0.5 = half, 2.0 = double)
     trade_mode = settings.get("trade_mode", "standard")
 
     # Apply trade_mode multipliers
@@ -134,13 +135,14 @@ def risk_check(
     max_bet = (max_risk_pct / 100) * portfolio_value if portfolio_value > 0 else settings.get("quickbuy_amount", 2.0)
 
     # Proportional mimic: bet same % of our portfolio as target bets of theirs
+    # copy_factor scales this: 0.5 = copy at half size, 1.0 = mirror exactly, 2.0 = double
     if target_portfolio > 0:
         target_pct = usdc_size / target_portfolio
-        bet = target_pct * portfolio_value * dd
+        bet = target_pct * portfolio_value * dd * copy_factor
     else:
         # No target portfolio known — use confidence-scaled % of our portfolio
         pct = 0.01 + conf * 0.09  # 1% to 10% based on confidence
-        bet = pct * portfolio_value * dd
+        bet = pct * portfolio_value * dd * copy_factor
 
     # Apply trade mode confidence multiplier
     bet *= mode["confidence_mult"]

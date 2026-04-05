@@ -192,6 +192,10 @@ class Database:
                 await db.execute("ALTER TABLE user_settings ADD COLUMN demo_balance REAL NOT NULL DEFAULT 0.0")
             except Exception:
                 pass
+            try:
+                await db.execute("ALTER TABLE user_settings ADD COLUMN copy_factor REAL NOT NULL DEFAULT 1.0")
+            except Exception:
+                pass
             # Backfill user_id on positions/trades where it's NULL
             try:
                 await db.execute(
