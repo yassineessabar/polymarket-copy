@@ -30,6 +30,9 @@ class CopyTradeManager:
         self.bot = bot  # telegram.Bot for sending notifications
         self.tasks: dict[int, asyncio.Task] = {}
         self._target_portfolio_cache: dict[str, float] = {}
+        # NotificationWriter for web users (negative telegram_ids)
+        from .worker import NotificationWriter
+        self._web_notifier = NotificationWriter(db)
 
     async def start_user(self, telegram_id: int):
         if telegram_id in self.tasks and not self.tasks[telegram_id].done():
@@ -52,9 +55,14 @@ class CopyTradeManager:
         return self._target_portfolio_cache.get(target.lower(), 0)
 
     async def _notify(self, telegram_id: int, text: str):
-        """Send Telegram notification, then re-send menu at the bottom."""
+        """Send notification — Telegram for real users, DB for web users."""
         try:
-            # Delete old menu message so notification + new menu stay at bottom
+            # Web users have negative telegram_ids — write to DB instead of Telegram
+            if telegram_id < 0:
+                await self._web_notifier.send_message(chat_id=telegram_id, text=text)
+                return
+
+            # Telegram users: delete old menu, send notification, re-send menu
             settings = await self.db.get_settings(telegram_id)
             old_menu_id = settings.get("last_menu_msg_id") if settings else None
             if old_menu_id:

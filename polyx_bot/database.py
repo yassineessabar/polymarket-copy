@@ -670,7 +670,7 @@ class Database:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
-                "SELECT * FROM positions WHERE user_id=? AND is_open=1", (user_id,)
+                "SELECT * FROM positions WHERE user_id=? AND is_open=1 ORDER BY id DESC", (user_id,)
             ) as cur:
                 return [dict(r) for r in await cur.fetchall()]
 
