@@ -177,62 +177,80 @@ export default function StrategiesPage() {
             <p className="text-sm text-[var(--color-secondary)]">No traders found for &quot;{search}&quot;</p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4">
             {filtered.map((s) => {
               const isActive = activeWallets.has(s.wallet.toLowerCase());
               return (
                 <Card key={s.slug} padding="none" className="overflow-hidden hover:border-black/10 transition-all group">
-                  {/* Image */}
-                  <Link href={`/strategy/${s.slug}`} className="block relative h-32 overflow-hidden">
+                  {/* Hero image */}
+                  <Link href={`/strategy/${s.slug}`} className="block relative h-44 sm:h-52 overflow-hidden">
                     <img src={s.image} alt={s.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
                     {s.featured && (
-                      <span className="absolute top-2.5 left-2.5 bg-white/90 text-[var(--color-primary)] text-[10px] font-bold px-2 py-0.5 rounded-md">Featured</span>
+                      <span className="absolute top-3 left-3 bg-white/90 text-[var(--color-primary)] text-[10px] font-bold px-2.5 py-1 rounded-lg">Featured</span>
                     )}
-                    <div className="absolute bottom-2.5 left-3 right-3">
-                      <p className="text-white font-semibold text-sm drop-shadow-sm">{s.name}</p>
-                      <p className="text-white/70 text-[11px]">{s.categories.slice(0, 2).join(" · ")}</p>
-                    </div>
-                    <div className="absolute bottom-2.5 right-3">
-                      <span className="bg-white/90 text-[var(--color-positive)] font-bold font-mono text-xs px-2 py-0.5 rounded-md">
+                    <div className="absolute top-3 right-3">
+                      <span className="bg-white/90 text-[var(--color-positive)] font-bold font-mono text-sm px-2.5 py-1 rounded-lg">
                         +{s.returnPct}%
                       </span>
                     </div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="flex items-center gap-3">
+                        <img src={s.image} alt={s.manager} className="w-10 h-10 rounded-full object-cover border-2 border-white/40" />
+                        <div>
+                          <p className="text-white font-bold text-base drop-shadow-sm">{s.name}</p>
+                          <p className="text-white/70 text-xs">{s.categories.slice(0, 3).join(" · ")}</p>
+                        </div>
+                      </div>
+                    </div>
                   </Link>
 
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 border-t border-[var(--color-border)]">
-                    <div className="p-2.5 text-center border-r border-[var(--color-border)]">
-                      <p className="text-xs font-bold font-mono text-[var(--color-primary)]">{s.winRate}%</p>
-                      <p className="text-[10px] text-[var(--color-muted)]">Win Rate</p>
+                  {/* Stats grid — 5 columns */}
+                  <div className="grid grid-cols-5 border-t border-[var(--color-border)]">
+                    <div className="p-3 text-center border-r border-[var(--color-border)]">
+                      <p className="text-sm font-bold font-mono text-[var(--color-positive)]">{s.profit}</p>
+                      <p className="text-[10px] text-[var(--color-muted)] mt-0.5">P&L</p>
                     </div>
-                    <div className="p-2.5 text-center border-r border-[var(--color-border)]">
-                      <p className="text-xs font-bold font-mono text-[var(--color-primary)]">{s.profit}</p>
-                      <p className="text-[10px] text-[var(--color-muted)]">P&L</p>
+                    <div className="p-3 text-center border-r border-[var(--color-border)]">
+                      <p className="text-sm font-bold font-mono text-[var(--color-primary)]">{s.winRate}%</p>
+                      <p className="text-[10px] text-[var(--color-muted)] mt-0.5">Win Rate</p>
                     </div>
-                    <div className="p-2.5 text-center">
-                      <p className="text-xs font-bold font-mono text-[var(--color-primary)]">{s.copiers}</p>
-                      <p className="text-[10px] text-[var(--color-muted)]">Followers</p>
+                    <div className="p-3 text-center border-r border-[var(--color-border)]">
+                      <p className="text-sm font-bold font-mono text-[var(--color-primary)]">{s.trades}</p>
+                      <p className="text-[10px] text-[var(--color-muted)] mt-0.5">Positions</p>
+                    </div>
+                    <div className="p-3 text-center border-r border-[var(--color-border)]">
+                      <p className="text-sm font-bold font-mono text-[var(--color-primary)]">{s.copiers}</p>
+                      <p className="text-[10px] text-[var(--color-muted)] mt-0.5">Followers</p>
+                    </div>
+                    <div className="p-3 text-center">
+                      <p className="text-sm font-bold font-mono text-[var(--color-primary)]">{s.aum}</p>
+                      <p className="text-[10px] text-[var(--color-muted)] mt-0.5">AUM</p>
                     </div>
                   </div>
 
-                  {/* Action */}
-                  <div className="p-3 border-t border-[var(--color-border)]">
+                  {/* Action row */}
+                  <div className="flex items-center gap-2 p-3 border-t border-[var(--color-border)]">
                     {isActive ? (
-                      <div className="flex items-center justify-between">
+                      <>
                         <Badge variant="active">Following</Badge>
-                        <Link href={`/strategy/${s.slug}`} className="text-xs text-[var(--color-secondary)] font-medium hover:text-[var(--color-primary)]">View Details</Link>
-                      </div>
+                        <Link href={`/strategy/${s.slug}`} className="text-xs text-[var(--color-secondary)] font-medium hover:text-[var(--color-primary)] ml-auto">View Details</Link>
+                        <a href={`https://polymarketanalytics.com/traders/${s.wallet}#trades`} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)]">
+                          <IconExternalLink size={14} />
+                        </a>
+                      </>
                     ) : (
-                      <Button
-                        onClick={() => addStrategyTarget(s.wallet, s.name)}
-                        disabled={toggling === s.wallet}
-                        loading={toggling === s.wallet}
-                        fullWidth
-                        size="sm"
-                      >
-                        Start Following
-                      </Button>
+                      <>
+                        <Button onClick={() => addStrategyTarget(s.wallet, s.name)} disabled={toggling === s.wallet} loading={toggling === s.wallet} size="sm" className="flex-1">
+                          Start Following
+                        </Button>
+                        <Link href={`/strategy/${s.slug}`} className="h-9 px-3 rounded-xl border border-[var(--color-border)] text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-surface)] flex items-center transition-colors">
+                          Details
+                        </Link>
+                        <a href={`https://polymarketanalytics.com/traders/${s.wallet}#trades`} target="_blank" rel="noopener noreferrer" className="h-9 w-9 rounded-xl border border-[var(--color-border)] flex items-center justify-center hover:bg-[var(--color-surface)] transition-colors">
+                          <IconExternalLink size={14} className="text-[var(--color-muted)]" />
+                        </a>
+                      </>
                     )}
                   </div>
                 </Card>
