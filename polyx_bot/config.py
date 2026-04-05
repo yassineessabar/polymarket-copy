@@ -12,7 +12,7 @@ PERFORMANCE_FEE_RATE = 0.25  # 25% of realized profit
 DATA_API = "https://data-api.polymarket.com"
 CLOB_API = "https://clob.polymarket.com"
 GAMMA_API = "https://gamma-api.polymarket.com"
-POLYGON_RPC = "https://polygon-rpc.com"
+POLYGON_RPC = os.getenv("POLYGON_RPC", "https://polygon-bor-rpc.publicnode.com")
 USDC_CONTRACT = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
 
 # Bot name (for referral links)
