@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd polyx_web && npm run build",
-  "installCommand": "cd polyx_web && npm install",
-  "outputDirectory": "polyx_web/.next",
-  "framework": "nextjs"
-}
