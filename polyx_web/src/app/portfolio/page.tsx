@@ -5,6 +5,9 @@ import { portfolioApi } from "@/lib/api";
 import { formatUsd, formatPnl, formatPct, formatDate, truncateAddress } from "@/lib/utils";
 import { STRATEGIES } from "@/lib/strategies";
 import type { Position } from "@/lib/types";
+import { Card, Badge, Spinner, Button } from "@/components/ui";
+import { IconExternalLink } from "@/components/ui";
+import { PageHeader, StatCard, EmptyState } from "@/components";
 
 function getTraderName(wallet?: string): string {
   if (!wallet) return "";
@@ -46,11 +49,11 @@ export default function PortfolioPage() {
 
   return (
     <div className="max-w-[900px] mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-4 sm:mb-6 text-[#0F0F0F]">Portfolio</h1>
+      <PageHeader title="Portfolio" />
 
       {/* Stats Bar */}
       {summary && (
-        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm mb-4">
+        <Card className="mb-4">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div>
               <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Net Worth</p>
@@ -77,35 +80,33 @@ export default function PortfolioPage() {
               <p className="text-base sm:text-lg font-bold font-mono text-[#0F0F0F]">{summary.win_rate?.toFixed(0) || 0}%</p>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white rounded-full p-1 mb-4 w-full sm:w-fit shadow-sm">
         {(["open", "closed"] as const).map((t) => (
-          <button
+          <Button
             key={t}
+            variant={tab === t ? "primary" : "ghost"}
+            size="sm"
             onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all capitalize ${
-              tab === t ? "bg-[#0F0F0F] text-white" : "text-[#6B7280] hover:text-[#0F0F0F]"
-            }`}
+            className={`rounded-full capitalize ${tab === t ? "" : "text-[#6B7280] hover:text-[#0F0F0F]"}`}
           >
             {t} Positions
-          </button>
+          </Button>
         ))}
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <div className="w-6 h-6 border-2 border-[#0F0F0F] border-t-transparent rounded-full animate-spin" />
+          <Spinner />
         </div>
       ) : positions.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm">
-          <h3 className="font-bold mb-2 text-[#0F0F0F]">No {tab} positions</h3>
-          <p className="text-sm text-[#6B7280] font-medium">
-            {tab === "open" ? "Start following traders to open positions." : "Closed trades will appear here."}
-          </p>
-        </div>
+        <EmptyState
+          title={`No ${tab} positions`}
+          subtitle={tab === "open" ? "Start following traders to open positions." : "Closed trades will appear here."}
+        />
       ) : (
         <div className="space-y-2">
           {positions.map((pos) => {
@@ -116,7 +117,7 @@ export default function PortfolioPage() {
             const pnlPctVal = pos.entry_price > 0 ? (((pos.live_price || pos.exit_price || pos.entry_price) - pos.entry_price) / pos.entry_price * 100) : 0;
 
             return (
-              <div key={pos.id} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+              <Card key={pos.id} className="hover:shadow-md transition-all">
                 {/* Trader source */}
                 {pos.target_wallet && (
                   <div className="flex items-center justify-between mb-2 pb-2 border-b border-black/5">
@@ -133,7 +134,7 @@ export default function PortfolioPage() {
                       className="text-[10px] text-[#10B981] font-medium hover:underline flex items-center gap-1"
                     >
                       Analytics
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                      <IconExternalLink size={10} />
                     </a>
                   </div>
                 )}
@@ -143,9 +144,9 @@ export default function PortfolioPage() {
                     <div className="text-xs text-[#6B7280] font-medium">{pos.outcome}</div>
                   </div>
                   <div className="text-right">
-                    <div className={`font-bold font-mono text-sm ${pnl >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
+                    <Badge variant={pnl >= 0 ? "success" : "danger"} className="text-sm font-bold font-mono">
                       {formatPnl(pnl)}
-                    </div>
+                    </Badge>
                     <div className={`text-xs font-mono ${pnlPctVal >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
                       {formatPct(pnlPctVal)}
                     </div>
@@ -183,7 +184,7 @@ export default function PortfolioPage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
