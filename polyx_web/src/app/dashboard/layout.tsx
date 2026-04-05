@@ -29,22 +29,24 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "/portfolio",
-    label: "Portfolio",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-        <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
-      </svg>
-    ),
-  },
-  {
     href: "/wallet",
     label: "Wallet",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
         <line x1="1" y1="10" x2="23" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    href: "/refer",
+    label: "Refer",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
   },
@@ -60,14 +62,13 @@ const NAV_ITEMS = [
   },
 ];
 
-const MOBILE_NAV = [NAV_ITEMS[0], NAV_ITEMS[1], NAV_ITEMS[3], NAV_ITEMS[4]]; // Dashboard, Strategies, Wallet, Settings
+const MOBILE_NAV = NAV_ITEMS; // All 5 items with labels
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [wallet, setWallet] = useState("");
   const [unread, setUnread] = useState(0);
-  const [sidebarHover, setSidebarHover] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -92,91 +93,69 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const initials = wallet ? wallet.slice(2, 4).toUpperCase() : "PC";
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-white flex">
-      {/* Desktop Sidebar */}
-      <aside
-        onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
-        className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-40 bg-white border-r border-[#F4F4F5] transition-all duration-200 ease-in-out"
-        style={{ width: sidebarHover ? 240 : 72 }}
-      >
+    <div className="min-h-screen min-h-[100dvh] bg-[#F7F7F7] flex">
+      {/* Desktop Sidebar - static, always expanded */}
+      <aside className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-40 bg-white border-r border-black/5 w-[240px]">
         {/* Logo */}
-        <div className="h-[72px] flex items-center px-4 flex-shrink-0">
-          <Link href="/" className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-[#00C805] flex items-center justify-center font-bold text-[15px] text-white flex-shrink-0">
+        <div className="h-[72px] flex items-center px-5 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#121212] flex items-center justify-center font-bold text-[15px] text-white flex-shrink-0">
               P
             </div>
-            <span
-              className="text-lg font-bold text-[#121212] whitespace-nowrap transition-opacity duration-200"
-              style={{ opacity: sidebarHover ? 1 : 0 }}
-            >
+            <span className="text-lg font-bold text-[#121212] whitespace-nowrap">
               Polycool
             </span>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-4 mt-2">
+        <nav className="flex-1 px-3 mt-2">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex items-center gap-3 mb-1 transition-all duration-150 rounded-xl overflow-hidden ${
-                  sidebarHover ? "px-3 py-2.5" : "justify-center py-2.5"
-                } ${
+                className={`flex items-center gap-3 h-10 px-4 mb-1 rounded-xl text-sm transition-all duration-150 ${
                   active
-                    ? "bg-[#F4F4F5] text-[#121212]"
-                    : "text-[#737373] hover:text-[#121212]"
+                    ? "bg-[#F7F7F7] text-[#121212] font-bold"
+                    : "text-[#9B9B9B] hover:text-[#121212] hover:bg-[#F7F7F7]"
                 }`}
-                style={!sidebarHover ? { width: 40, height: 40, margin: "0 auto 4px auto", display: "flex" } : {}}
               >
-                {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#00C805] rounded-r-full" />
-                )}
                 <span className="flex-shrink-0">{item.icon}</span>
-                {sidebarHover && (
-                  <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
-                )}
+                <span className="whitespace-nowrap">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* Bottom: user avatar + logout */}
-        <div className="px-4 pb-5 flex-shrink-0">
-          <div
-            className={`flex items-center gap-3 transition-all duration-200 ${
-              sidebarHover ? "" : "justify-center"
-            }`}
-          >
-            <div className="w-9 h-9 rounded-full bg-[#00C805] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+        {/* Bottom: wallet address + Sign Out */}
+        <div className="px-5 pb-5 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#121212] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
               {initials}
             </div>
-            {sidebarHover && (
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-[#737373] font-mono truncate">{truncateAddress(wallet)}</p>
-                <button
-                  onClick={logout}
-                  className="text-xs text-[#737373] hover:text-[#FF5000] transition-colors font-medium mt-0.5"
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-[#9B9B9B] font-mono truncate">{truncateAddress(wallet)}</p>
+              <button
+                onClick={logout}
+                className="text-xs text-[#9B9B9B] hover:text-[#DC2626] transition-colors font-medium mt-0.5"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 md:ml-[72px] w-full">
+      <main className="flex-1 md:ml-[240px] w-full">
         {/* Top header */}
-        <header className="sticky top-0 z-30 bg-white border-b border-[#F4F4F5] h-14">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-black/5 h-14">
           <div className="flex items-center justify-between h-full px-4 sm:px-6">
-            {/* Mobile: page title / logo */}
+            {/* Mobile: logo */}
             <div className="md:hidden flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#00C805] flex items-center justify-center font-bold text-sm text-white">
+              <div className="w-8 h-8 rounded-full bg-[#121212] flex items-center justify-center font-bold text-sm text-white">
                 P
               </div>
               <span className="font-bold text-[15px] text-[#121212]">Polycool</span>
@@ -185,78 +164,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <div className="flex items-center gap-3">
               {/* Notification bell */}
-              <Link href="/notifications" className="relative text-[#737373] hover:text-[#121212] transition-colors p-1.5">
+              <Link href="/notifications" className="relative text-[#9B9B9B] hover:text-[#121212] transition-colors p-1.5">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
                   <path d="M13.73 21a2 2 0 01-3.46 0" />
                 </svg>
                 {unread > 0 && (
-                  <span className="absolute top-0 right-0 w-4 h-4 bg-[#FF5000] rounded-full text-[10px] font-bold flex items-center justify-center text-white">
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-[#DC2626] rounded-full text-[10px] font-bold flex items-center justify-center text-white">
                     {unread}
                   </span>
                 )}
               </Link>
 
-              {/* Mobile hamburger */}
+              {/* Desktop wallet address */}
+              <div className="hidden md:flex items-center gap-2 text-xs text-[#9B9B9B] font-mono">
+                {truncateAddress(wallet)}
+              </div>
+
+              {/* Mobile: logout icon */}
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden text-[#737373] hover:text-[#121212] transition-colors p-1.5"
+                onClick={logout}
+                className="md:hidden text-[#9B9B9B] hover:text-[#121212] transition-colors p-1.5"
+                title="Sign Out"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  {mobileMenuOpen ? (
-                    <>
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </>
-                  ) : (
-                    <>
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="18" x2="21" y2="18" />
-                    </>
-                  )}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
               </button>
             </div>
           </div>
         </header>
 
-        {/* Mobile dropdown menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 top-14 z-30 bg-white">
-            <nav className="p-4 space-y-1">
-              {NAV_ITEMS.map((item) => {
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-[#F4F4F5] text-[#121212]"
-                        : "text-[#737373] hover:text-[#121212] hover:bg-[#F4F4F5]"
-                    }`}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-            <div className="absolute bottom-24 left-0 right-0 px-8">
-              <div className="text-xs text-[#737373] font-mono mb-2">{truncateAddress(wallet)}</div>
-              <button onClick={logout} className="text-sm text-[#737373] hover:text-[#FF5000] transition-colors font-medium">
-                Sign Out
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="p-5 sm:p-6 pb-24 md:pb-6">{children}</div>
 
-        <div className="p-4 sm:p-6 pb-20 md:pb-6">{children}</div>
-
-        {/* Mobile bottom nav — 4 items, no labels */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#F4F4F5] flex z-40"
+        {/* Mobile bottom nav - 5 items with labels */}
+        <nav
+          className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-black/5 flex z-40"
           style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           {MOBILE_NAV.map((item) => {
@@ -265,11 +210,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex-1 flex items-center justify-center py-4 transition-colors ${
-                  active ? "text-[#00C805]" : "text-[#737373]"
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${
+                  active ? "text-[#121212] font-bold" : "text-[#9B9B9B]"
                 }`}
               >
                 {item.icon}
+                <span className="text-[10px]">{item.label}</span>
               </Link>
             );
           })}

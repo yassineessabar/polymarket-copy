@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi, copyApi, setToken } from "@/lib/api";
 
-type AuthStep = "choose" | "wallet-connecting" | "magic-form" | "magic-sent";
+type AuthStep = "choose" | "wallet-connecting" | "magic-form" | "magic-sent" | "otp";
 
 function AuthContent() {
   const router = useRouter();
@@ -16,6 +16,7 @@ function AuthContent() {
   const [referralCode, setReferralCode] = useState(refFromUrl);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [otpValues, setOtpValues] = useState(["", "", "", "", "", ""]);
 
   async function connectWallet() {
     setError("");
@@ -29,26 +30,21 @@ function AuthContent() {
     setLoading(true);
 
     try {
-      // Use raw ethereum API — more reliable than ethers BrowserProvider
       const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
       if (!accounts || accounts.length === 0) {
         throw new Error("No accounts returned");
       }
       const address = accounts[0];
 
-      // Get nonce from our API
       const { nonce } = await authApi.nonce(address);
 
-      // Sign the nonce using personal_sign (works with all wallets)
       const signature: string = await eth.request({
         method: "personal_sign",
         params: [nonce, address],
       });
 
-      // Verify and get JWT
       const { token } = await authApi.verify(address, signature);
       setToken(token);
-      // Check if user has targets — if none, they're new → onboarding
       try {
         const { targets } = await copyApi.targets();
         router.push(targets && targets.length > 0 ? "/dashboard" : "/onboarding");
@@ -104,20 +100,44 @@ function AuthContent() {
     }
   }
 
+  function handleOtpChange(index: number, value: string) {
+    if (value.length > 1) value = value.slice(-1);
+    if (value && !/^\d$/.test(value)) return;
+
+    const newValues = [...otpValues];
+    newValues[index] = value;
+    setOtpValues(newValues);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  }
+
+  function handleOtpKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !otpValues[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center px-5">
       <div className="w-full max-w-[420px]">
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 justify-center mb-10">
           <div className="w-10 h-10 rounded-full bg-[#121212] flex items-center justify-center font-bold text-lg text-white">P</div>
-          <span className="text-2xl font-bold text-[#121212]">PolyX</span>
+          <span className="text-2xl font-bold text-[#121212]">Polycool</span>
         </Link>
 
+        {/* Card */}
         <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
           {step === "choose" && (
             <>
               <h1 className="text-xl font-bold text-center mb-2 text-[#121212]">Sign In</h1>
               <p className="text-sm text-[#9B9B9B] font-medium text-center mb-8">
-                Connect your wallet or sign in with email to start.
+                Connect your wallet or sign in with email
               </p>
 
               {error && (
@@ -136,9 +156,9 @@ function AuthContent() {
               </button>
 
               <div className="flex items-center gap-3 my-5">
-                <div className="flex-1 h-px bg-black/8" />
+                <div className="flex-1 h-px bg-black/5" />
                 <span className="text-xs text-[#9B9B9B] uppercase tracking-wider font-medium">or</span>
-                <div className="flex-1 h-px bg-black/8" />
+                <div className="flex-1 h-px bg-black/5" />
               </div>
 
               <button
@@ -150,7 +170,6 @@ function AuthContent() {
                 </svg>
                 Sign in with Email
               </button>
-
             </>
           )}
 
@@ -208,6 +227,25 @@ function AuthContent() {
               <p className="text-sm text-[#9B9B9B] font-medium mb-6">
                 We sent a sign-in link to <strong className="text-[#121212]">{email}</strong>
               </p>
+
+              {/* OTP input */}
+              <p className="text-sm text-[#656565] font-medium mb-4">Or enter your 6-digit code</p>
+              <div className="flex gap-2 justify-center mb-6">
+                {otpValues.map((val, idx) => (
+                  <input
+                    key={idx}
+                    id={`otp-${idx}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={val}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    className="w-11 h-12 text-center text-lg font-bold text-[#121212] bg-[#F7F7F7] border border-black/5 rounded-xl outline-none focus:border-[#121212] transition-colors"
+                  />
+                ))}
+              </div>
+
               <button onClick={() => setStep("magic-form")} className="text-[#121212] text-sm font-medium underline">
                 Didn&apos;t receive it? Try again
               </button>

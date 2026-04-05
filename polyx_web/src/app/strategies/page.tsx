@@ -80,7 +80,7 @@ export default function StrategiesPage() {
       <div className="relative mt-2 mb-6">
         <div
           className={`flex items-center bg-[#F4F4F5] rounded-full h-12 px-4 transition-all ${
-            searchFocused ? "ring-2 ring-[#00C805]/30" : ""
+            searchFocused ? "ring-2 ring-[#009D55]/30" : ""
           }`}
         >
           <svg
@@ -127,7 +127,7 @@ export default function StrategiesPage() {
               setShowCustomAdd(true);
               setSearchFocused(false);
             }}
-            className="mt-2 text-sm text-[#00C805] font-medium hover:underline"
+            className="mt-2 text-sm text-[#009D55] font-medium hover:underline"
           >
             + Add by wallet address
           </button>
@@ -153,19 +153,19 @@ export default function StrategiesPage() {
             placeholder="0x..."
             value={customWallet}
             onChange={(e) => setCustomWallet(e.target.value)}
-            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#00C805] mb-2"
+            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#009D55] mb-2"
           />
           <input
             type="text"
             placeholder="Display name (optional)"
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
-            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#00C805] mb-3"
+            className="w-full bg-white rounded-lg px-4 py-2.5 text-sm text-[#121212] placeholder-[#737373] outline-none border border-transparent focus:border-[#009D55] mb-3"
           />
           <button
             onClick={addCustomTarget}
             disabled={adding || !customWallet.startsWith("0x")}
-            className="w-full bg-[#00C805] hover:bg-[#00B004] text-white text-sm font-bold py-2.5 rounded-full transition-colors disabled:opacity-40"
+            className="w-full bg-[#009D55] hover:bg-[#008548] text-white text-sm font-bold py-2.5 rounded-full transition-colors disabled:opacity-40"
           >
             {adding ? "Adding..." : "Add"}
           </button>
@@ -218,8 +218,8 @@ export default function StrategiesPage() {
                   </Link>
                   <div className="flex items-center gap-3 flex-shrink-0 ml-3">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 bg-[#00C805] rounded-full animate-pulse" />
-                      <span className="text-xs text-[#00C805] font-medium">Copying</span>
+                      <span className="w-2 h-2 bg-[#009D55] rounded-full animate-pulse" />
+                      <span className="text-xs text-[#009D55] font-medium">Copying</span>
                     </div>
                     {strat && (
                       <Link
@@ -235,7 +235,7 @@ export default function StrategiesPage() {
                     <button
                       onClick={() => removeTarget(t.wallet_addr)}
                       disabled={toggling === t.wallet_addr}
-                      className="text-xs text-[#FF5000] font-medium hover:underline disabled:opacity-50"
+                      className="text-xs text-[#DC2626] font-medium hover:underline disabled:opacity-50"
                     >
                       {toggling === t.wallet_addr ? "..." : "Stop"}
                     </button>
@@ -255,7 +255,7 @@ export default function StrategiesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-32">
-            <div className="w-6 h-6 border-2 border-[#00C805] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#009D55] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
@@ -287,16 +287,16 @@ export default function StrategiesPage() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end flex-shrink-0 ml-3">
-                    <span className="text-lg font-bold font-mono text-[#00C805]">
+                    <span className="text-lg font-bold font-mono text-[#009D55]">
                       +{s.returnPct}%
                     </span>
                     {isActive ? (
-                      <span className="flex items-center gap-1 text-xs text-[#00C805] font-medium">
-                        <span className="w-1.5 h-1.5 bg-[#00C805] rounded-full animate-pulse" />
+                      <span className="flex items-center gap-1 text-xs text-[#009D55] font-medium">
+                        <span className="w-1.5 h-1.5 bg-[#009D55] rounded-full animate-pulse" />
                         Copying
                       </span>
                     ) : (
-                      <span className="text-xs text-[#00C805] font-medium">
+                      <span className="text-xs text-[#009D55] font-medium">
                         Start Copying
                       </span>
                     )}

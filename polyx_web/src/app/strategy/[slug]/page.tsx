@@ -66,7 +66,7 @@ export default function StrategyDetailPage() {
         <div className="text-center">
           <div className="text-4xl mb-4 text-[#121212]">404</div>
           <h1 className="text-xl font-bold mb-2 text-[#121212]">Trader Not Found</h1>
-          <Link href="/strategies" className="text-[#00C805] font-medium text-sm">Back to Traders</Link>
+          <Link href="/strategies" className="text-[#009D55] font-medium text-sm">Back to Traders</Link>
         </div>
       </div>
     );
@@ -127,7 +127,7 @@ export default function StrategyDetailPage() {
       <div className="mb-2">
         <h1 className="text-2xl font-bold text-[#121212]">{strategy.name}</h1>
         <div className="flex items-baseline gap-2 mt-1">
-          <span className={`text-xl font-bold font-mono ${isPositive ? "text-[#00C805]" : "text-[#FF5000]"}`}>
+          <span className={`text-xl font-bold font-mono ${isPositive ? "text-[#009D55]" : "text-[#DC2626]"}`}>
             {isPositive ? "+" : ""}{periodReturn.toFixed(1)}%
           </span>
           <span className="text-sm text-[#737373]">{timeFilter}</span>
@@ -140,8 +140,8 @@ export default function StrategyDetailPage() {
           <AreaChart data={filteredData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={isPositive ? "#00C805" : "#FF5000"} stopOpacity={0.08} />
-                <stop offset="100%" stopColor={isPositive ? "#00C805" : "#FF5000"} stopOpacity={0} />
+                <stop offset="0%" stopColor={isPositive ? "#009D55" : "#DC2626"} stopOpacity={0.08} />
+                <stop offset="100%" stopColor={isPositive ? "#009D55" : "#DC2626"} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="date" hide />
@@ -158,12 +158,12 @@ export default function StrategyDetailPage() {
               }}
               formatter={(value: number) => [`$${value.toFixed(2)}`, ""]}
               labelFormatter={() => ""}
-              cursor={{ stroke: isPositive ? "#00C805" : "#FF5000", strokeWidth: 1, strokeDasharray: "4 4" }}
+              cursor={{ stroke: isPositive ? "#009D55" : "#DC2626", strokeWidth: 1, strokeDasharray: "4 4" }}
             />
             <Area
               type="monotone"
               dataKey="value"
-              stroke={isPositive ? "#00C805" : "#FF5000"}
+              stroke={isPositive ? "#009D55" : "#DC2626"}
               strokeWidth={2}
               fill="url(#chartGrad)"
             />
@@ -194,7 +194,7 @@ export default function StrategyDetailPage() {
           {
             label: "PnL",
             value: pnlDisplay,
-            color: totalPnl !== undefined ? (totalPnl >= 0 ? "text-[#00C805]" : "text-[#FF5000]") : "text-[#121212]",
+            color: totalPnl !== undefined ? (totalPnl >= 0 ? "text-[#009D55]" : "text-[#DC2626]") : "text-[#121212]",
           },
           {
             label: "Win Rate",
@@ -246,7 +246,7 @@ export default function StrategyDetailPage() {
                   className="text-[#737373] hover:text-[#121212] transition-colors"
                 >
                   {walletCopied ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C805" strokeWidth="2"><path d="M20 6L9 17l-5-5" /></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#009D55" strokeWidth="2"><path d="M20 6L9 17l-5-5" /></svg>
                   ) : (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                   )}
@@ -272,7 +272,7 @@ export default function StrategyDetailPage() {
               href={`https://polymarket.com/profile/${strategy.wallet}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#00C805] font-medium hover:underline"
+              className="text-sm text-[#009D55] font-medium hover:underline"
             >
               View on Polymarket
             </a>
@@ -280,7 +280,7 @@ export default function StrategyDetailPage() {
               href={`https://polymarketanalytics.com/traders/${strategy.wallet}#trades`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#00C805] font-medium hover:underline"
+              className="text-sm text-[#009D55] font-medium hover:underline"
             >
               View Analytics
             </a>
@@ -321,7 +321,7 @@ export default function StrategyDetailPage() {
                   >
                     <div
                       className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                        isBuy ? "bg-[#00C805]" : "bg-[#FF5000]"
+                        isBuy ? "bg-[#009D55]" : "bg-[#DC2626]"
                       }`}
                     />
                     <div className="flex-1 min-w-0">
@@ -342,7 +342,7 @@ export default function StrategyDetailPage() {
           <button
             onClick={() => addStrategyTarget(strategy.wallet, strategy.name)}
             disabled={toggling === strategy.wallet}
-            className="w-full bg-[#00C805] hover:bg-[#00B004] text-white rounded-full h-14 text-base font-bold transition-colors disabled:opacity-50 active:scale-[0.98]"
+            className="w-full bg-[#009D55] hover:bg-[#008548] text-white rounded-full h-14 text-base font-bold transition-colors disabled:opacity-50 active:scale-[0.98]"
           >
             {toggling === strategy.wallet
               ? "Starting..."

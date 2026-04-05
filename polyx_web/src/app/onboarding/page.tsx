@@ -44,7 +44,7 @@ const MOCK_TRADERS = STRATEGY_LIST.map((s, i) => ({
 }));
 
 /* ================================================================== */
-/*  Reusable Option Card with Image                                    */
+/*  Reusable Option Card                                               */
 /* ================================================================== */
 
 function OptionCard({
@@ -160,7 +160,6 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (step !== 7) return;
     const timer = setTimeout(async () => {
-      // Start with static data, then enrich with live Polymarket data
       let traderList = MOCK_TRADERS;
       try {
         const res = await copyApi.suggested();
@@ -177,7 +176,6 @@ export default function OnboardingPage() {
           });
         }
       } catch {}
-      // Enrich with live analytics
       const enriched = await Promise.all(
         traderList.map(async (t: any) => {
           try {
@@ -207,7 +205,6 @@ export default function OnboardingPage() {
     } catch {
       // ignore errors for now
     }
-    // Find the strategy slug to redirect to the invest/amount page
     const strat = Object.values(STRATEGIES).find(
       (s) => s.wallet.toLowerCase() === traderWallet.toLowerCase()
     );
@@ -218,7 +215,6 @@ export default function OnboardingPage() {
     }
   };
 
-  /* quiz step mapping: steps 3-6 map to quiz questions 1-4 */
   const quizStep = step >= 3 && step <= 6 ? step - 2 : 0;
   const totalQuizSteps = 4;
 
@@ -295,7 +291,7 @@ export default function OnboardingPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#00D26A] animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-[#009D55] animate-pulse" />
                   <span className="text-white/80 text-xs font-medium">1,500+ active traders</span>
                 </div>
               </div>
@@ -603,7 +599,7 @@ export default function OnboardingPage() {
                   </div>
 
                   {/* Stats grid */}
-                  <div className="grid grid-cols-4 gap-px bg-[#F0F0F0]">
+                  <div className="grid grid-cols-4 gap-px bg-black/5">
                     <div className="bg-white p-3 text-center">
                       <p className="text-xs font-bold font-mono text-[#009D55]">{trader.pnl}</p>
                       <p className="text-[9px] text-[#9B9B9B] mt-0.5">P&L</p>
