@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { copyApi } from "@/lib/api";
+import { copyApi, userApi } from "@/lib/api";
 import { STRATEGY_LIST, STRATEGIES } from "@/lib/strategies";
 import type { CopyTarget } from "@/lib/types";
 import {
@@ -25,9 +25,14 @@ export default function StrategiesPage() {
   const [adding, setAdding] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
   const [confirmStop, setConfirmStop] = useState<{ wallet: string; name: string } | null>(null);
+  const [settingsFor, setSettingsFor] = useState<{ wallet: string; name: string } | null>(null);
+  const [settings, setSettings] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     loadTargets();
+    userApi.me().then((d) => setSettings(d.settings || {})).catch(() => {});
   }, []);
 
   async function loadTargets() {
@@ -68,6 +73,20 @@ export default function StrategiesPage() {
       await loadTargets();
     } catch {}
     setToggling(null);
+  }
+
+  function updateSetting(key: string, value: any) {
+    setSettings((s: any) => ({ ...s, [key]: value }));
+  }
+
+  async function saveSettings() {
+    setSaving(true);
+    try {
+      await userApi.updateSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {}
+    setSaving(false);
   }
 
   const activeWallets = new Set(targets.map((t) => t.wallet_addr.toLowerCase()));
@@ -116,7 +135,17 @@ export default function StrategiesPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSettingsFor({ wallet: t.wallet_addr, name: t.display_name || t.wallet_addr.slice(0, 10) })}
+                      className="w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#F0F0F0] flex items-center justify-center transition-colors"
+                      title="Risk Settings"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
                     <a
                       href={`https://polymarketanalytics.com/traders/${t.wallet_addr}#trades`}
                       target="_blank"
@@ -274,6 +303,74 @@ export default function StrategiesPage() {
                 className="flex-1 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-medium py-2.5 rounded-full transition-all text-sm disabled:opacity-50"
               >
                 {toggling === confirmStop.wallet ? "Stopping..." : "Stop Copying"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Risk Settings Modal */}
+      {settingsFor && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm px-0 sm:px-5">
+          <div className="bg-white w-full sm:w-auto sm:max-w-[480px] sm:rounded-2xl rounded-t-2xl p-6 shadow-lg max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-bold text-base text-[#121212]">Risk Settings</h3>
+                <p className="text-xs text-[#9B9B9B] mt-0.5">{settingsFor.name}</p>
+              </div>
+              <button onClick={() => setSettingsFor(null)} className="w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#EBEBEB] flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: "trade_mode", label: "Trade Mode", type: "select", options: ["cautious", "standard", "expert"] },
+                { key: "quickbuy_amount", label: "Default Bet ($)", type: "number" },
+                { key: "max_risk_pct", label: "Max Risk (%)", type: "number" },
+                { key: "min_bet", label: "Min Bet ($)", type: "number" },
+                { key: "max_open_positions", label: "Max Positions", type: "number" },
+                { key: "max_per_event", label: "Max per Event", type: "number" },
+                { key: "max_exposure_pct", label: "Max Exposure (%)", type: "number" },
+                { key: "daily_loss_limit_pct", label: "Daily Loss Limit (%)", type: "number" },
+              ].map((field) => (
+                <div key={field.key}>
+                  <label className="text-xs text-[#9B9B9B] mb-1 block font-medium">{field.label}</label>
+                  {field.type === "select" ? (
+                    <select
+                      value={settings[field.key] || "standard"}
+                      onChange={(e) => updateSetting(field.key, e.target.value)}
+                      className="w-full bg-[#F7F7F7] border border-black/5 rounded-xl px-3 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm appearance-none"
+                    >
+                      {field.options!.map((o) => (
+                        <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="number"
+                      value={settings[field.key] ?? ""}
+                      onChange={(e) => updateSetting(field.key, parseFloat(e.target.value) || 0)}
+                      className="w-full bg-[#F7F7F7] border border-black/5 rounded-xl px-3 py-2.5 text-[#121212] outline-none focus:border-[#121212] text-sm"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setSettingsFor(null)}
+                className="flex-1 border border-black/10 text-[#656565] font-medium py-2.5 rounded-full text-sm hover:bg-[#F7F7F7]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => { await saveSettings(); setSettingsFor(null); }}
+                disabled={saving}
+                className="flex-1 bg-[#121212] hover:bg-[#333] text-white font-medium py-2.5 rounded-full text-sm disabled:opacity-50"
+              >
+                {saving ? "Saving..." : saved ? "Saved!" : "Save Settings"}
               </button>
             </div>
           </div>
