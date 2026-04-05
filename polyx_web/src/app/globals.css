@@ -29,3 +29,15 @@ body {
 
 input, select, textarea { font-size: 16px !important; }
 @media (min-width: 768px) { input, select, textarea { font-size: 14px !important; } }
+
+:root {
+  --color-primary: #0F0F0F;
+  --color-secondary: #6B7280;
+  --color-muted: #9CA3AF;
+  --color-positive: #10B981;
+  --color-negative: #EF4444;
+  --color-bg: #FAFAFA;
+  --color-card: #FFFFFF;
+  --color-surface: #F5F5F5;
+  --color-border: rgba(0, 0, 0, 0.04);
+}
