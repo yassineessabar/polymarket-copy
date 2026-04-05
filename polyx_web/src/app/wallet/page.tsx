@@ -81,11 +81,8 @@ export default function WalletPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
   const [depositTab, setDepositTab] = useState<"card" | "crypto">("card");
   const [selectedChain, setSelectedChain] = useState<string | null>(null);
-  const [withdrawAddress, setWithdrawAddress] = useState("");
-  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   useEffect(() => {
     loadProfile();
@@ -262,33 +259,21 @@ export default function WalletPage() {
             <div className="text-xs text-[#9B9B9B] mt-1 font-medium">on Polygon Network</div>
           </div>
 
-          {/* Deposit + Withdraw buttons */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button
-              onClick={() => { setShowDeposit(true); setShowWithdraw(false); }}
-              className="bg-[#009D55] hover:bg-[#008548] text-white rounded-2xl p-5 text-left transition-all shadow-sm"
-            >
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <p className="text-base font-bold">Deposit</p>
-              <p className="text-xs text-white/70 mt-0.5">Add funds to your wallet</p>
-            </button>
-            <button
-              onClick={() => { setShowWithdraw(true); setShowDeposit(false); }}
-              className="bg-white hover:bg-[#FAFAFA] border border-black/5 rounded-2xl p-5 text-left transition-all shadow-sm"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#F7F7F7] flex items-center justify-center mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121212" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M12 20V4m-6 6l6-6 6 6" />
-                </svg>
-              </div>
-              <p className="text-base font-bold text-[#121212]">Withdraw</p>
-              <p className="text-xs text-[#9B9B9B] mt-0.5">Send funds out</p>
-            </button>
-          </div>
+          {/* Deposit button */}
+          <button
+            onClick={() => { setShowDeposit(true); }}
+            className="w-full bg-[#009D55] hover:bg-[#008548] text-white rounded-2xl p-5 text-left transition-all shadow-sm mb-4 flex items-center gap-4"
+          >
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-base font-bold">Deposit Funds</p>
+              <p className="text-xs text-white/70 mt-0.5">Add USDC to start trading</p>
+            </div>
+          </button>
         </>
       )}
 
@@ -473,80 +458,6 @@ export default function WalletPage() {
       )}
 
       {/* ===== WITHDRAW MODAL ===== */}
-      {showWithdraw && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowWithdraw(false)} />
-          <div className="relative bg-white w-full max-w-[500px] rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto p-5 sm:p-6 shadow-xl">
-            {/* Close button */}
-            <button
-              onClick={() => setShowWithdraw(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#F7F7F7] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#656565" strokeWidth="2" strokeLinecap="round">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-
-            <h2 className="text-lg font-bold text-[#121212] mb-5">Withdraw</h2>
-
-            {/* Available balance */}
-            <div className="bg-[#F7F7F7] rounded-2xl p-4 mb-5">
-              <div className="text-xs text-[#9B9B9B] font-medium mb-1">Available Balance</div>
-              <div className="text-2xl font-bold font-mono text-[#121212]">
-                {formatUsd(balance)}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">
-                  Recipient Address
-                </label>
-                <input
-                  type="text"
-                  value={withdrawAddress}
-                  onChange={(e) => setWithdrawAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 text-[#121212] outline-none focus:border-[#121212] text-sm font-mono placeholder:text-[#9B9B9B] placeholder:font-sans"
-                />
-              </div>
-
-              <div className="p-3 bg-[#FFF8E1] rounded-xl">
-                <p className="text-xs text-[#856404]">
-                  <strong>Important:</strong> Withdrawals send USDC.e on the Polygon network. Make sure your recipient address supports USDC.e on Polygon.
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs text-[#9B9B9B] mb-1.5 block font-medium">Amount</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-3 pr-20 text-[#121212] outline-none focus:border-[#121212] text-sm font-mono placeholder:text-[#9B9B9B]"
-                  />
-                  <button
-                    onClick={() => setWithdrawAmount(String(balance))}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-[#121212] bg-white border border-black/10 rounded-full px-3 py-1.5 hover:bg-[#EBEBEB] transition-colors"
-                  >
-                    MAX
-                  </button>
-                </div>
-              </div>
-
-              <button
-                disabled={!withdrawAddress || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
-                className="w-full bg-[#121212] hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium py-3 rounded-full transition-all text-sm"
-              >
-                Withdraw USDC
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ===== YOUR WALLET (live mode only) ===== */}
       {!isDemo && <div className="bg-white rounded-2xl p-5 sm:p-8 mb-4 shadow-sm">
         <h3 className="font-bold text-sm sm:text-base mb-4 text-[#121212]">Your Wallet</h3>
