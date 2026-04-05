@@ -358,7 +358,7 @@ export default function StrategyDetailPage() {
         Invest in this Strategy
       </Link>
       <a
-        href={`https://polymarketanalytics.com/trader/${strategy.wallet}`}
+        href={`https://polymarketanalytics.com/traders/${strategy.wallet}#trades`}
         target="_blank"
         rel="noopener noreferrer"
         className="block w-full text-center text-[#009D55] text-xs font-medium mt-3 hover:underline"

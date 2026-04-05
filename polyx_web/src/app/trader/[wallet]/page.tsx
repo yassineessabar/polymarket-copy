@@ -308,7 +308,7 @@ export default function TraderDetailPage() {
               </span>
             )}
             <a
-              href={`https://polymarketanalytics.com/trader/${trader.wallet}`}
+              href={`https://polymarketanalytics.com/traders/${trader.wallet}#trades`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-[#009D55] font-medium hover:underline"

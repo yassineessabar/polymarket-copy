@@ -117,7 +117,7 @@ export default function StrategiesPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <a
-                      href={`https://polymarketanalytics.com/trader/${t.wallet_addr}`}
+                      href={`https://polymarketanalytics.com/traders/${t.wallet_addr}#trades`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-[#009D55] font-medium hover:underline"

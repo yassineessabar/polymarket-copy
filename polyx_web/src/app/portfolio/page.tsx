@@ -127,7 +127,7 @@ export default function PortfolioPage() {
                       </span>
                     </div>
                     <a
-                      href={`https://polymarketanalytics.com/trader/${pos.target_wallet}`}
+                      href={`https://polymarketanalytics.com/traders/${pos.target_wallet}#trades`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] text-[#009D55] font-medium hover:underline flex items-center gap-1"
