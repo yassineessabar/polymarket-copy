@@ -27,11 +27,16 @@ export default function StrategyDetailPage() {
   const [settings, setSettings] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
     if (!strategy) return;
     traderApi.one(strategy.wallet).then(setLiveData).catch(() => {});
     userApi.me().then((d) => setSettings(d.settings || {})).catch(() => {});
+    copyApi.targets().then((d) => {
+      const active = (d.targets || []).some((t: any) => t.wallet_addr.toLowerCase() === strategy.wallet.toLowerCase() && t.is_active);
+      setIsFollowing(active);
+    }).catch(() => {});
   }, [strategy]);
 
   function updateSetting(key: string, value: any) {
@@ -432,6 +437,8 @@ export default function StrategyDetailPage() {
           >
             {toggling === strategy.wallet
               ? "Activating..."
+              : isFollowing
+              ? `Following ${strategy.name}`
               : `Follow ${strategy.name}`}
           </button>
         </div>

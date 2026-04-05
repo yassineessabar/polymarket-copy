@@ -174,6 +174,12 @@ export default function SettingsPage() {
       <Card className="mb-4">
         <h3 className="font-bold text-sm text-[#0F0F0F] mb-3">Account</h3>
         <div className="space-y-0 text-sm">
+          {profile?.auth_wallet && profile.auth_wallet.includes("@") && (
+            <div className="flex justify-between py-3 border-b border-black/5">
+              <span className="text-[#6B7280] font-medium">Email</span>
+              <span className="font-medium text-[#0F0F0F] text-xs">{profile.auth_wallet}</span>
+            </div>
+          )}
           <div className="flex justify-between py-3 border-b border-black/5">
             <span className="text-[#6B7280] font-medium">Auth</span>
             <span className="font-medium text-[#0F0F0F]">
