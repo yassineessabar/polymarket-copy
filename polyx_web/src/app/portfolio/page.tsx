@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { portfolioApi } from "@/lib/api";
-import { formatUsd, formatPnl, formatPct, formatDate } from "@/lib/utils";
+import { formatUsd, formatPnl, formatPct, formatDate, truncateAddress } from "@/lib/utils";
+import { STRATEGIES } from "@/lib/strategies";
 import type { Position } from "@/lib/types";
+
+function getTraderName(wallet?: string): string {
+  if (!wallet) return "";
+  const strat = Object.values(STRATEGIES).find(s => s.wallet.toLowerCase() === wallet.toLowerCase());
+  return strat ? strat.name : truncateAddress(wallet);
+}
 
 export default function PortfolioPage() {
   const [tab, setTab] = useState<"open" | "closed">("open");
@@ -110,6 +117,26 @@ export default function PortfolioPage() {
 
             return (
               <div key={pos.id} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all">
+                {/* Trader source */}
+                {pos.target_wallet && (
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-black/5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#009D55]" />
+                      <span className="text-[10px] text-[#9B9B9B] font-medium">
+                        Copied from <span className="text-[#121212] font-bold">{getTraderName(pos.target_wallet)}</span>
+                      </span>
+                    </div>
+                    <a
+                      href={`https://polymarketanalytics.com/trader/${pos.target_wallet}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-[#009D55] font-medium hover:underline flex items-center gap-1"
+                    >
+                      Analytics
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    </a>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-sm mb-0.5 truncate text-[#121212]">{pos.title}</div>

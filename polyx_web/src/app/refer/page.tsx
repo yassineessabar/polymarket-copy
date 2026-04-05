@@ -11,23 +11,38 @@ export default function ReferPage() {
     userApi.me().then(setProfile).catch(() => {});
   }, []);
 
-  const referralLink = typeof window !== "undefined"
-    ? `${window.location.origin}/invest/sharky6999?ref=${profile?.user_id || ""}`
+  const refCode = profile?.referral_code || profile?.user_id || "";
+  const referralLink = typeof window !== "undefined" && refCode
+    ? `${window.location.origin}/auth?ref=${refCode}`
     : "";
 
   async function copyLink() {
-    await navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for HTTP (non-HTTPS) contexts
+      const textarea = document.createElement("textarea");
+      textarea.value = referralLink;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   }
 
   async function shareLink() {
+    if (!referralLink) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Join PolyX", text: "Copy top Polymarket traders automatically", url: referralLink });
+        await navigator.share({ title: "Join Polycool", text: "Copy top Polymarket traders automatically", url: referralLink });
       } catch {}
     } else {
-      copyLink();
+      await copyLink();
     }
   }
 

@@ -194,9 +194,10 @@ export default function WalletPage() {
             <div className="flex items-center gap-3">
               <input
                 type="number"
-                value={settings.demo_balance || 1000}
+                value={Math.round((settings.demo_balance || 1000) * 100) / 100}
+                step="0.01"
                 onChange={(e) =>
-                  updateSetting("demo_balance", parseFloat(e.target.value) || 0)
+                  updateSetting("demo_balance", Math.round((parseFloat(e.target.value) || 0) * 100) / 100)
                 }
                 className="bg-[#F7F7F7] border border-black/5 rounded-full px-5 py-2.5 text-[#121212] outline-none focus:border-[#121212] w-full max-w-[200px] text-sm"
               />
