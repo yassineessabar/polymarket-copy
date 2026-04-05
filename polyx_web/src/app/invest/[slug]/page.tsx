@@ -215,6 +215,9 @@ export default function InvestPage() {
                 No, Use Email Instead
               </button>
             </div>
+            <button onClick={() => router.push("/dashboard")} className="w-full text-center text-[#9B9B9B] text-sm mt-5 hover:text-[#656565] transition-colors">
+              I&apos;ll do it later
+            </button>
             <div className="mt-5 pt-4 border-t border-black/5">
               <label className="text-xs text-[#9B9B9B] font-medium mb-1.5 block">Referral Code (optional)</label>
               <input
@@ -287,11 +290,31 @@ export default function InvestPage() {
         {step === "amount" && (
           <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
             <h2 className="text-lg sm:text-xl font-bold text-center mb-2 text-[#121212]">Choose Amount</h2>
-            <p className="text-sm text-[#9B9B9B] font-medium text-center mb-8">
+            <p className="text-sm text-[#9B9B9B] font-medium text-center mb-6">
               {isDemo
                 ? "How much virtual funds do you want to start with?"
                 : "How much do you want to invest?"}
             </p>
+
+            {/* Demo / Live Toggle */}
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              <button
+                onClick={() => { /* demo mode is set via URL ?demo=1 */ }}
+                className={`py-2.5 rounded-full text-xs font-medium transition-all ${
+                  isDemo ? "bg-[#121212] text-white" : "bg-[#F7F7F7] text-[#9B9B9B] hover:text-[#121212]"
+                }`}
+              >
+                Demo (Virtual)
+              </button>
+              <button
+                onClick={() => { if (isDemo) router.push(`/invest/${slug}`); }}
+                className={`py-2.5 rounded-full text-xs font-medium transition-all ${
+                  !isDemo ? "bg-[#121212] text-white" : "bg-[#F7F7F7] text-[#9B9B9B] hover:text-[#121212]"
+                }`}
+              >
+                Live (Real USDC)
+              </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               {PRESET_AMOUNTS.map((a) => (
@@ -320,12 +343,41 @@ export default function InvestPage() {
               />
             </div>
 
+            {/* Live mode: deposit prompt */}
+            {!isDemo && (
+              <div className="bg-[#F7F7F7] rounded-2xl p-4 mb-4">
+                <p className="text-xs text-[#656565] font-medium mb-3">
+                  You need USDC in your wallet to trade live. Deposit now or continue with demo.
+                </p>
+                <div className="flex gap-2">
+                  <a
+                    href={`https://buy.moonpay.com?apiKey=pk_test_Yh1ao0Ys5snWHLqkeLQfbfFaYHnVjRP&currencyCode=usdc_polygon&walletAddress=${typeof window !== "undefined" ? "" : ""}&colorCode=%237B3FE4&theme=light`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-[#7B3FE4] hover:bg-[#6930C3] text-white text-xs font-medium py-2.5 rounded-full text-center transition-colors"
+                  >
+                    Buy with Card
+                  </a>
+                  <button
+                    onClick={() => router.push("/wallet")}
+                    className="flex-1 border border-black/10 text-[#656565] text-xs font-medium py-2.5 rounded-full text-center hover:bg-white transition-colors"
+                  >
+                    Deposit Crypto
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => setStep("confirm")}
               disabled={!finalAmount || finalAmount < 1}
               className="w-full bg-[#121212] hover:bg-[#333] text-white font-medium py-3.5 rounded-full transition-all disabled:opacity-50"
             >
               Continue with ${(finalAmount || 0).toLocaleString()}
+            </button>
+
+            <button onClick={() => router.push("/dashboard")} className="w-full text-center text-[#9B9B9B] text-sm mt-4 hover:text-[#656565] transition-colors">
+              I&apos;ll do it later
             </button>
           </div>
         )}
