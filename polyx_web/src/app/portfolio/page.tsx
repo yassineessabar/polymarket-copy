@@ -17,29 +17,81 @@ function getTraderName(wallet?: string): string {
 
 export default function PortfolioPage() {
   const [tab, setTab] = useState<"open" | "closed">("open");
+  const [sortBy, setSortBy] = useState<"date" | "pnl" | "bet">("date");
   const [positions, setPositions] = useState<Position[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadAll(); }, [tab]);
-
   useEffect(() => {
-    if (tab !== "open") return;
-    const interval = setInterval(loadAll, 10000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+
+    async function load(showSpinner = true) {
+      if (showSpinner) setLoading(true);
+      try {
+        const [posData, sumData] = await Promise.all([
+          portfolioApi.positions(tab, tab === "closed" ? 5000 : 50),
+          portfolioApi.summary(),
+        ]);
+        if (!cancelled) {
+          if (posData.positions) setPositions(posData.positions);
+          if (sumData) setSummary(sumData);
+        }
+      } catch {}
+      if (!cancelled && showSpinner) setLoading(false);
+    }
+
+    load();
+
+    // Auto-refresh only for open positions
+    let interval: ReturnType<typeof setInterval> | null = null;
+    if (tab === "open") {
+      interval = setInterval(() => load(false), 15000);
+    }
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, [tab]);
 
-  async function loadAll() {
-    setLoading(true);
-    try {
-      const [posData, sumData] = await Promise.all([
-        portfolioApi.positions(tab),
-        portfolioApi.summary(),
-      ]);
-      setPositions(posData.positions);
-      setSummary(sumData);
-    } catch {}
-    setLoading(false);
+  // Sort closed positions
+  const sortedPositions = tab === "closed" ? [...positions].sort((a, b) => {
+    if (sortBy === "pnl") return Math.abs(b.pnl_usd || 0) - Math.abs(a.pnl_usd || 0);
+    if (sortBy === "bet") return (b.bet_amount || 0) - (a.bet_amount || 0);
+    return new Date(b.closed_at || 0).getTime() - new Date(a.closed_at || 0).getTime();
+  }) : positions;
+
+  // CSV Export
+  function exportCsv() {
+    if (!sortedPositions.length) return;
+    const headers = ["Title","Outcome","Side","Entry Price","Exit Price","Bet Amount","P&L ($)","P&L (%)","Trader","Opened","Closed","Reason"];
+    const rows = sortedPositions.map(pos => {
+      const entry = pos.entry_price || 0;
+      const exit = pos.exit_price || pos.live_price || entry;
+      const pnlPct = entry > 0 ? ((exit - entry) / entry * 100).toFixed(2) : "0";
+      return [
+        `"${(pos.title || "").replace(/"/g, '""')}"`,
+        pos.outcome || "",
+        tab === "open" ? "OPEN" : "CLOSED",
+        (entry * 100).toFixed(1) + "c",
+        (exit * 100).toFixed(1) + "c",
+        "$" + (pos.bet_amount || 0).toFixed(2),
+        "$" + (pos.pnl_usd || pos.unrealized_pnl || 0).toFixed(2),
+        pnlPct + "%",
+        pos.target_wallet || "",
+        pos.opened_at || "",
+        pos.closed_at || "",
+        pos.close_reason || "",
+      ].join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `polyx_${tab}_positions_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // Calculate stats from positions
@@ -98,18 +150,46 @@ export default function PortfolioPage() {
         ))}
       </div>
 
+      {/* Sort + Export */}
+      {positions.length > 0 && (
+        <div className="flex gap-1 mb-4 flex-wrap items-center">
+          <button
+            onClick={exportCsv}
+            className="px-3 py-1 rounded-lg text-xs font-medium bg-[#F5F5F5] text-[#6B7280] hover:bg-[#E5E5E5] transition-colors ml-auto"
+          >
+            Export CSV
+          </button>
+        </div>
+      )}
+      {tab === "closed" && positions.length > 0 && (
+        <div className="flex gap-1 mb-4">
+          <span className="text-xs text-[#9CA3AF] self-center mr-1">Sort:</span>
+          {([["date", "Latest"], ["pnl", "Top P&L"], ["bet", "Largest"]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setSortBy(key as any)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                sortBy === key ? "bg-[#0F0F0F] text-white" : "bg-[#F5F5F5] text-[#6B7280] hover:bg-[#E5E5E5]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-40">
           <Spinner />
         </div>
-      ) : positions.length === 0 ? (
+      ) : sortedPositions.length === 0 ? (
         <EmptyState
           title={`No ${tab} positions`}
           subtitle={tab === "open" ? "Start following traders to open positions." : "Closed trades will appear here."}
         />
       ) : (
         <div className="space-y-2">
-          {positions.map((pos) => {
+          {sortedPositions.map((pos) => {
             const entryPct = (pos.entry_price * 100).toFixed(1);
             const livePct = pos.live_price ? (pos.live_price * 100).toFixed(1) : null;
             const exitPct = pos.exit_price ? (pos.exit_price * 100).toFixed(1) : null;

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { copyApi } from "@/lib/api";
-import { STRATEGY_LIST, STRATEGIES } from "@/lib/strategies";
+import { copyApi, traderApi } from "@/lib/api";
+import { STRATEGY_LIST, STRATEGIES, mergeWithLiveData } from "@/lib/strategies";
 import type { CopyTarget } from "@/lib/types";
 import { Button, Card, Input, Badge, Spinner } from "@/components/ui";
 import { IconSearch, IconClose, IconSettings, IconExternalLink } from "@/components/ui";
@@ -12,6 +12,21 @@ export default function StrategiesPage() {
   const [targets, setTargets] = useState<CopyTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [liveStrategies, setLiveStrategies] = useState(STRATEGY_LIST);
+
+  useEffect(() => {
+    traderApi.all().then((data) => {
+      const liveMap: Record<string, any> = {};
+      for (const t of data.traders) {
+        liveMap[t.wallet?.toLowerCase()] = t;
+      }
+      const updated = STRATEGY_LIST.map((s) => {
+        const live = liveMap[s.wallet.toLowerCase()];
+        return live ? mergeWithLiveData(s, live) : s;
+      });
+      setLiveStrategies(updated);
+    }).catch(() => {});
+  }, []);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showCustomAdd, setShowCustomAdd] = useState(false);
   const [customWallet, setCustomWallet] = useState("");
@@ -54,7 +69,7 @@ export default function StrategiesPage() {
 
   const activeWallets = new Set(targets.map((t) => t.wallet_addr.toLowerCase()));
 
-  const filtered = STRATEGY_LIST.filter((s) => {
+  const filtered = liveStrategies.filter((s) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return s.name.toLowerCase().includes(q) || s.manager.toLowerCase().includes(q) || s.categories.some((c) => c.toLowerCase().includes(q));
@@ -143,11 +158,9 @@ export default function StrategiesPage() {
                       </div>
                     </Link>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {strat && (
-                        <Link href={`/strategy/${strat.slug}`} className="w-8 h-8 rounded-lg hover:bg-[var(--color-surface)] flex items-center justify-center transition-colors">
-                          <IconSettings size={15} className="text-[var(--color-muted)]" />
-                        </Link>
-                      )}
+                      <Link href="/settings" className="w-8 h-8 rounded-lg hover:bg-[var(--color-surface)] flex items-center justify-center transition-colors">
+                        <IconSettings size={15} className="text-[var(--color-muted)]" />
+                      </Link>
                       <a href={`https://polymarketanalytics.com/traders/${t.wallet_addr}#trades`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg hover:bg-[var(--color-surface)] flex items-center justify-center transition-colors">
                         <IconExternalLink size={14} className="text-[var(--color-muted)]" />
                       </a>

@@ -57,7 +57,7 @@ async def portfolio_summary(
 @router.get("/positions")
 async def get_positions(
     status: str = Query("open", regex="^(open|closed)$"),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=10000),
     user: dict = Depends(get_current_user),
     db: Database = Depends(get_db),
 ):
@@ -66,15 +66,21 @@ async def get_positions(
 
     if status == "open":
         positions = await db.get_open_positions_by_user_id(user_id)
-        # Enrich with live prices
+        # Enrich with live prices (preserve originals on failure)
         enriched = []
-        async with aiohttp.ClientSession() as session:
-            for pos in positions:
-                try:
-                    p = await get_position_with_pnl(session, pos)
-                    enriched.append(p)
-                except Exception:
-                    enriched.append(pos)
+        try:
+            async with aiohttp.ClientSession() as session:
+                for pos in positions:
+                    try:
+                        p = await get_position_with_pnl(session, pos)
+                        enriched.append(p)
+                    except Exception:
+                        pos["live_price"] = pos.get("entry_price", 0)
+                        pos["unrealized_pnl"] = 0
+                        pos["pnl_pct"] = 0
+                        enriched.append(pos)
+        except Exception:
+            enriched = positions
         return {"positions": enriched}
     else:
         positions = await db.get_closed_positions_by_user_id(user_id, limit=limit)
@@ -83,7 +89,7 @@ async def get_positions(
 
 @router.get("/trades")
 async def get_trades(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=10000),
     offset: int = Query(0, ge=0),
     user: dict = Depends(get_current_user),
     db: Database = Depends(get_db),
@@ -96,19 +102,89 @@ async def get_trades(
 
 @router.get("/performance")
 async def get_performance(
-    days: int = Query(30, ge=1, le=90),
+    days: int = Query(365, ge=1, le=365),
     user: dict = Depends(get_current_user),
     db: Database = Depends(get_db),
 ):
-    """Get daily P&L history for charting."""
+    """Get equity curve built from closed positions P&L."""
     import aiosqlite
+    from datetime import datetime, timedelta
     user_id = user["user_id"]
+
+    # Get starting balance from settings
+    settings = await db.get_settings_by_user_id(user_id)
+    demo_mode = bool(settings.get("demo_mode", 0)) if settings else False
+
+    # Get all closed positions with their dates and P&L
     async with aiosqlite.connect(db.path) as conn:
         conn.row_factory = aiosqlite.Row
+        # Get closed positions grouped by day
         async with conn.execute(
-            "SELECT date, daily_pnl, daily_bets_placed, daily_amount_wagered "
-            "FROM daily_risk WHERE user_id=? ORDER BY date DESC LIMIT ?",
-            (user_id, days)
+            "SELECT date(closed_at) as day, "
+            "SUM(pnl_usd) as day_pnl, "
+            "COUNT(*) as trades, "
+            "SUM(CASE WHEN pnl_usd > 0 THEN 1 ELSE 0 END) as wins "
+            "FROM positions WHERE user_id=? AND is_open=0 AND closed_at IS NOT NULL "
+            "GROUP BY date(closed_at) ORDER BY day ASC",
+            (user_id,)
         ) as cur:
-            rows = [dict(r) for r in await cur.fetchall()]
-    return {"daily": list(reversed(rows))}
+            daily_pnl = [dict(r) for r in await cur.fetchall()]
+
+        # Get initial deposit amount (sum of all bets + current balance approximates starting capital)
+        async with conn.execute(
+            "SELECT MIN(date(opened_at)) as first_day FROM positions WHERE user_id=?",
+            (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            first_day = dict(row).get("first_day") if row else None
+
+    if not daily_pnl:
+        balance = settings.get("demo_balance", 0) if demo_mode else 0
+        today = datetime.now().strftime("%Y-%m-%d")
+        return {"daily": [{"date": today, "value": round(balance, 2)}]}
+
+    total_pnl_sum = sum(d["day_pnl"] or 0 for d in daily_pnl)
+    current_balance = settings.get("demo_balance", 0) if demo_mode else 0
+    starting_balance = current_balance - total_pnl_sum
+
+    # If only 1-2 days of data, build hourly equity curve from individual positions
+    if len(daily_pnl) <= 2:
+        async with aiosqlite.connect(db.path) as conn:
+            conn.row_factory = aiosqlite.Row
+            async with conn.execute(
+                "SELECT closed_at, pnl_usd FROM positions "
+                "WHERE user_id=? AND is_open=0 AND closed_at IS NOT NULL "
+                "ORDER BY closed_at ASC",
+                (user_id,)
+            ) as cur:
+                trades = [dict(r) for r in await cur.fetchall()]
+
+        if not trades:
+            return {"daily": [{"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": starting_balance}]}
+
+        equity = [{"date": trades[0]["closed_at"][:16], "value": round(starting_balance, 2)}]
+        cumulative = starting_balance
+        for t in trades:
+            cumulative += (t["pnl_usd"] or 0)
+            equity.append({
+                "date": t["closed_at"][:16],
+                "value": round(cumulative, 2)
+            })
+        return {"daily": equity}
+
+    # Multi-day: daily granularity
+    first = datetime.strptime(daily_pnl[0]["day"], "%Y-%m-%d")
+    last = datetime.now()
+    pnl_by_day = {d["day"]: d["day_pnl"] or 0 for d in daily_pnl}
+
+    equity = []
+    cumulative = starting_balance
+    current = first
+    while current <= last:
+        day_str = current.strftime("%Y-%m-%d")
+        day_pnl_val = pnl_by_day.get(day_str, 0)
+        cumulative += day_pnl_val
+        equity.append({"date": day_str, "value": round(cumulative, 2)})
+        current += timedelta(days=1)
+
+    return {"daily": equity}

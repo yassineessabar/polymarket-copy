@@ -112,9 +112,12 @@ export default function DashboardPage() {
         <p className="text-[36px] font-bold -tracking-[0.02em] text-[#0F0F0F] leading-none font-mono">
           {formatUsd(netWorth)}
         </p>
+        <p className="text-xs text-[#9CA3AF] mt-1">
+          Initial: $10,000 · Balance: {formatUsd(summary?.balance_usdc || 0)}
+        </p>
         <p className={`text-sm font-medium mt-1.5 ${isUp ? "text-[#10B981]" : "text-[#EF4444]"}`}>
-          {isUp ? "+" : ""}{formatPnl(periodReturn.amount)}{" "}
-          ({isUp ? "+" : ""}{periodReturn.pct.toFixed(2)}%){" "}
+          {formatPnl(periodReturn.amount)}{" "}
+          ({periodReturn.pct >= 0 ? "+" : ""}{periodReturn.pct.toFixed(2)}%){" "}
           <span className="text-[#9CA3AF] font-normal">
             {equityPeriod === "1W" ? "this week" : equityPeriod === "1M" ? "this month" : equityPeriod === "3M" ? "3 months" : equityPeriod === "YTD" ? "this year" : "all time"}
           </span>

@@ -91,10 +91,26 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
         net_worth = balance + positions_val
         mode_badge = ""
 
+    # Get daily P&L and total P&L
+    risk = await db.get_daily_risk(telegram_id)
+    daily_pnl = risk.get("daily_pnl", 0) if risk else 0
+    trades_today = risk.get("daily_bets_placed", 0) if risk else 0
+
+    # Total realized P&L from all closed positions
+    closed_positions = await db.get_closed_positions(telegram_id, limit=9999)
+    total_pnl = sum(p.get("pnl_usd", 0) or 0 for p in closed_positions)
+    total_wins = sum(1 for p in closed_positions if (p.get("pnl_usd") or 0) > 0)
+    total_closed = len(closed_positions)
+    win_rate = (total_wins / total_closed * 100) if total_closed > 0 else 0
+
     header = f"Welcome to PolyX 🏠\n"
     if mode_badge:
         header += f"<b>{mode_badge}</b>\n"
     header += "Your secure companion for rapid Polymarket trades.\n"
+
+    # P&L formatting
+    daily_icon = "📈" if daily_pnl >= 0 else "📉"
+    total_icon = "✅" if total_pnl >= 0 else "❌"
 
     # Show who we're copying
     targets = await db.get_targets(telegram_id)
@@ -108,9 +124,11 @@ async def send_home(update: Update, context: ContextTypes.DEFAULT_TYPE, user: di
 
     text = (
         f"{header}\n"
-        f"📊 Current Positions: ${positions_val:.2f} ({open_count} open)\n"
-        f"💰 Available Balance: ${balance:,.2f}\n"
-        f"💎 Total Net Worth: ${net_worth:,.2f}\n"
+        f"💎 <b>Net Worth: ${net_worth:,.2f}</b>\n"
+        f"💰 Balance: ${balance:,.2f}\n"
+        f"📊 Positions: ${positions_val:.2f} ({open_count} open)\n\n"
+        f"{daily_icon} <b>Today:</b> ${daily_pnl:+,.2f} ({trades_today} trades)\n"
+        f"{total_icon} <b>All-time:</b> ${total_pnl:+,.2f} ({total_closed} trades, {win_rate:.0f}% win)\n"
         f"{copy_section}\n"
         f"Copy top traders, snipe odds, and trade like a pro."
     )

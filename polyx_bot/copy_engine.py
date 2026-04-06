@@ -572,6 +572,53 @@ class CopyTradeManager:
 
             checked_resolved.add(pos["id"])
 
+        # Step A.5: Auto-close stale short-term positions (>30 min old)
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        for pos in open_pos:
+            if pos["id"] in checked_resolved:
+                continue
+            title = (pos.get("title") or "").lower()
+            # Only auto-close known short-term markets
+            is_short_term = any(x in title for x in ["up or down", "o/u", "above", "below"])
+            if not is_short_term:
+                continue
+            try:
+                opened = datetime.strptime(pos["opened_at"], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                continue
+            age_minutes = (now - opened).total_seconds() / 60
+            if age_minutes < 30:
+                continue
+
+            # Stale short-term market — assume won (entry was 99c+)
+            entry = pos.get("entry_price", 0)
+            bet_amt = pos.get("bet_amount", 0)
+            cur_price = 1.0
+            shares = bet_amt / entry if entry > 0 else 0
+            pnl_usd = shares * (cur_price - entry)
+
+            if demo_mode:
+                await self.db.adjust_demo_balance(telegram_id, shares * cur_price)
+
+            await self.db.close_position(pos["id"], cur_price, pnl_usd, "AUTO-CLOSED (stale)")
+            await self.db.increment_daily_pnl(telegram_id, pnl_usd)
+            checked_resolved.add(pos["id"])
+
+            mode_tag = " [DEMO]" if demo_mode else (" [DRY]" if dry_run else "")
+            demo_bal_text = ""
+            if demo_mode:
+                cur_demo = await self.db.get_demo_balance(telegram_id)
+                demo_bal_text = f"\n\U0001f4b0 Demo Balance: ${cur_demo:,.2f}"
+            await self._notify(telegram_id,
+                f"<b>CLOSE{mode_tag}</b> WIN\n"
+                f"{pos.get('title', '?')[:50]} — {pos.get('outcome', '?')}\n"
+                f"Reason: AUTO-CLOSED (expired)\n"
+                f"Entry: {entry*100:.1f}c → Exit: 100.0c\n"
+                f"Bet: ${bet_amt:.2f} | P&L: ${pnl_usd:+.2f}{demo_bal_text}")
+
+            log.info(f"[Copy:{telegram_id}] Auto-closed stale position #{pos['id']}: {pos.get('title','?')[:40]}")
+
         # Step B: Check if target exited non-resolved positions
         for target_info in all_targets:
             target = target_info["wallet_addr"]

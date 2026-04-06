@@ -85,8 +85,8 @@ export const userApi = {
 // Portfolio
 export const portfolioApi = {
   summary: () => apiFetch<any>("/api/v1/portfolio/summary"),
-  positions: (status: "open" | "closed" = "open") =>
-    apiFetch<{ positions: any[] }>(`/api/v1/portfolio/positions?status=${status}`),
+  positions: (status: "open" | "closed" = "open", limit = 5000) =>
+    apiFetch<{ positions: any[] }>(`/api/v1/portfolio/positions?status=${status}&limit=${limit}`),
   trades: (limit = 50, offset = 0) =>
     apiFetch<{ trades: any[] }>(`/api/v1/portfolio/trades?limit=${limit}&offset=${offset}`),
   performance: (days = 30) =>

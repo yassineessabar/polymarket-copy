@@ -29,16 +29,17 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
 # Copy trading defaults
 DEFAULT_SETTINGS = {
-    "trade_mode": "standard",       # cautious / standard / expert
-    "quickbuy_amount": 25.0,
-    "max_risk_pct": 10.0,
-    "min_bet": 1.0,
-    "max_open_positions": 20,
-    "max_per_event": 2,
-    "max_exposure_pct": 50.0,
-    "daily_loss_limit_pct": 15.0,
-    "drawdown_scale_start": 5.0,
-    "correlation_penalty": 0.5,
+    "trade_mode": "expert",         # cautious / standard / expert
+    "quickbuy_amount": 50.0,
+    "max_risk_pct": 40.0,
+    "min_bet": 0.10,
+    "max_open_positions": 50,
+    "max_per_event": 5,
+    "max_exposure_pct": 100.0,
+    "daily_loss_limit_pct": 25.0,
+    "drawdown_scale_start": 10.0,
+    "correlation_penalty": 0.3,
+    "copy_factor": 3.0,            # 3x the target trader proportional bet
     "dry_run": 1,
     "notifications_on": 1,
     "copy_trading_active": 0,

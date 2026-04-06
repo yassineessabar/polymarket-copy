@@ -74,8 +74,8 @@ const NAV_ITEMS = [
 const MOBILE_NAV = [
   NAV_ITEMS[0], // Dashboard
   NAV_ITEMS[1], // Strategies
-  NAV_ITEMS[2], // Wallet
-  NAV_ITEMS[4], // Settings (drop Refer on mobile)
+  NAV_ITEMS[3], // Wallet
+  NAV_ITEMS[5], // Settings
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

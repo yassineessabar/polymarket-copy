@@ -24,11 +24,11 @@ TRADE_MODE_PRESETS = {
         "exposure_mult": 1.0,
     },
     "expert": {
-        "max_risk_pct_mult": 1.5,       # allow 50% larger positions
-        "confidence_mult": 1.3,         # more aggressive sizing
+        "max_risk_pct_mult": 2.0,       # allow 2x larger positions
+        "confidence_mult": 1.5,         # 50% more aggressive sizing
         "min_confidence": 0.0,          # copy all trades regardless of confidence
-        "max_positions_mult": 1.5,      # allow more open positions
-        "exposure_mult": 1.3,           # higher exposure allowed
+        "max_positions_mult": 2.0,      # allow 2x open positions
+        "exposure_mult": 1.5,           # higher exposure allowed
     },
 }
 
@@ -153,7 +153,7 @@ def risk_check(
         bet *= penalty
         log.debug(f"Correlation penalty: {overlapping_targets} overlaps, multiplier={penalty:.2f}")
 
-    bet = round(min(bet, budget, max_bet), 2)
+    bet = round(min(bet, budget, max_bet, portfolio_value * 0.25), 2)  # hard cap: 25% of portfolio per trade
     if bet < min_bet:
         return 0, 0, f"BET TOO SMALL (${bet:.2f})"
 

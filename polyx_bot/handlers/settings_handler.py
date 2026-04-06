@@ -48,23 +48,28 @@ async def risk_settings_command(update: Update, context: ContextTypes.DEFAULT_TY
     db: Database = context.application.bot_data["db"]
     settings = await db.get_settings(update.effective_user.id)
 
+    trade_mode = settings.get("trade_mode", "standard")
+    copy_factor = settings.get("copy_factor", 1.0)
     max_risk = settings.get("max_risk_pct", 10)
     min_bet = settings.get("min_bet", 1)
     max_pos = settings.get("max_open_positions", 20)
     max_exp = settings.get("max_exposure_pct", 50)
+    max_per_evt = settings.get("max_per_event", 2)
+    daily_loss = settings.get("daily_loss_limit_pct", 15)
+
+    mode_icons = {"cautious": "🐢", "standard": "⚖️", "expert": "🔥"}
+    mode_icon = mode_icons.get(trade_mode, "⚖️")
 
     text = (
         "📊 <b>Risk & Position Sizing</b>\n\n"
-        "Bets are sized <b>proportionally</b> — if the target bets 1% of their portfolio, "
-        "you bet 1% of yours.\n\n"
+        f"{mode_icon} <b>Trade Mode:</b> {trade_mode.title()}\n"
+        f"⚡ <b>Copy Factor:</b> {copy_factor}x — multiplier on bet size\n\n"
         f"📈 <b>Max Risk Per Trade:</b> {max_risk}%\n"
-        f"  Max % of your portfolio on a single trade\n\n"
         f"💵 <b>Min Bet Size:</b> ${min_bet}\n"
-        f"  Trades below this are skipped\n\n"
-        f"📋 <b>Max Open Positions:</b> {max_pos}\n"
-        f"  Hard cap on simultaneous positions\n\n"
+        f"📋 <b>Max Positions:</b> {max_pos}\n"
         f"🛡 <b>Max Exposure:</b> {max_exp}%\n"
-        f"  Total $ at risk as % of portfolio"
+        f"🎯 <b>Max Per Event:</b> {max_per_evt}\n"
+        f"🚨 <b>Daily Loss Limit:</b> {daily_loss}%"
     )
 
     await respond(update, context, text, reply_markup=risk_settings_keyboard(settings))

@@ -164,6 +164,18 @@ async def button_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data.startswith("set_maxexp_"):
             val = float(data.replace("set_maxexp_", ""))
             await set_risk_param(update, context, "max_exposure_pct", val)
+        elif data.startswith("set_factor_"):
+            val = float(data.replace("set_factor_", ""))
+            await set_risk_param(update, context, "copy_factor", val)
+        elif data.startswith("set_mode_"):
+            mode = data.replace("set_mode_", "")
+            await set_risk_param(update, context, "trade_mode", mode)
+        elif data.startswith("set_maxevt_"):
+            val = int(data.replace("set_maxevt_", ""))
+            await set_risk_param(update, context, "max_per_event", val)
+        elif data.startswith("set_dloss_"):
+            val = float(data.replace("set_dloss_", ""))
+            await set_risk_param(update, context, "daily_loss_limit_pct", val)
         elif data == "demo_mode":
             # demo_mode_command uses respond() which auto-answers
             await demo_mode_command(update, context)

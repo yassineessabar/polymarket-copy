@@ -36,13 +36,53 @@ TRADER_META = {
 }
 
 HEADERS = {"User-Agent": "PolyX/1.0"}
+PA_BASE = "https://polymarketanalytics.com"
+
+
+async def _fetch_pa_stats(session: aiohttp.ClientSession, wallet: str) -> dict:
+    """Fetch real stats from PolymarketAnalytics."""
+    result = {}
+    pa_headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+    try:
+        # PnL
+        async with session.get(f"{PA_BASE}/api/polymarket-pnl?address={wallet}", headers=pa_headers, timeout=aiohttp.ClientTimeout(total=10)) as r:
+            if r.status == 200:
+                data = await r.json(content_type=None)
+                result["pa_pnl"] = data.get("amount", 0)
+
+        # Dashboard (rank, win rate, positions, gains, losses)
+        async with session.get(f"{PA_BASE}/api/traders-dashboard?trader_id={wallet}", headers=pa_headers, timeout=aiohttp.ClientTimeout(total=10)) as r:
+            if r.status == 200:
+                data = await r.json(content_type=None)
+                if data.get("data"):
+                    d = data["data"][0]
+                    result["pa_rank"] = d.get("rank", 0)
+                    result["pa_name"] = d.get("trader_name", "")
+                    result["pa_total_positions"] = d.get("total_positions", 0)
+                    result["pa_active_positions"] = d.get("active_positions", 0)
+                    result["pa_win_count"] = d.get("win_count", 0)
+                    result["pa_win_rate"] = round((d.get("win_rate", 0) or 0) * 100, 1)
+                    result["pa_gains"] = d.get("win_amount", 0)
+                    result["pa_losses"] = d.get("loss_amount", 0)
+                    result["pa_overall_gain"] = d.get("overall_gain", 0)
+
+        # PnL history for equity curve
+        async with session.get(f"{PA_BASE}/api/traders-pnl-history?trader_id={wallet}", headers=pa_headers, timeout=aiohttp.ClientTimeout(total=10)) as r:
+            if r.status == 200:
+                data = await r.json(content_type=None)
+                if isinstance(data, list):
+                    result["pa_pnl_history"] = data
+
+    except Exception as e:
+        log.warning(f"[PA] Failed to fetch stats for {wallet[:10]}: {e}")
+    return result
 
 
 async def _fetch_json(session: aiohttp.ClientSession, url: str) -> dict | list:
     try:
         async with session.get(url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=10)) as r:
             if r.status == 200:
-                return await r.json()
+                return await r.json(content_type=None)
             return {"error": f"HTTP {r.status}"}
     except Exception as e:
         return {"error": str(e)}
@@ -100,8 +140,24 @@ async def _fetch_trader_data(wallet: str) -> dict:
                     "price": round(float(p.get("curPrice", 0)), 4),
                 })
 
-    total_gains = sum(float(p.get("cashPnl", 0)) for p in (positions if isinstance(positions, list) else []) if float(p.get("cashPnl", 0)) > 0)
-    total_losses_val = sum(float(p.get("cashPnl", 0)) for p in (positions if isinstance(positions, list) else []) if float(p.get("cashPnl", 0)) < 0)
+    # Calculate gains/losses including unrealized P&L for open positions
+    total_gains = 0.0
+    total_losses_val = 0.0
+    if isinstance(positions, list):
+        for p in positions:
+            pnl = float(p.get("cashPnl", 0))
+            cv = float(p.get("currentValue", 0))
+            iv = float(p.get("initialValue", 0))
+            # For open positions, use current value vs initial value
+            if cv > 0 and pnl == 0:
+                pnl = cv - iv
+            if pnl > 0:
+                total_gains += pnl
+            elif pnl < 0:
+                total_losses_val += pnl
+
+    # Recalculate total PnL including unrealized
+    total_pnl = total_gains + total_losses_val
 
     total_decided = wins + losses
     win_rate = round((wins / total_decided * 100) if total_decided > 0 else 0, 1)
@@ -174,21 +230,53 @@ async def _fetch_trader_data(wallet: str) -> dict:
             base = max(base, 200)
             equity_curve.append({"date": d.strftime("%Y-%m-%d"), "value": round(base, 2)})
 
+    # Fetch PolymarketAnalytics stats (more accurate than raw API)
+    async with aiohttp.ClientSession() as pa_session:
+        pa = await _fetch_pa_stats(pa_session, wallet)
+
+    # Override with PA data where available
+    if pa.get("pa_pnl") is not None:
+        total_pnl = pa["pa_pnl"]
+    if pa.get("pa_win_rate"):
+        win_rate = pa["pa_win_rate"]
+    if pa.get("pa_total_positions"):
+        position_count = pa["pa_total_positions"]
+    if pa.get("pa_gains"):
+        total_gains = pa["pa_gains"]
+    if pa.get("pa_losses"):
+        total_losses_val = pa["pa_losses"]
+    if pa.get("pa_name"):
+        name = pa["pa_name"]
+
+    roi = round(((total_pnl / total_invested) * 100) if total_invested > 0 else 0, 1)
+
+    # Use PA equity curve if available
+    if pa.get("pa_pnl_history"):
+        equity_curve = []
+        cumulative = 0
+        for entry in pa["pa_pnl_history"]:
+            cumulative += entry.get("daily_pnl_usd", 0)
+            equity_curve.append({
+                "date": str(entry.get("dt", ""))[:10],
+                "value": round(cumulative, 2)
+            })
+
     return {
         "wallet": wallet,
         "slug": meta.get("slug", wallet[:10]),
         "name": name,
         "image": pfp or meta.get("image", ""),
+        "rank": pa.get("pa_rank", 0),
         "position_count": position_count,
-        "open_position_count": len(open_positions),
+        "open_position_count": pa.get("pa_active_positions", len(open_positions)),
         "total_value": round(total_value, 2),
         "total_invested": round(total_invested, 2),
         "total_pnl": round(total_pnl, 2),
         "roi": roi,
         "win_rate": win_rate,
-        "wins": wins,
+        "wins": pa.get("pa_win_count", wins),
         "losses": losses,
-        "total_gains": round(total_gains, 2),
+        "total_gains": round(abs(total_gains), 2),
         "total_losses": round(abs(total_losses_val), 2),
         "total_volume": round(total_volume, 2),
         "recent_trades": recent_trades,

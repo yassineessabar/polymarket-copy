@@ -4,26 +4,87 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { userApi, clearToken } from "@/lib/api";
 import { truncateAddress } from "@/lib/utils";
-import { Button, Card, Spinner } from "@/components/ui";
-import {
-  IconWallet, IconKey, IconChevronRight, IconBook,
-  IconQuestion, IconEnvelope, IconShield, IconDocument,
-  IconSend, IconExternalLink, IconLogout,
-} from "@/components/ui";
+import { Spinner } from "@/components/ui";
 import { PageHeader } from "@/components";
+
+const TRADE_MODES = [
+  { value: "cautious", label: "Cautious", icon: "🐢", desc: "Smaller bets, skip low confidence" },
+  { value: "standard", label: "Standard", icon: "⚖️", desc: "Balanced risk/reward" },
+  { value: "expert", label: "Expert", icon: "🔥", desc: "Larger bets, max exposure" },
+];
+
+const COPY_FACTORS = [0.5, 1, 2, 3, 5];
+const MAX_RISK_OPTIONS = [5, 10, 20, 40];
+const MIN_BET_OPTIONS = [0.1, 1, 5, 10];
+const MAX_POS_OPTIONS = [10, 20, 50, 100];
+const MAX_EXP_OPTIONS = [25, 50, 75, 100];
+const MAX_EVT_OPTIONS = [1, 2, 5, 10];
+const DAILY_LOSS_OPTIONS = [10, 15, 25, 50];
+
+function OptionRow({ label, desc, options, value, onChange, format }: {
+  label: string;
+  desc?: string;
+  options: number[];
+  value: number;
+  onChange: (v: number) => void;
+  format?: (v: number) => string;
+}) {
+  const fmt = format || ((v: number) => String(v));
+  return (
+    <div className="py-4 border-b border-black/[0.04] last:border-0">
+      <div className="mb-2">
+        <p className="text-sm font-semibold text-[#0F0F0F]">{label}</p>
+        {desc && <p className="text-xs text-[#6B7280] mt-0.5">{desc}</p>}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onChange(opt)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              value === opt
+                ? "bg-[#0F0F0F] text-white"
+                : "bg-[#F5F5F5] text-[#6B7280] hover:bg-[#E5E5E5]"
+            }`}
+          >
+            {fmt(opt)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
-    userApi.me().then(setProfile).catch(() => {}).finally(() => setLoading(false));
+    userApi.me()
+      .then((data) => {
+        setProfile(data);
+        setSettings(data.settings || {});
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  async function updateSetting(key: string, value: any) {
+    setSaving(true);
+    try {
+      const res = await userApi.updateSettings({ [key]: value });
+      setSettings(res.settings);
+    } catch (e) {
+      console.error("Failed to update setting:", e);
+    }
+    setSaving(false);
+  }
 
   function copyWallet() {
     if (!profile?.wallet_address) return;
@@ -54,6 +115,7 @@ export default function SettingsPage() {
     );
   }
 
+  const s = settings || {};
   const walletDisplay = profile?.wallet_address
     ? truncateAddress(profile.wallet_address)
     : "Not connected";
@@ -62,31 +124,122 @@ export default function SettingsPage() {
     <div className="max-w-[700px] mx-auto">
       <PageHeader title="Settings" />
 
-      {/* Wallet */}
-      <Card className="mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <IconWallet size={20} className="text-[#6B7280]" />
-            <div>
-              <p className="text-sm font-medium text-[#0F0F0F]">Wallet</p>
-              <p className="text-xs text-[#6B7280] font-mono">{walletDisplay}</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={copyWallet}>
-            {copied ? "Copied!" : "Copy"}
-          </Button>
+      {/* Trade Mode */}
+      <div className="bg-white rounded-2xl border border-black/[0.04] p-5 mb-4">
+        <h3 className="text-sm font-bold text-[#0F0F0F] mb-3">Trade Mode</h3>
+        <div className="grid grid-cols-3 gap-2">
+          {TRADE_MODES.map((mode) => (
+            <button
+              key={mode.value}
+              onClick={() => updateSetting("trade_mode", mode.value)}
+              className={`p-3 rounded-xl text-center transition-all ${
+                s.trade_mode === mode.value
+                  ? "bg-[#0F0F0F] text-white"
+                  : "bg-[#F5F5F5] text-[#6B7280] hover:bg-[#E5E5E5]"
+              }`}
+            >
+              <div className="text-lg mb-1">{mode.icon}</div>
+              <div className="text-xs font-semibold">{mode.label}</div>
+            </button>
+          ))}
         </div>
-      </Card>
+      </div>
 
-      {/* Export Private Key -- inline expandable */}
-      <Card padding="none" className="mb-4 overflow-hidden">
+      {/* Risk & Sizing */}
+      <div className="bg-white rounded-2xl border border-black/[0.04] p-5 mb-4">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-[#0F0F0F]">Risk & Position Sizing</h3>
+          {saving && <span className="text-xs text-[#6B7280]">Saving...</span>}
+        </div>
+
+        <OptionRow
+          label="Copy Factor"
+          desc="Multiplier on proportional bet size"
+          options={COPY_FACTORS}
+          value={s.copy_factor ?? 1}
+          onChange={(v) => updateSetting("copy_factor", v)}
+          format={(v) => `${v}x`}
+        />
+
+        <OptionRow
+          label="Max Risk Per Trade"
+          desc="Max % of portfolio on a single trade"
+          options={MAX_RISK_OPTIONS}
+          value={s.max_risk_pct ?? 10}
+          onChange={(v) => updateSetting("max_risk_pct", v)}
+          format={(v) => `${v}%`}
+        />
+
+        <OptionRow
+          label="Min Bet Size"
+          desc="Trades below this are skipped"
+          options={MIN_BET_OPTIONS}
+          value={s.min_bet ?? 1}
+          onChange={(v) => updateSetting("min_bet", v)}
+          format={(v) => `$${v}`}
+        />
+
+        <OptionRow
+          label="Max Positions"
+          desc="Hard cap on simultaneous positions"
+          options={MAX_POS_OPTIONS}
+          value={s.max_open_positions ?? 20}
+          onChange={(v) => updateSetting("max_open_positions", v)}
+        />
+
+        <OptionRow
+          label="Max Exposure"
+          desc="Total $ at risk as % of portfolio"
+          options={MAX_EXP_OPTIONS}
+          value={s.max_exposure_pct ?? 50}
+          onChange={(v) => updateSetting("max_exposure_pct", v)}
+          format={(v) => `${v}%`}
+        />
+
+        <OptionRow
+          label="Max Per Event"
+          desc="Max positions on the same event"
+          options={MAX_EVT_OPTIONS}
+          value={s.max_per_event ?? 2}
+          onChange={(v) => updateSetting("max_per_event", v)}
+        />
+
+        <OptionRow
+          label="Daily Loss Limit"
+          desc="Halts trading if daily P&L drops below this"
+          options={DAILY_LOSS_OPTIONS}
+          value={s.daily_loss_limit_pct ?? 15}
+          onChange={(v) => updateSetting("daily_loss_limit_pct", v)}
+          format={(v) => `${v}%`}
+        />
+      </div>
+
+      {/* Wallet */}
+      <div className="bg-white rounded-2xl border border-black/[0.04] p-5 mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-[#0F0F0F]">Wallet</p>
+            <p className="text-xs text-[#6B7280] font-mono mt-0.5">{walletDisplay}</p>
+          </div>
+          <button
+            onClick={copyWallet}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F5F5F5] text-[#6B7280] hover:bg-[#E5E5E5] transition-all"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      {/* Export Private Key */}
+      <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden mb-4">
         <button
           onClick={() => setShowKey(!showKey)}
-          className="w-full flex items-center gap-3 px-5 py-4 hover:bg-[#F5F5F5] transition-colors text-left"
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#F5F5F5] transition-colors text-left"
         >
-          <IconKey size={20} className="text-[#6B7280]" />
-          <span className="flex-1 text-sm font-medium text-[#0F0F0F]">Export Private Key</span>
-          <IconChevronRight size={16} className={`text-[#9CA3AF] transition-transform ${showKey ? "rotate-90" : ""}`} />
+          <span className="text-sm font-semibold text-[#0F0F0F]">Export Private Key</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showKey ? "rotate-90" : ""}`}>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </button>
         {showKey && (
           <div className="px-5 pb-5 border-t border-black/5">
@@ -96,82 +249,20 @@ export default function SettingsPage() {
               </p>
             </div>
             <div className="bg-[#F5F5F5] rounded-xl px-4 py-3 font-mono text-xs break-all text-[#0F0F0F] mb-3">
-              {profile?.private_key || profile?.auth_wallet || "Your private key is securely stored. Contact support to export."}
+              {profile?.private_key || profile?.auth_wallet || "Your private key is securely stored."}
             </div>
-            <Button size="sm" onClick={copyPrivateKey}>
+            <button
+              onClick={copyPrivateKey}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0F0F0F] text-white hover:bg-[#333] transition-all"
+            >
               {keyCopied ? "Copied!" : "Copy Key"}
-            </Button>
+            </button>
           </div>
         )}
-      </Card>
-
-      {/* Help & Resources -- inline expandable */}
-      <Card padding="none" className="mb-4 overflow-hidden">
-        <button
-          onClick={() => setShowHelp(!showHelp)}
-          className="w-full flex items-center gap-3 px-5 py-4 hover:bg-[#F5F5F5] transition-colors text-left"
-        >
-          <IconBook size={20} className="text-[#6B7280]" />
-          <span className="flex-1 text-sm font-medium text-[#0F0F0F]">Help & Resources</span>
-          <IconChevronRight size={16} className={`text-[#9CA3AF] transition-transform ${showHelp ? "rotate-90" : ""}`} />
-        </button>
-        {showHelp && (
-          <div className="px-5 pb-5 border-t border-black/5 pt-3">
-            <div className="space-y-1">
-              <a href="https://t.me/polycoolapp" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F5F5F5] transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-                  <IconQuestion size={16} className="text-[#0F0F0F]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#0F0F0F]">FAQ & Support</p>
-                  <p className="text-xs text-[#6B7280]">Get help from our team on Telegram</p>
-                </div>
-              </a>
-              <a href="mailto:support@polycool.app" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F5F5F5] transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-                  <IconEnvelope size={16} className="text-[#0F0F0F]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#0F0F0F]">Email Support</p>
-                  <p className="text-xs text-[#6B7280]">support@polycool.app</p>
-                </div>
-              </a>
-              <div className="flex items-center gap-3 p-3 rounded-xl">
-                <div className="w-9 h-9 rounded-xl bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-                  <IconShield size={16} className="text-[#0F0F0F]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#0F0F0F]">Security</p>
-                  <p className="text-xs text-[#6B7280]">Your funds are secured on Polygon</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl">
-                <div className="w-9 h-9 rounded-xl bg-[#F5F5F5] flex items-center justify-center flex-shrink-0">
-                  <IconDocument size={16} className="text-[#0F0F0F]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#0F0F0F]">Terms of Service</p>
-                  <p className="text-xs text-[#6B7280]">Legal terms and conditions</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* Join the Community */}
-      <a href="https://t.me/polycoolapp" target="_blank" rel="noopener noreferrer">
-        <Card className="mb-4 hover:bg-[#F5F5F5] transition-colors">
-          <div className="flex items-center gap-3">
-            <IconSend size={20} className="text-[#6B7280]" />
-            <span className="flex-1 text-sm font-medium text-[#0F0F0F]">Join the Community</span>
-            <IconExternalLink size={14} className="text-[#9CA3AF]" />
-          </div>
-        </Card>
-      </a>
+      </div>
 
       {/* Account Info */}
-      <Card className="mb-4">
+      <div className="bg-white rounded-2xl border border-black/[0.04] p-5 mb-4">
         <h3 className="font-bold text-sm text-[#0F0F0F] mb-3">Account</h3>
         <div className="space-y-0 text-sm">
           {profile?.auth_wallet && profile.auth_wallet.includes("@") && (
@@ -181,14 +272,10 @@ export default function SettingsPage() {
             </div>
           )}
           <div className="flex justify-between py-3 border-b border-black/5">
-            <span className="text-[#6B7280] font-medium">Auth</span>
+            <span className="text-[#6B7280] font-medium">Mode</span>
             <span className="font-medium text-[#0F0F0F]">
-              {(profile?.auth_provider || "web").charAt(0).toUpperCase() + (profile?.auth_provider || "web").slice(1)}
+              {s.demo_mode ? "Demo" : "Live"}
             </span>
-          </div>
-          <div className="flex justify-between py-3 border-b border-black/5">
-            <span className="text-[#6B7280] font-medium">Wallet</span>
-            <span className="font-medium text-[#0F0F0F] font-mono text-xs">{walletDisplay}</span>
           </div>
           <div className="flex justify-between py-3">
             <span className="text-[#6B7280] font-medium">Since</span>
@@ -197,13 +284,15 @@ export default function SettingsPage() {
             </span>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Log out */}
-      <Button variant="danger" size="sm" onClick={logout} className="gap-3">
-        <IconLogout size={18} />
+      <button
+        onClick={logout}
+        className="w-full py-3 rounded-xl text-sm font-semibold text-[#EF4444] bg-[#FEF2F2] hover:bg-[#FEE2E2] transition-all mb-8"
+      >
         Log out
-      </Button>
+      </button>
     </div>
   );
 }
