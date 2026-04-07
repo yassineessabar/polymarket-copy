@@ -119,8 +119,8 @@ export default function PortfolioPage() {
             </div>
             <div>
               <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Realized P&L</p>
-              <p className={`text-base sm:text-lg font-bold font-mono ${(summary.daily_pnl || 0) >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
-                {formatPnl(summary.daily_pnl || 0)}
+              <p className={`text-base sm:text-lg font-bold font-mono ${(summary.total_pnl || 0) >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
+                {formatPnl(summary.total_pnl || 0)}
               </p>
             </div>
             <div>

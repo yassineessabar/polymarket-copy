@@ -29,6 +29,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/whales",
+    label: "Whales",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 12c0-3 2-7 7-7 3 0 5 2 7 2s4-1 6 1c1 1 1 3-1 5-1 1-2 3-4 4-3 2-6 2-9 1s-6-3-6-6z" />
+        <circle cx="17" cy="10" r="1" />
+      </svg>
+    ),
+  },
+  {
     href: "/portfolio",
     label: "Portfolio",
     icon: (
@@ -74,8 +84,8 @@ const NAV_ITEMS = [
 const MOBILE_NAV = [
   NAV_ITEMS[0], // Dashboard
   NAV_ITEMS[1], // Strategies
-  NAV_ITEMS[3], // Wallet
-  NAV_ITEMS[5], // Settings
+  NAV_ITEMS[2], // Whales
+  NAV_ITEMS[6], // Settings
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

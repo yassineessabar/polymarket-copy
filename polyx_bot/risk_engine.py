@@ -121,7 +121,7 @@ def risk_check(
     if event_count >= max_per_event:
         return 0, 0, f"EVENT LIMIT ({max_per_event})"
 
-    max_exp = (max_exposure_pct / 100) * portfolio_value
+    max_exp = min((max_exposure_pct / 100), 1.0) * portfolio_value  # hard cap at 100% regardless of mode
     budget = max_exp - total_exposure
     if budget < min_bet:
         return 0, 0, f"EXPOSURE CAP (${total_exposure:.0f}/${max_exp:.0f})"

@@ -323,3 +323,106 @@ async def get_all_trader_analytics():
     # Sort by total_value descending
     results.sort(key=lambda x: x.get("total_value", 0), reverse=True)
     return {"traders": results}
+
+
+@router.get("/whale-positions")
+async def get_whale_positions(min_value: float = 50000):
+    """Scan ALL traders for large positions (>$50K by default)."""
+    import aiohttp
+
+    # Fetch all trader data
+    results = []
+    tasks_to_fetch = []
+
+    for wallet in TRADER_META:
+        cached = _cache.get(wallet)
+        if cached and time.time() - cached["timestamp"] < CACHE_TTL:
+            results.append(cached["data"])
+        else:
+            tasks_to_fetch.append(wallet)
+
+    if tasks_to_fetch:
+        fetched = await asyncio.gather(*[_fetch_trader_data(w) for w in tasks_to_fetch])
+        for wallet, data in zip(tasks_to_fetch, fetched):
+            _cache[wallet] = {"data": data, "timestamp": time.time()}
+            results.append(data)
+
+    # Also scan top Polymarket traders from PolymarketAnalytics
+    pa_headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://polymarketanalytics.com/api/trader-performance-highlights?type=top_traders",
+                headers=pa_headers, timeout=aiohttp.ClientTimeout(total=15)
+            ) as r:
+                if r.status == 200:
+                    top_data = await r.json(content_type=None)
+                    if isinstance(top_data, dict) and "data" in top_data:
+                        for t in top_data["data"][:50]:
+                            wallet = t.get("trader", "")
+                            if wallet and wallet.lower() not in {w.lower() for w in TRADER_META}:
+                                # Fetch positions for this trader
+                                try:
+                                    pos_resp = await session.get(
+                                        f"https://data-api.polymarket.com/positions?user={wallet}&sizeThreshold=0&limit=50&sortBy=CURRENTVALUE&sortDir=DESC",
+                                        timeout=aiohttp.ClientTimeout(total=10)
+                                    )
+                                    if pos_resp.status == 200:
+                                        positions = await pos_resp.json()
+                                        big_pos = []
+                                        for p in positions:
+                                            cv = float(p.get("currentValue", 0))
+                                            if cv >= min_value:
+                                                big_pos.append({
+                                                    "title": p.get("title", "?"),
+                                                    "outcome": p.get("outcome", "?"),
+                                                    "value": round(cv, 2),
+                                                    "pnl": round(float(p.get("cashPnl", 0)), 2),
+                                                    "size": round(float(p.get("size", 0)), 2),
+                                                    "price": round(float(p.get("curPrice", 0)), 4),
+                                                })
+                                        if big_pos:
+                                            results.append({
+                                                "wallet": wallet,
+                                                "name": t.get("trader_name", wallet[:10]),
+                                                "rank": t.get("rank", 0),
+                                                "image": "",
+                                                "top_holdings": big_pos,
+                                                "total_pnl": t.get("overall_gain", 0),
+                                                "win_rate": round((t.get("win_rate", 0) or 0) * 100, 1),
+                                                "total_value": t.get("total_current_value", 0),
+                                                "position_count": t.get("total_positions", 0),
+                                            })
+                                except Exception:
+                                    pass
+    except Exception as e:
+        log.warning(f"[WhalePositions] Failed to fetch top traders: {e}")
+
+    # Collect all positions > min_value across all traders
+    whale_positions = []
+    for trader in results:
+        for h in trader.get("top_holdings", []):
+            if h.get("value", 0) >= min_value:
+                whale_positions.append({
+                    "trader_name": trader.get("name", "Unknown"),
+                    "trader_wallet": trader.get("wallet", ""),
+                    "trader_rank": trader.get("rank", 0),
+                    "trader_pnl": trader.get("total_pnl", 0),
+                    "trader_win_rate": trader.get("win_rate", 0),
+                    "title": h.get("title", "?"),
+                    "outcome": h.get("outcome", "?"),
+                    "value": h.get("value", 0),
+                    "pnl": h.get("pnl", 0),
+                    "size": h.get("size", 0),
+                    "price": h.get("price", 0),
+                })
+
+    # Sort by value descending
+    whale_positions.sort(key=lambda x: x["value"], reverse=True)
+
+    return {
+        "positions": whale_positions,
+        "traders_scanned": len(results),
+        "min_value": min_value,
+    }
+

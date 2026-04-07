@@ -591,10 +591,15 @@ class CopyTradeManager:
             if age_minutes < 30:
                 continue
 
-            # Stale short-term market — assume won (entry was 99c+)
+            # Stale short-term market — check entry price to determine outcome
             entry = pos.get("entry_price", 0)
             bet_amt = pos.get("bet_amount", 0)
-            cur_price = 1.0
+            # Only assume won if entry was 95c+ (high-confidence resolved markets)
+            # For lower entries, use entry price (flat close, no P&L)
+            if entry >= 0.95:
+                cur_price = 1.0
+            else:
+                cur_price = entry  # flat close — no gain, no loss
             shares = bet_amt / entry if entry > 0 else 0
             pnl_usd = shares * (cur_price - entry)
 
