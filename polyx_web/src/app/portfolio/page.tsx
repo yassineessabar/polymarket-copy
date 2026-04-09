@@ -196,6 +196,16 @@ export default function PortfolioPage() {
             const pnl = pos.pnl_usd || pos.unrealized_pnl || 0;
             const pnlPctVal = pos.entry_price > 0 ? (((pos.live_price || pos.exit_price || pos.entry_price) - pos.entry_price) / pos.entry_price * 100) : 0;
 
+            // Execution delay: difference between our copy time and trader's original trade
+            let delaySec: number | null = null;
+            if (pos.source_timestamp && pos.opened_at) {
+              const src = new Date(pos.source_timestamp).getTime();
+              const opened = new Date(pos.opened_at).getTime();
+              if (!isNaN(src) && !isNaN(opened)) {
+                delaySec = Math.round((opened - src) / 1000);
+              }
+            }
+
             return (
               <Card key={pos.id} className="hover:shadow-md transition-all">
                 {/* Trader source */}
@@ -232,7 +242,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 </div>
-                <div className={`grid ${tab === "closed" ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-5"} gap-2 mt-3 pt-3 border-t border-black/5`}>
+                <div className={`grid ${tab === "closed" ? "grid-cols-3 sm:grid-cols-7" : "grid-cols-2 sm:grid-cols-6"} gap-2 mt-3 pt-3 border-t border-black/5`}>
                   <div>
                     <div className="text-[10px] text-[#6B7280] font-medium">Entry</div>
                     <div className="text-sm font-mono font-medium text-[#0F0F0F]">{entryPct}c</div>
@@ -256,6 +266,12 @@ export default function PortfolioPage() {
                   <div>
                     <div className="text-[10px] text-[#6B7280] font-medium">Opened</div>
                     <div className="text-xs text-[#6B7280]">{formatDate(pos.opened_at)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[#6B7280] font-medium">Exec Delay</div>
+                    <div className={`text-xs font-mono font-medium ${delaySec !== null && delaySec <= 10 ? "text-[#10B981]" : delaySec !== null && delaySec <= 30 ? "text-[#F59E0B]" : "text-[#EF4444]"}`}>
+                      {delaySec !== null ? `${delaySec}s` : "—"}
+                    </div>
                   </div>
                   {tab === "closed" && pos.closed_at && (
                     <div>

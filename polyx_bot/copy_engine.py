@@ -354,11 +354,13 @@ class CopyTradeManager:
                 return
 
         # Record position
+        source_ts = activity.get("createdAt") or activity.get("timestamp") or None
         pos_id = await self.db.open_position(
             telegram_id=telegram_id, target_wallet=target,
             condition_id=cid, outcome_index=oi, token_id=token_id,
             title=title, outcome=outcome, entry_price=price,
-            bet_amount=bet, target_usdc_size=usdc_size, event_slug=slug)
+            bet_amount=bet, target_usdc_size=usdc_size, event_slug=slug,
+            source_timestamp=source_ts)
 
         # Record trade
         trade_id = await self.db.record_trade(

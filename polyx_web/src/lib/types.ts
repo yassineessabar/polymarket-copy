@@ -46,6 +46,7 @@ export interface Position {
   token_id: string;
   condition_id: string;
   target_wallet?: string;
+  source_timestamp?: string;
   opened_at: string;
   is_open: number;
   closed_at?: string;

@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS positions (
     bet_amount      REAL NOT NULL,
     target_usdc_size REAL,
     event_slug      TEXT,
+    source_timestamp TEXT,
     opened_at       TEXT NOT NULL DEFAULT (datetime('now')),
     is_open         INTEGER NOT NULL DEFAULT 1,
     closed_at       TEXT,
@@ -196,6 +197,10 @@ class Database:
                 await db.execute("ALTER TABLE user_settings ADD COLUMN copy_factor REAL NOT NULL DEFAULT 1.0")
             except Exception:
                 pass
+            try:
+                await db.execute("ALTER TABLE positions ADD COLUMN source_timestamp TEXT")
+            except Exception:
+                pass
             # Backfill user_id on positions/trades where it's NULL
             try:
                 await db.execute(
@@ -323,7 +328,7 @@ class Database:
     async def open_position(self, telegram_id: int, target_wallet: str, condition_id: str,
                             outcome_index: int, token_id: str, title: str, outcome: str,
                             entry_price: float, bet_amount: float, target_usdc_size: float,
-                            event_slug: str) -> int:
+                            event_slug: str, source_timestamp: str = None) -> int:
         async with aiosqlite.connect(self.path) as db:
             # Look up user_id for this telegram_id so web API can find positions
             user_id = None
@@ -335,10 +340,10 @@ class Database:
                     user_id = row[0]
             cur = await db.execute(
                 "INSERT INTO positions (telegram_id, user_id, target_wallet, condition_id, outcome_index, "
-                "token_id, title, outcome, entry_price, bet_amount, target_usdc_size, event_slug) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "token_id, title, outcome, entry_price, bet_amount, target_usdc_size, event_slug, source_timestamp) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (telegram_id, user_id, target_wallet, condition_id, outcome_index, token_id,
-                 title, outcome, entry_price, bet_amount, target_usdc_size, event_slug))
+                 title, outcome, entry_price, bet_amount, target_usdc_size, event_slug, source_timestamp))
             await db.commit()
             return cur.lastrowid
 
