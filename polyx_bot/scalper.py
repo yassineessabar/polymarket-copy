@@ -293,17 +293,13 @@ class ScalperBot:
                  f"${start_price:,.2f} -> ${end_price:,.2f} ({price_change:+.3f}%) | "
                  f"Buying {direction} token")
 
-        # Calculate bet size
-        settings = await self.db.get_settings(self.telegram_id)
+        # Calculate bet size — outcome is known, go max
         balance = get_usdc_balance(self.proxy_wallet) if self.proxy_wallet else get_usdc_balance(self.wallet)
+        bet = round(balance * 0.95, 2)  # use 95% of balance (keep 5% buffer for fees)
 
-        max_bet = balance * 0.25  # max 25% per trade
-        bet = min(max_bet, balance * 0.10)  # default 10% of balance
-        min_bet = settings.get("min_bet", 0.01) if settings else 0.01
-
-        if bet < min_bet:
-            log.info(f"[Scalper] Bet too small: ${bet:.2f}")
-            market.trade_result = "TOO_SMALL"
+        if bet < 0.01:
+            log.info(f"[Scalper] No balance: ${balance:.2f}")
+            market.trade_result = "NO_BALANCE"
             return
 
         # Execute the buy
