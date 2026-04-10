@@ -145,102 +145,97 @@ class ScalperBot:
     # ── Market Discovery ──
 
     async def _market_discovery_loop(self):
-        """Discover markets every 30 seconds — catches new 5-min windows as they appear."""
+        """Discover markets every 15 seconds — constructs predictable slugs."""
         while self.running:
             try:
                 await self._discover_markets()
             except Exception as e:
                 log.error(f"[Scalper] Discovery error: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(15)
 
     async def _discover_markets(self):
+        """Construct predictable slugs and fetch market data directly.
+
+        Markets run every 5 minutes: slug = {asset}-updown-5m-{unix_ts}
+        where unix_ts is aligned to 300-second intervals.
+        """
         now = int(time.time())
+        current_window = (now // 300) * 300  # current 5-min slot
+
         async with aiohttp.ClientSession() as s:
-            for asset, cfg in ASSETS.items():
-                try:
-                    # Search for active (not yet resolved) markets
-                    async with s.get(
-                        f"{GAMMA_API}/events",
-                        params={
-                            "active": "true", "closed": "false", "limit": "10",
-                            "slug_contains": cfg["slug_prefix"],
-                            "order": "startDate", "ascending": "false",
-                        },
-                        timeout=aiohttp.ClientTimeout(total=10),
-                    ) as r:
-                        events = await r.json()
+            # Check current window and next window for each asset
+            for window_ts in [current_window, current_window + 300]:
+                for asset, cfg in ASSETS.items():
+                    slug = cfg["slug_prefix"] + str(window_ts)
 
-                    for e in events:
-                        title = e.get("title", "")
-                        if "up or down" not in title.lower():
-                            continue
-                        if cfg["name"] not in title.lower():
-                            continue
+                    if slug in self.markets:
+                        continue
 
-                        slug = e.get("slug", "")
-                        if slug in self.markets:
-                            continue
+                    try:
+                        async with s.get(
+                            f"{GAMMA_API}/events",
+                            params={"slug": slug},
+                            timeout=aiohttp.ClientTimeout(total=8),
+                        ) as r:
+                            data = await r.json()
 
-                        parts = slug.split("-")
-                        slug_ts = int(parts[-1]) if parts[-1].isdigit() else 0
-                        if not slug_ts:
-                            continue
+                        events = data if isinstance(data, list) else [data] if isinstance(data, dict) and data else []
 
-                        window_end = slug_ts + 300
+                        for e in events:
+                            if not e or not isinstance(e, dict):
+                                continue
+                            title = e.get("title", "")
+                            if "up or down" not in title.lower():
+                                continue
 
-                        # Track markets where:
-                        # - Window hasn't ended yet (we can record start price), OR
-                        # - Window ended < 120s ago (we might still trade in the buffer)
-                        if window_end + 120 < now:
-                            continue
+                            markets = e.get("markets", [])
+                            if not markets:
+                                continue
 
-                        markets = e.get("markets", [])
-                        if not markets:
-                            continue
+                            m = markets[0]
+                            condition_id = m.get("conditionId", "")
+                            outcomes = m.get("outcomes", [])
+                            tokens_raw = m.get("clobTokenIds") or m.get("clob_token_ids") or []
 
-                        m = markets[0]
-                        condition_id = m.get("conditionId", "")
-                        outcomes = m.get("outcomes", [])
-                        tokens_raw = m.get("clobTokenIds") or m.get("clob_token_ids") or []
+                            if isinstance(tokens_raw, str):
+                                try:
+                                    tokens = json.loads(tokens_raw)
+                                except json.JSONDecodeError:
+                                    tokens = []
+                            else:
+                                tokens = tokens_raw
 
-                        if isinstance(tokens_raw, str):
-                            try:
-                                tokens = json.loads(tokens_raw)
-                            except json.JSONDecodeError:
-                                tokens = []
-                        else:
-                            tokens = tokens_raw
+                            if len(tokens) < 2 or len(outcomes) < 2:
+                                continue
 
-                        if len(tokens) < 2 or len(outcomes) < 2:
-                            continue
+                            up_idx = next((i for i, o in enumerate(outcomes) if o.lower() == "up"), 0)
+                            down_idx = next((i for i, o in enumerate(outcomes) if o.lower() == "down"), 1)
 
-                        up_idx = next((i for i, o in enumerate(outcomes) if o.lower() == "up"), 0)
-                        down_idx = next((i for i, o in enumerate(outcomes) if o.lower() == "down"), 1)
+                            market = Market(
+                                asset=asset,
+                                slug=slug,
+                                window_start_ts=window_ts,
+                                condition_id=condition_id,
+                                up_token=tokens[up_idx],
+                                down_token=tokens[down_idx],
+                                title=title,
+                            )
 
-                        market = Market(
-                            asset=asset,
-                            slug=slug,
-                            window_start_ts=slug_ts,
-                            condition_id=condition_id,
-                            up_token=tokens[up_idx],
-                            down_token=tokens[down_idx],
-                            title=title,
-                        )
+                            # Record start price if window already open
+                            binance_sym = cfg["binance"]
+                            if binance_sym in self.prices and now >= window_ts:
+                                market.start_price = self.prices[binance_sym]
 
-                        # If we already have a price and window is active, record start price
-                        binance_sym = cfg["binance"]
-                        if binance_sym in self.prices and now >= slug_ts:
-                            market.start_price = self.prices[binance_sym]
+                            self.markets[slug] = market
+                            window_end = window_ts + 300
+                            secs_to_end = window_end - now
+                            start_utc = datetime.fromtimestamp(window_ts, tz=timezone.utc).strftime("%H:%M")
+                            end_utc = datetime.fromtimestamp(window_end, tz=timezone.utc).strftime("%H:%M")
+                            log.info(f"[Scalper] Tracking: {asset.upper()} {start_utc}-{end_utc} UTC "
+                                     f"(ends in {secs_to_end}s) | {title[:50]}")
 
-                        self.markets[slug] = market
-                        start_utc = datetime.fromtimestamp(slug_ts, tz=timezone.utc).strftime("%H:%M")
-                        end_utc = datetime.fromtimestamp(slug_ts + 300, tz=timezone.utc).strftime("%H:%M")
-                        secs_to_end = window_end - now
-                        log.info(f"[Scalper] Tracking: {asset.upper()} {start_utc}-{end_utc} UTC "
-                                 f"(ends in {secs_to_end}s) | {title[:50]}")
-
-                except Exception as e:
-                    log.error(f"[Scalper] Discovery error for {asset}: {e}")
+                    except Exception as e:
+                        pass  # market might not exist yet, that's fine
 
     # ── Trading Loop ──
 
