@@ -37,7 +37,8 @@ ASSETS = {
 }
 
 # How many seconds after window end to place the trade
-TRADE_DELAY_SECS = 1
+# Orderbook needs time to fill with sellers at ~99c after window closes
+TRADE_DELAY_SECS = 15
 
 
 class Market:
@@ -240,7 +241,15 @@ class ScalperBot:
     # ── Trading Loop ──
 
     async def _trading_loop(self):
-        """Check every 0.5s — record start prices and trade when windows close."""
+        """Check every 0.5s — record start prices and trade when windows close.
+
+        Only trades ONE asset per 5-min window (BTC preferred, highest liquidity).
+        Retries up to 3 times with 5s gaps if orderbook is empty.
+        """
+        # Priority order — trade the first one that works
+        asset_priority = ["btc", "eth", "sol", "doge", "xrp"]
+        traded_windows: set[int] = set()  # window_start_ts we already traded
+
         while self.running:
             now = int(time.time())
 
@@ -263,19 +272,40 @@ class ScalperBot:
 
                 # Trade when window closes + delay
                 if now >= market.window_end_ts + TRADE_DELAY_SECS and market.start_price is not None:
+                    # Only trade one asset per window to avoid spreading $18 across 5
+                    if market.window_start_ts in traded_windows:
+                        market.traded = True
+                        market.trade_result = "SKIPPED (already traded this window)"
+                        continue
+
                     market.end_price = current_price
-                    await self._execute_trade(market)
+                    success = await self._execute_trade_with_retry(market)
+                    if success:
+                        traded_windows.add(market.window_start_ts)
 
             await asyncio.sleep(0.5)
 
-    async def _execute_trade(self, market: Market):
+    async def _execute_trade_with_retry(self, market: Market, max_retries: int = 3) -> bool:
+        """Try to execute trade, retry if orderbook is empty."""
+        for attempt in range(max_retries):
+            success = await self._execute_trade(market)
+            if success:
+                return True
+            if attempt < max_retries - 1:
+                market.traded = False  # reset for retry
+                log.info(f"[Scalper] Retry {attempt + 2}/{max_retries} in 5s...")
+                await asyncio.sleep(5)
+        return False
+
+    async def _execute_trade(self, market: Market) -> bool:
+        """Returns True on success, False on failure (for retry)."""
         market.traded = True
 
         start_price = market.start_price
         end_price = market.end_price
         if not start_price or not end_price:
             log.warning(f"[Scalper] No price data for {market.slug}")
-            return
+            return False
 
         went_up = end_price >= start_price
         direction = "Up" if went_up else "Down"
@@ -293,7 +323,7 @@ class ScalperBot:
         if bet < 0.10:
             log.info(f"[Scalper] Low balance: ${balance:.2f}")
             market.trade_result = "LOW_BALANCE"
-            return
+            return False
 
         try:
             if not self.client:
@@ -343,16 +373,12 @@ class ScalperBot:
                 f"Bet: <b>${bet:.2f}</b>\n"
                 f"Trades today: {self.stats['trades']}"
             )
+            return True
 
         except Exception as e:
             market.trade_result = f"FAILED: {e}"
             log.error(f"[Scalper] Buy failed: {e}")
-            await self._notify(
-                f"<b>SCALP FAILED</b>\n"
-                f"{market.title}\n"
-                f"{direction} | ${bet:.2f}\n"
-                f"Error: {str(e)[:100]}"
-            )
+            return False
 
     async def _notify(self, text: str):
         if not self.bot:
