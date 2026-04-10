@@ -144,8 +144,10 @@ export const traderApi = {
 export const reconciliationApi = {
   sharky: (limit = 100) =>
     apiFetch<any>(`/api/v1/reconciliation/sharky?limit=${limit}`),
-  importTrades: (limit = 100) =>
+  importTrades: (limit = 200) =>
     apiFetch<any>(`/api/v1/reconciliation/import?limit=${limit}`, { method: "POST" }),
-  compare: (limit = 100) =>
+  compare: (limit = 200) =>
     apiFetch<any>(`/api/v1/reconciliation/compare?limit=${limit}`),
+  reset: () =>
+    apiFetch<any>(`/api/v1/reconciliation/reset`, { method: "POST" }),
 };

@@ -38,12 +38,22 @@ export default function ReconciliationPage() {
     try {
       const result = await reconciliationApi.importTrades(200);
       setImportResult(result);
-      // Reload comparison data
       await loadData();
     } catch (e: any) {
       setImportResult({ error: e.message });
     }
     setImporting(false);
+  }
+
+  async function handleReset() {
+    if (!confirm("Delete all imported positions and trades? You can re-import after.")) return;
+    try {
+      await reconciliationApi.reset();
+      setImportResult(null);
+      await loadData();
+    } catch (e: any) {
+      setError(e.message);
+    }
   }
 
   if (loading) {
@@ -110,14 +120,24 @@ export default function ReconciliationPage() {
               Fetch from Polymarket API and save to DB as positions. Run this to populate your portfolio view.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleImport}
-            disabled={importing}
-          >
-            {importing ? "Importing..." : "Import Trades"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              className="text-[#EF4444] hover:bg-[#FEF2F2]"
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleImport}
+              disabled={importing}
+            >
+              {importing ? "Importing..." : "Import Trades"}
+            </Button>
+          </div>
         </div>
 
         {importResult && (
@@ -213,13 +233,17 @@ export default function ReconciliationPage() {
           ) : (
             matched.map((m: any, i: number) => {
               const st = m.sharky_trade;
-              const ours = m.our_positions || [];
+              const p = m.our_position || {};
               const isBuy = (st.side || "").toUpperCase() === "BUY";
+              const pnl = p.pnl_usd || 0;
               return (
                 <Card key={i} className="hover:shadow-md transition-all">
                   <div className="flex items-center gap-2 mb-2 pb-2 border-b border-black/5">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
                     <span className="text-[10px] text-[#10B981] font-semibold uppercase">Matched</span>
+                    <Badge variant={p.is_open ? "active" : "neutral"} className="ml-auto">
+                      {p.is_open ? "OPEN" : "CLOSED"}
+                    </Badge>
                   </div>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -234,26 +258,18 @@ export default function ReconciliationPage() {
                       <p className="text-xs text-[#6B7280] font-mono">{((st.price || 0) * 100).toFixed(1)}c</p>
                     </div>
                   </div>
-                  {/* Our positions for this trade */}
-                  <div className="mt-2 pt-2 border-t border-black/5">
-                    <p className="text-[10px] text-[#6B7280] uppercase font-medium mb-1">Our Position(s)</p>
-                    {ours.map((p: any) => (
-                      <div key={p.id} className="flex items-center justify-between text-xs py-1">
-                        <span className="text-[#6B7280]">
-                          Entry: {((p.entry_price || 0) * 100).toFixed(1)}c | Bet: {formatUsd(p.bet_amount || 0)}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={p.is_open ? "active" : "neutral"}>
-                            {p.is_open ? "OPEN" : "CLOSED"}
-                          </Badge>
-                          {p.pnl_usd !== null && p.pnl_usd !== undefined && !p.is_open && (
-                            <span className={`font-mono font-medium ${p.pnl_usd >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
-                              {formatPnl(p.pnl_usd)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  {/* Our position for this trade */}
+                  <div className="mt-2 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
+                    <span className="text-[#6B7280]">
+                      Entry: {((p.entry_price || 0) * 100).toFixed(1)}c
+                      {p.exit_price ? ` | Exit: ${((p.exit_price || 0) * 100).toFixed(1)}c` : ""}
+                      {" | "}Bet: {formatUsd(p.bet_amount || 0)}
+                    </span>
+                    {!p.is_open && pnl !== 0 && (
+                      <span className={`font-mono font-bold ${pnl >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
+                        {formatPnl(pnl)}
+                      </span>
+                    )}
                   </div>
                 </Card>
               );
