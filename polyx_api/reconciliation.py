@@ -1,4 +1,4 @@
-"""Reconciliation endpoints: compare Sharky6999 trades with our DB positions."""
+"""Reconciliation endpoints: compare Sharky6999 Polyscan trades with our copy bot positions."""
 import logging
 from datetime import datetime
 
@@ -21,44 +21,13 @@ log = logging.getLogger("polyx")
 router = APIRouter(prefix="/api/v1/reconciliation", tags=["reconciliation"])
 
 SHARKY_WALLET = "0x751a2b86cab503496efd325c8344e10159349ea1"
-SHARKY_TELEGRAM_ID = -3
-SHARKY_USER_ID = -3
+
+# Primary tracking user — Telegram bot account copying Sharky
+MY_TELEGRAM_ID = 7446549575
+MY_USER_ID = 7446549575
 
 
-async def _ensure_user(db: Database):
-    """Make sure user -3 exists so positions get the right user_id."""
-    async with aiosqlite.connect(db.path) as conn:
-        await conn.execute(
-            "INSERT OR IGNORE INTO users (telegram_id, username, wallet_address, private_key_enc, "
-            "referral_code, user_id, auth_provider) VALUES (?, ?, ?, '', 'SHARKY_RECON', ?, 'web')",
-            (SHARKY_TELEGRAM_ID, "essabar.yassine@gmail.com",
-             "0xb6c9718dfacaa2397e36193ec1639baa87913b7d", SHARKY_USER_ID),
-        )
-        await conn.execute(
-            "INSERT OR IGNORE INTO user_settings (telegram_id, user_id, demo_mode, demo_balance, "
-            "copy_trading_active) VALUES (?, ?, 1, 1000.0, 1)",
-            (SHARKY_TELEGRAM_ID, SHARKY_USER_ID),
-        )
-        await conn.commit()
-
-
-async def _get_imported_trade_ids(db: Database) -> set:
-    """Get all trade_ids we already imported (stored in source_timestamp)."""
-    async with aiosqlite.connect(db.path) as conn:
-        async with conn.execute(
-            "SELECT source_timestamp FROM positions WHERE user_id=? AND source_timestamp LIKE '%|tid:%'",
-            (SHARKY_USER_ID,),
-        ) as cur:
-            rows = await cur.fetchall()
-    result = set()
-    for row in rows:
-        val = row[0] or ""
-        if "|tid:" in val:
-            result.add(val.split("|tid:")[1])
-    return result
-
-
-# ── GET /sharky — raw activity + our DB positions side by side ──
+# ── GET /sharky — raw Sharky activity + our bot's positions side by side ──
 
 
 @router.get("/sharky")
@@ -66,13 +35,13 @@ async def sharky_overview(
     limit: int = Query(100, ge=1, le=500),
     db: Database = Depends(get_db),
 ):
-    """Fetch Sharky6999 recent activity from Polymarket and our DB positions."""
+    """Fetch Sharky6999 recent activity from Polymarket and our bot's positions."""
     async with aiohttp.ClientSession() as session:
         activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
         sharky_name = await get_profile_name(session, SHARKY_WALLET)
 
-    our_open = await db.get_open_positions_by_user_id(SHARKY_USER_ID)
-    our_closed = await db.get_closed_positions_by_user_id(SHARKY_USER_ID, limit=limit)
+    our_open = await db.get_open_positions_by_user_id(MY_USER_ID)
+    our_closed = await db.get_closed_positions_by_user_id(MY_USER_ID, limit=limit)
 
     return {
         "sharky_wallet": SHARKY_WALLET,
@@ -85,258 +54,110 @@ async def sharky_overview(
     }
 
 
-# ── POST /import — import Sharky trades into our DB ──
-
-
-@router.post("/import")
-async def import_sharky_trades(
-    limit: int = Query(100, ge=1, le=500),
-    db: Database = Depends(get_db),
-):
-    """Fetch Sharky6999 trade history and import into positions/trades tables.
-
-    Each Sharky trade becomes one position. Deduplication uses trade_id
-    stored in the source_timestamp field as 'timestamp|tid:trade_id'.
-    """
-    await _ensure_user(db)
-
-    async with aiohttp.ClientSession() as session:
-        activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
-
-    # Filter to TRADE type only
-    trades = [a for a in activity if a.get("type", "").upper() == "TRADE"]
-
-    imported_buys = 0
-    imported_sells = 0
-    skipped = 0
-    errors = []
-
-    # Get already-imported trade IDs to avoid duplicates
-    already_imported = await _get_imported_trade_ids(db)
-
-    # Get existing open positions to match sells against
-    existing_open = await db.get_open_positions_by_user_id(SHARKY_USER_ID)
-
-    for trade in reversed(trades):  # oldest first so positions exist before sells
-        side = (trade.get("side") or "").upper()
-        condition_id = trade.get("conditionId", "")
-        outcome_index = int(trade.get("outcomeIndex", 0))
-        token_id = trade.get("asset", "") or trade.get("tokenId", "")
-        title = trade.get("title", "") or trade.get("question", "")
-        outcome = trade.get("outcome", "") or trade.get("outcomeName", "")
-        price = float(trade.get("price", 0) or 0)
-        usdc_size = float(trade.get("usdcSize", 0) or trade.get("size", 0) or 0)
-        event_slug = trade.get("slug", "") or trade.get("eventSlug", "")
-        raw_ts = trade.get("createdAt") or trade.get("timestamp") or ""
-        tid = make_trade_id(trade)
-
-        if not condition_id or not token_id:
-            skipped += 1
-            continue
-
-        # Deduplicate by trade_id
-        if tid in already_imported:
-            skipped += 1
-            continue
-
-        # Encode trade_id into source_timestamp for later retrieval
-        source_ts = f"{raw_ts}|tid:{tid}"
-
-        try:
-            if side == "BUY":
-                position_id = await db.open_position(
-                    telegram_id=SHARKY_TELEGRAM_ID,
-                    target_wallet=SHARKY_WALLET,
-                    condition_id=condition_id,
-                    outcome_index=outcome_index,
-                    token_id=token_id,
-                    title=title,
-                    outcome=outcome,
-                    entry_price=price,
-                    bet_amount=usdc_size,
-                    target_usdc_size=usdc_size,
-                    event_slug=event_slug,
-                    source_timestamp=source_ts,
-                )
-                await db.record_trade(
-                    telegram_id=SHARKY_TELEGRAM_ID,
-                    position_id=position_id,
-                    side="BUY",
-                    token_id=token_id,
-                    amount=usdc_size,
-                    price=price,
-                    fee=0.0,
-                    is_copy=True,
-                    source_wallet=SHARKY_WALLET,
-                    dry_run=False,
-                )
-                imported_buys += 1
-                already_imported.add(tid)
-
-                # Refresh open positions list
-                existing_open = await db.get_open_positions_by_user_id(SHARKY_USER_ID)
-
-            elif side == "SELL":
-                # Find matching open position to close (oldest first)
-                matching = [
-                    p for p in existing_open
-                    if p.get("condition_id") == condition_id
-                    and p.get("outcome_index") == outcome_index
-                    and p.get("is_open") == 1
-                ]
-                if matching:
-                    pos = matching[0]
-                    entry_price = pos.get("entry_price", 0)
-                    bet_amount = pos.get("bet_amount", 0)
-                    if entry_price > 0 and bet_amount > 0:
-                        shares = bet_amount / entry_price
-                        pnl = (price - entry_price) * shares
-                    else:
-                        pnl = 0.0
-
-                    # Update source_timestamp to include this sell's trade_id
-                    await db.update_position(pos["id"], source_timestamp=source_ts)
-
-                    await db.close_position(
-                        position_id=pos["id"],
-                        exit_price=price,
-                        pnl_usd=round(pnl, 4),
-                        reason="sharky_sold",
-                    )
-                    await db.record_trade(
-                        telegram_id=SHARKY_TELEGRAM_ID,
-                        position_id=pos["id"],
-                        side="SELL",
-                        token_id=token_id,
-                        amount=usdc_size,
-                        price=price,
-                        fee=0.0,
-                        is_copy=True,
-                        source_wallet=SHARKY_WALLET,
-                        dry_run=False,
-                    )
-                    imported_sells += 1
-                    already_imported.add(tid)
-
-                    # Refresh open positions list
-                    existing_open = await db.get_open_positions_by_user_id(SHARKY_USER_ID)
-                else:
-                    skipped += 1
-            else:
-                skipped += 1
-        except Exception as e:
-            log.error(f"Import error for trade {tid}: {e}")
-            errors.append({"trade_id": tid, "error": str(e)})
-
-    return {
-        "imported_buys": imported_buys,
-        "imported_sells": imported_sells,
-        "skipped": skipped,
-        "errors": errors,
-        "total_activity": len(trades),
-    }
-
-
-# ── POST /reset — clear all imported positions to re-import cleanly ──
-
-
-@router.post("/reset")
-async def reset_imported(db: Database = Depends(get_db)):
-    """Delete all positions and trades for user_id=-3 so you can re-import."""
-    async with aiosqlite.connect(db.path) as conn:
-        await conn.execute("DELETE FROM trades WHERE user_id=?", (SHARKY_USER_ID,))
-        await conn.execute("DELETE FROM positions WHERE user_id=?", (SHARKY_USER_ID,))
-        await conn.execute("DELETE FROM daily_risk WHERE telegram_id=?", (SHARKY_TELEGRAM_ID,))
-        await conn.commit()
-    return {"status": "ok", "message": "All imported positions and trades deleted."}
-
-
-# ── GET /compare — structured comparison ──
+# ── GET /compare — structured comparison: Sharky's Polyscan vs our copies ──
 
 
 @router.get("/compare")
 async def compare_sharky(
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(200, ge=1, le=500),
     db: Database = Depends(get_db),
 ):
-    """Compare Sharky6999 Polymarket trades vs our DB positions.
+    """Compare Sharky6999 Polymarket trades vs our bot's copy positions.
 
-    Matching is 1:1 per trade using trade_id stored in source_timestamp.
+    Matching uses condition_id + outcome_index + price proximity + timing.
     """
     async with aiohttp.ClientSession() as session:
         activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
 
     sharky_trades = [a for a in activity if a.get("type", "").upper() == "TRADE"]
 
-    our_open = await db.get_open_positions_by_user_id(SHARKY_USER_ID)
-    our_closed = await db.get_closed_positions_by_user_id(SHARKY_USER_ID, limit=500)
+    our_open = await db.get_open_positions_by_user_id(MY_USER_ID)
+    our_closed = await db.get_closed_positions_by_user_id(MY_USER_ID, limit=500)
     all_our = our_open + our_closed
 
-    # Build set of imported trade_ids
-    imported_tids = set()
-    pos_by_tid = {}
+    # Build lookup: condition_id + outcome_index -> list of our positions
+    our_by_market: dict[str, list] = {}
     for p in all_our:
-        src = p.get("source_timestamp") or ""
-        if "|tid:" in src:
-            tid = src.split("|tid:")[1]
-            imported_tids.add(tid)
-            pos_by_tid[tid] = p
+        key = f"{p.get('condition_id')}_{p.get('outcome_index')}"
+        our_by_market.setdefault(key, []).append(p)
 
+    # Track which of our positions have been matched (avoid double-matching)
+    matched_pos_ids = set()
     matched = []
     unmatched_sharky = []
 
     for trade in sharky_trades:
-        tid = make_trade_id(trade)
+        cid = trade.get("conditionId", "")
+        oi = int(trade.get("outcomeIndex", 0))
+        side = (trade.get("side") or "").upper()
         tx_hash = trade.get("transactionHash", "")
         sharky_ts = int(trade.get("timestamp", 0) or 0)
+        sharky_price = float(trade.get("price", 0) or 0)
 
         trade_summary = {
-            "trade_id": tid,
-            "side": trade.get("side", ""),
+            "trade_id": make_trade_id(trade),
+            "side": side,
             "title": trade.get("title", ""),
             "outcome": trade.get("outcome", ""),
-            "price": float(trade.get("price", 0) or 0),
+            "price": sharky_price,
             "usdcSize": float(trade.get("usdcSize", 0) or trade.get("size", 0) or 0),
             "createdAt": trade.get("createdAt", ""),
             "timestamp": sharky_ts,
-            "conditionId": trade.get("conditionId", ""),
+            "conditionId": cid,
             "transactionHash": tx_hash,
             "polyscanUrl": f"https://polygonscan.com/tx/{tx_hash}" if tx_hash else "",
         }
 
-        if tid in imported_tids:
-            pos = pos_by_tid.get(tid, {})
-            opened_at = pos.get("opened_at", "")
+        if side != "BUY":
+            # For sells, find matching closed position
+            key = f"{cid}_{oi}"
+            candidates = our_by_market.get(key, [])
+            match = None
+            for p in candidates:
+                if p["id"] not in matched_pos_ids and not p.get("is_open"):
+                    match = p
+                    break
+            if match:
+                matched_pos_ids.add(match["id"])
+                delay = _calc_delay(sharky_ts, match.get("closed_at", ""))
+                matched.append({
+                    "sharky_trade": trade_summary,
+                    "our_position": _pos_summary(match),
+                    "delay_seconds": delay,
+                })
+            else:
+                unmatched_sharky.append(trade_summary)
+            continue
 
-            # Calculate delay: Sharky's trade timestamp vs our execution
-            delay_seconds = None
-            if sharky_ts > 0 and opened_at:
-                try:
-                    our_ts = datetime.fromisoformat(opened_at.replace("Z", "+00:00")).timestamp()
-                    delay_seconds = round(our_ts - sharky_ts)
-                except Exception:
-                    pass
+        # BUY: find best matching position by condition_id + outcome + price
+        key = f"{cid}_{oi}"
+        candidates = our_by_market.get(key, [])
+        best_match = None
+        best_delay = None
+        for p in candidates:
+            if p["id"] in matched_pos_ids:
+                continue
+            # Price should be close (within 5c)
+            p_price = p.get("entry_price", 0)
+            if abs(p_price - sharky_price) > 0.05:
+                continue
+            delay = _calc_delay(sharky_ts, p.get("opened_at", ""))
+            # Prefer closest in time
+            if best_match is None or (delay is not None and (best_delay is None or abs(delay) < abs(best_delay))):
+                best_match = p
+                best_delay = delay
 
+        if best_match:
+            matched_pos_ids.add(best_match["id"])
             matched.append({
                 "sharky_trade": trade_summary,
-                "our_position": {
-                    "id": pos.get("id"),
-                    "entry_price": pos.get("entry_price"),
-                    "exit_price": pos.get("exit_price"),
-                    "bet_amount": pos.get("bet_amount"),
-                    "is_open": pos.get("is_open"),
-                    "pnl_usd": pos.get("pnl_usd"),
-                    "opened_at": opened_at,
-                    "closed_at": pos.get("closed_at"),
-                    "close_reason": pos.get("close_reason"),
-                },
-                "delay_seconds": delay_seconds,
+                "our_position": _pos_summary(best_match),
+                "delay_seconds": best_delay,
             })
         else:
             unmatched_sharky.append(trade_summary)
 
     total_pnl = sum(p.get("pnl_usd", 0) or 0 for p in our_closed)
-    open_pnl = 0  # would need live prices
 
     return {
         "sharky_activity": sharky_trades,
@@ -350,9 +171,37 @@ async def compare_sharky(
         },
         "summary": {
             "sharky_trades_count": len(sharky_trades),
-            "our_positions_count": len(all_our),
+            "our_open_count": len(our_open),
+            "our_closed_count": len(our_closed),
             "matched_count": len(matched),
             "unmatched_count": len(unmatched_sharky),
             "total_pnl": round(total_pnl, 2),
         },
+    }
+
+
+def _calc_delay(sharky_ts: int, our_time_str: str) -> int | None:
+    """Seconds between Sharky's trade and our execution."""
+    if not sharky_ts or not our_time_str:
+        return None
+    try:
+        our_ts = datetime.fromisoformat(our_time_str.replace("Z", "+00:00")).timestamp()
+        return round(our_ts - sharky_ts)
+    except Exception:
+        return None
+
+
+def _pos_summary(p: dict) -> dict:
+    return {
+        "id": p.get("id"),
+        "title": p.get("title"),
+        "outcome": p.get("outcome"),
+        "entry_price": p.get("entry_price"),
+        "exit_price": p.get("exit_price"),
+        "bet_amount": p.get("bet_amount"),
+        "is_open": p.get("is_open"),
+        "pnl_usd": p.get("pnl_usd"),
+        "opened_at": p.get("opened_at"),
+        "closed_at": p.get("closed_at"),
+        "close_reason": p.get("close_reason"),
     }

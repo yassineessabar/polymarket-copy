@@ -11,9 +11,7 @@ type Tab = "sharky" | "matched" | "unmatched";
 export default function ReconciliationPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
-  const [tab, setTab] = useState<Tab>("sharky");
+  const [tab, setTab] = useState<Tab>("matched");
   const [error, setError] = useState("");
 
   const loadData = useCallback(async () => {
@@ -30,33 +28,11 @@ export default function ReconciliationPage() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, [loadData]);
 
-  async function handleImport() {
-    setImporting(true);
-    setImportResult(null);
-    try {
-      const result = await reconciliationApi.importTrades(200);
-      setImportResult(result);
-      await loadData();
-    } catch (e: any) {
-      setImportResult({ error: e.message });
-    }
-    setImporting(false);
-  }
-
-  async function handleReset() {
-    if (!confirm("Delete all imported positions and trades? You can re-import after.")) return;
-    try {
-      await reconciliationApi.reset();
-      setImportResult(null);
-      await loadData();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center pt-24">
         <Spinner />
@@ -75,7 +51,7 @@ export default function ReconciliationPage() {
     <div className="max-w-[1000px] mx-auto">
       <PageHeader title="Reconciliation" />
       <p className="text-sm text-[#6B7280] -mt-4 mb-6">
-        Compare Sharky6999&apos;s Polyscan trades with our database. Import trades to track P&L before going live.
+        Live comparison: Sharky6999 Polyscan trades vs our copy bot. Auto-refreshes every 30s.
       </p>
 
       {error && (
@@ -86,14 +62,18 @@ export default function ReconciliationPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
         <Card className="!p-3">
           <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Sharky Trades</p>
           <p className="text-lg font-bold font-mono text-[#0F0F0F]">{summary.sharky_trades_count || 0}</p>
         </Card>
         <Card className="!p-3">
-          <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Our Positions</p>
-          <p className="text-lg font-bold font-mono text-[#0F0F0F]">{summary.our_positions_count || 0}</p>
+          <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Our Open</p>
+          <p className="text-lg font-bold font-mono text-[#0F0F0F]">{summary.our_open_count || 0}</p>
+        </Card>
+        <Card className="!p-3">
+          <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Our Closed</p>
+          <p className="text-lg font-bold font-mono text-[#0F0F0F]">{summary.our_closed_count || 0}</p>
         </Card>
         <Card className="!p-3">
           <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Matched</p>
@@ -104,64 +84,19 @@ export default function ReconciliationPage() {
           <p className="text-lg font-bold font-mono text-[#F59E0B]">{summary.unmatched_count || 0}</p>
         </Card>
         <Card className="!p-3">
-          <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Total P&L</p>
+          <p className="text-[10px] text-[#6B7280] uppercase tracking-wider font-medium mb-1">Realized P&L</p>
           <p className={`text-lg font-bold font-mono ${(summary.total_pnl || 0) >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
             {formatPnl(summary.total_pnl || 0)}
           </p>
         </Card>
       </div>
 
-      {/* Import Button */}
-      <Card className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <p className="text-sm font-medium text-[#0F0F0F]">Import Sharky6999 Trades</p>
-            <p className="text-xs text-[#6B7280] mt-0.5">
-              Fetch from Polymarket API and save to DB as positions. Run this to populate your portfolio view.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleReset}
-              className="text-[#EF4444] hover:bg-[#FEF2F2]"
-            >
-              Reset
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleImport}
-              disabled={importing}
-            >
-              {importing ? "Importing..." : "Import Trades"}
-            </Button>
-          </div>
-        </div>
-
-        {importResult && (
-          <div className="mt-3 pt-3 border-t border-black/5">
-            {importResult.error ? (
-              <p className="text-sm text-[#EF4444]">{importResult.error}</p>
-            ) : (
-              <div className="flex gap-4 text-xs">
-                <span className="text-[#10B981] font-medium">Buys imported: {importResult.imported_buys}</span>
-                <span className="text-[#EF4444] font-medium">Sells imported: {importResult.imported_sells}</span>
-                <span className="text-[#6B7280]">Skipped: {importResult.skipped}</span>
-                <span className="text-[#6B7280]">Total activity: {importResult.total_activity}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
-
       {/* Tabs */}
       <div className="flex gap-1 bg-white rounded-full p-1 mb-4 w-full sm:w-fit shadow-sm">
         {([
-          ["sharky", `Sharky Activity (${sharkyTrades.length})`],
           ["matched", `Matched (${matched.length})`],
           ["unmatched", `Not Copied (${unmatched.length})`],
+          ["sharky", `Sharky Activity (${sharkyTrades.length})`],
         ] as const).map(([key, label]) => (
           <Button
             key={key}
@@ -175,68 +110,11 @@ export default function ReconciliationPage() {
         ))}
       </div>
 
-      {/* Our Open / Closed Summary */}
-      {(ourOpen.length > 0 || ourClosed.length > 0) && (
-        <div className="flex gap-2 mb-4 text-xs text-[#6B7280]">
-          <span>DB: {ourOpen.length} open, {ourClosed.length} closed positions</span>
-        </div>
-      )}
-
       {/* Tab Content */}
-      {tab === "sharky" && (
-        <div className="space-y-2">
-          {sharkyTrades.length === 0 ? (
-            <Card><p className="text-sm text-[#6B7280] text-center py-4">No Sharky trades found from API</p></Card>
-          ) : (
-            sharkyTrades.map((t: any, i: number) => {
-              const side = t.side || "";
-              const isBuy = side.toUpperCase() === "BUY";
-              const price = Number(t.price || 0);
-              const usdc = Number(t.usdcSize || t.size || 0);
-              return (
-                <Card key={i} className="hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant={isBuy ? "success" : "danger"}>{side}</Badge>
-                        <span className="font-bold text-sm truncate text-[#0F0F0F]">{t.title || "Unknown"}</span>
-                      </div>
-                      <p className="text-xs text-[#6B7280]">{t.outcome || ""}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold font-mono text-[#0F0F0F]">{formatUsd(usdc)}</p>
-                      <p className="text-xs text-[#6B7280] font-mono">{(price * 100).toFixed(1)}c</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 mt-2 pt-2 border-t border-black/5 text-xs text-[#6B7280]">
-                    <span>{t.timestamp ? new Date(t.timestamp * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : t.createdAt ? formatDate(t.createdAt) : ""}</span>
-                    {t.transactionHash && (
-                      <a
-                        href={`https://polygonscan.com/tx/${t.transactionHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#10B981] font-medium hover:underline ml-auto flex items-center gap-1"
-                      >
-                        Polyscan
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-                          <polyline points="15 3 21 3 21 9" />
-                          <line x1="10" y1="14" x2="21" y2="3" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                </Card>
-              );
-            })
-          )}
-        </div>
-      )}
-
       {tab === "matched" && (
         <div className="space-y-2">
           {matched.length === 0 ? (
-            <Card><p className="text-sm text-[#6B7280] text-center py-4">No matched trades yet. Import trades first.</p></Card>
+            <Card><p className="text-sm text-[#6B7280] text-center py-4">No matched trades yet. Waiting for Sharky to trade...</p></Card>
           ) : (
             matched.map((m: any, i: number) => {
               const st = m.sharky_trade;
@@ -331,14 +209,15 @@ export default function ReconciliationPage() {
       {tab === "unmatched" && (
         <div className="space-y-2">
           {unmatched.length === 0 ? (
-            <Card><p className="text-sm text-[#6B7280] text-center py-4">All Sharky trades are matched!</p></Card>
+            <Card><p className="text-sm text-[#10B981] text-center py-4">All Sharky trades matched! Bot is copying everything.</p></Card>
           ) : (
             <>
               <p className="text-xs text-[#F59E0B] mb-2">
-                These Sharky trades have no matching position in our DB. They would have been missed if live.
+                Sharky trades our bot didn&apos;t copy. Could be: trade happened before bot started, risk limits blocked it, or older than tracking window.
               </p>
               {unmatched.map((t: any, i: number) => {
                 const isBuy = (t.side || "").toUpperCase() === "BUY";
+                const sharkyTime = t.timestamp ? new Date(t.timestamp * 1000) : null;
                 return (
                   <Card key={i} className="hover:shadow-md transition-all border-[#F59E0B]/30">
                     <div className="flex items-center gap-2 mb-2 pb-2 border-b border-black/5">
@@ -358,13 +237,79 @@ export default function ReconciliationPage() {
                         <p className="text-xs text-[#6B7280] font-mono">{((t.price || 0) * 100).toFixed(1)}c</p>
                       </div>
                     </div>
-                    <div className="flex gap-4 mt-2 pt-2 border-t border-black/5 text-xs text-[#6B7280]">
-                      <span>{t.createdAt ? formatDate(t.createdAt) : ""}</span>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/5 text-[10px] text-[#9CA3AF]">
+                      <span>{sharkyTime ? sharkyTime.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</span>
+                      {t.polyscanUrl && (
+                        <a
+                          href={t.polyscanUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#10B981] font-semibold hover:underline flex items-center gap-1"
+                        >
+                          Polyscan
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                          </svg>
+                        </a>
+                      )}
                     </div>
                   </Card>
                 );
               })}
             </>
+          )}
+        </div>
+      )}
+
+      {tab === "sharky" && (
+        <div className="space-y-2">
+          {sharkyTrades.length === 0 ? (
+            <Card><p className="text-sm text-[#6B7280] text-center py-4">No Sharky trades found from API</p></Card>
+          ) : (
+            sharkyTrades.map((t: any, i: number) => {
+              const side = t.side || "";
+              const isBuy = side.toUpperCase() === "BUY";
+              const price = Number(t.price || 0);
+              const usdc = Number(t.usdcSize || t.size || 0);
+              const sharkyTime = t.timestamp ? new Date(t.timestamp * 1000) : null;
+              return (
+                <Card key={i} className="hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant={isBuy ? "success" : "danger"}>{side || t.type}</Badge>
+                        <span className="font-bold text-sm truncate text-[#0F0F0F]">{t.title || "Unknown"}</span>
+                      </div>
+                      <p className="text-xs text-[#6B7280]">{t.outcome || ""}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold font-mono text-[#0F0F0F]">{formatUsd(usdc)}</p>
+                      <p className="text-xs text-[#6B7280] font-mono">{(price * 100).toFixed(1)}c</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/5 text-[10px] text-[#9CA3AF]">
+                    <span>{sharkyTime ? sharkyTime.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</span>
+                    {t.transactionHash && (
+                      <a
+                        href={`https://polygonscan.com/tx/${t.transactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#10B981] font-semibold hover:underline flex items-center gap-1"
+                      >
+                        Polyscan
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </Card>
+              );
+            })
           )}
         </div>
       )}
