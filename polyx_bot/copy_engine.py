@@ -521,11 +521,16 @@ class CopyTradeManager:
             else:
                 # Resolved but winner unknown — try CLOB for residual price
                 cur_price = await get_market_price(session, token_id) if token_id else 0.0
-                if cur_price <= 0:
-                    # Resolved with no price info — likely fully settled, use 0
-                    # (if we won, price would be ~1.0; if lost, ~0.0)
-                    continue  # retry next cycle when winner is known
-                close_reason = "RESOLVED (CLOB)"
+                if cur_price > 0.95:
+                    cur_price = 1.0
+                    close_reason = "RESOLVED WON"
+                elif cur_price > 0:
+                    close_reason = "RESOLVED (CLOB)"
+                else:
+                    # Resolved, no winner info, no CLOB price — market is settled
+                    # If we had won, payout would show a price near 1.0
+                    cur_price = 0.0
+                    close_reason = "RESOLVED LOST"
 
             # Close the position
             bet_amt = pos.get("bet_amount", 0)
