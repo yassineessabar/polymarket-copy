@@ -343,13 +343,6 @@ class CopyTradeManager:
             # Deduct from demo balance
             await self.db.adjust_demo_balance(telegram_id, -bet)
         elif not dry_run:
-            # Subscription gate — block live buys if subscription inactive
-            if not await self.db.is_subscription_active(telegram_id):
-                log.info(f"[Copy:{telegram_id}] BLOCKED {title} | No active subscription")
-                await self._notify(telegram_id,
-                    "Your subscription is inactive. Live trading is paused.\n"
-                    "Use /subscribe to reactivate.")
-                return
             try:
                 client = get_user_clob_client(telegram_id, private_key, wallet)
                 await asyncio.get_event_loop().run_in_executor(
