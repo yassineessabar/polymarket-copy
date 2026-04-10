@@ -19,18 +19,33 @@ CLOB_PROXY = os.getenv("CLOB_PROXY", "")
 _client_cache: dict[int, ClobClient] = {}
 
 
+_proxy_applied = False
+
+
 def _apply_proxy(client: ClobClient):
-    """Patch the CLOB client's session to use a proxy if configured."""
-    if not CLOB_PROXY:
+    """Patch the py_clob_client's global httpx client to use a proxy."""
+    global _proxy_applied
+    if not CLOB_PROXY or _proxy_applied:
         return
-    import requests
-    # Patch the internal session used by py_clob_client
-    if hasattr(client, "session"):
-        client.session.proxies = {"http": CLOB_PROXY, "https": CLOB_PROXY}
-    # Also set env vars as fallback for requests library
-    os.environ["HTTP_PROXY"] = CLOB_PROXY
-    os.environ["HTTPS_PROXY"] = CLOB_PROXY
-    log.info(f"[Trading] Proxy configured: {CLOB_PROXY.split('@')[-1] if '@' in CLOB_PROXY else CLOB_PROXY[:30]}")
+    try:
+        import httpx
+        from py_clob_client.http_helpers import helpers
+        # Replace the global httpx client with a proxy-enabled one
+        proxy_url = CLOB_PROXY
+        old_client = helpers._http_client
+        helpers._http_client = httpx.Client(
+            proxy=proxy_url,
+            timeout=httpx.Timeout(30.0),
+        )
+        _proxy_applied = True
+        proxy_display = CLOB_PROXY.split("@")[-1] if "@" in CLOB_PROXY else CLOB_PROXY[:30]
+        log.info(f"[Trading] httpx proxy patched: {proxy_display}")
+    except Exception as e:
+        log.error(f"[Trading] Proxy patch failed: {e}")
+        # Fallback: set env vars
+        os.environ["HTTP_PROXY"] = CLOB_PROXY
+        os.environ["HTTPS_PROXY"] = CLOB_PROXY
+        log.info("[Trading] Falling back to env proxy")
 
 
 def get_user_clob_client(telegram_id: int, private_key: str, wallet_address: str) -> ClobClient:
