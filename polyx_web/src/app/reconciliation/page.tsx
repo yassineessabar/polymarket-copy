@@ -209,15 +209,22 @@ export default function ReconciliationPage() {
                     </div>
                   </div>
                   <div className="flex gap-4 mt-2 pt-2 border-t border-black/5 text-xs text-[#6B7280]">
-                    <span>{t.createdAt ? formatDate(t.createdAt) : ""}</span>
-                    <a
-                      href={`https://polymarketanalytics.com/traders/0x751a2b86cab503496efd325c8344e10159349ea1#trades`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#10B981] font-medium hover:underline ml-auto"
-                    >
-                      Polyscan
-                    </a>
+                    <span>{t.timestamp ? new Date(t.timestamp * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : t.createdAt ? formatDate(t.createdAt) : ""}</span>
+                    {t.transactionHash && (
+                      <a
+                        href={`https://polygonscan.com/tx/${t.transactionHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#10B981] font-medium hover:underline ml-auto flex items-center gap-1"
+                      >
+                        Polyscan
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                      </a>
+                    )}
                   </div>
                 </Card>
               );
@@ -234,17 +241,32 @@ export default function ReconciliationPage() {
             matched.map((m: any, i: number) => {
               const st = m.sharky_trade;
               const p = m.our_position || {};
+              const delay = m.delay_seconds;
               const isBuy = (st.side || "").toUpperCase() === "BUY";
               const pnl = p.pnl_usd || 0;
+              const sharkyTime = st.timestamp ? new Date(st.timestamp * 1000) : null;
               return (
                 <Card key={i} className="hover:shadow-md transition-all">
+                  {/* Header row */}
                   <div className="flex items-center gap-2 mb-2 pb-2 border-b border-black/5">
                     <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
                     <span className="text-[10px] text-[#10B981] font-semibold uppercase">Matched</span>
+                    {delay !== null && delay !== undefined && (
+                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                        delay <= 10 ? "bg-[#10B981]/10 text-[#10B981]"
+                        : delay <= 30 ? "bg-[#F59E0B]/10 text-[#F59E0B]"
+                        : delay <= 60 ? "bg-[#F97316]/10 text-[#F97316]"
+                        : "bg-[#EF4444]/10 text-[#EF4444]"
+                      }`}>
+                        {delay}s delay
+                      </span>
+                    )}
                     <Badge variant={p.is_open ? "active" : "neutral"} className="ml-auto">
                       {p.is_open ? "OPEN" : "CLOSED"}
                     </Badge>
                   </div>
+
+                  {/* Trade info */}
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -258,7 +280,8 @@ export default function ReconciliationPage() {
                       <p className="text-xs text-[#6B7280] font-mono">{((st.price || 0) * 100).toFixed(1)}c</p>
                     </div>
                   </div>
-                  {/* Our position for this trade */}
+
+                  {/* Our position details */}
                   <div className="mt-2 pt-2 border-t border-black/5 flex items-center justify-between text-xs">
                     <span className="text-[#6B7280]">
                       Entry: {((p.entry_price || 0) * 100).toFixed(1)}c
@@ -269,6 +292,33 @@ export default function ReconciliationPage() {
                       <span className={`font-mono font-bold ${pnl >= 0 ? "text-[#10B981]" : "text-[#EF4444]"}`}>
                         {formatPnl(pnl)}
                       </span>
+                    )}
+                  </div>
+
+                  {/* Timestamps + Polyscan */}
+                  <div className="mt-2 pt-2 border-t border-black/5 flex items-center justify-between text-[10px] text-[#9CA3AF]">
+                    <div className="flex gap-3">
+                      {sharkyTime && (
+                        <span>Sharky: {sharkyTime.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                      )}
+                      {p.opened_at && (
+                        <span>Ours: {formatDate(p.opened_at)}</span>
+                      )}
+                    </div>
+                    {st.polyscanUrl && (
+                      <a
+                        href={st.polyscanUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#10B981] font-semibold hover:underline flex items-center gap-1"
+                      >
+                        Polyscan
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                      </a>
                     )}
                   </div>
                 </Card>

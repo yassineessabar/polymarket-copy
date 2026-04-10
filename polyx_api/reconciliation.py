@@ -287,6 +287,9 @@ async def compare_sharky(
 
     for trade in sharky_trades:
         tid = make_trade_id(trade)
+        tx_hash = trade.get("transactionHash", "")
+        sharky_ts = int(trade.get("timestamp", 0) or 0)
+
         trade_summary = {
             "trade_id": tid,
             "side": trade.get("side", ""),
@@ -295,11 +298,25 @@ async def compare_sharky(
             "price": float(trade.get("price", 0) or 0),
             "usdcSize": float(trade.get("usdcSize", 0) or trade.get("size", 0) or 0),
             "createdAt": trade.get("createdAt", ""),
+            "timestamp": sharky_ts,
             "conditionId": trade.get("conditionId", ""),
+            "transactionHash": tx_hash,
+            "polyscanUrl": f"https://polygonscan.com/tx/{tx_hash}" if tx_hash else "",
         }
 
         if tid in imported_tids:
             pos = pos_by_tid.get(tid, {})
+            opened_at = pos.get("opened_at", "")
+
+            # Calculate delay: Sharky's trade timestamp vs our execution
+            delay_seconds = None
+            if sharky_ts > 0 and opened_at:
+                try:
+                    our_ts = datetime.fromisoformat(opened_at.replace("Z", "+00:00")).timestamp()
+                    delay_seconds = round(our_ts - sharky_ts)
+                except Exception:
+                    pass
+
             matched.append({
                 "sharky_trade": trade_summary,
                 "our_position": {
@@ -309,10 +326,11 @@ async def compare_sharky(
                     "bet_amount": pos.get("bet_amount"),
                     "is_open": pos.get("is_open"),
                     "pnl_usd": pos.get("pnl_usd"),
-                    "opened_at": pos.get("opened_at"),
+                    "opened_at": opened_at,
                     "closed_at": pos.get("closed_at"),
                     "close_reason": pos.get("close_reason"),
                 },
+                "delay_seconds": delay_seconds,
             })
         else:
             unmatched_sharky.append(trade_summary)
