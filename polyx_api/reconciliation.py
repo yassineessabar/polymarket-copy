@@ -26,6 +26,9 @@ SHARKY_WALLET = "0x751a2b86cab503496efd325c8344e10159349ea1"
 MY_TELEGRAM_ID = 7446549575
 MY_USER_ID = 7446549575
 
+# Only track trades after this timestamp (when live tracking started)
+TRACKING_START_TS = 1775794075  # 2026-04-10 ~04:07 UTC
+
 
 # ── GET /sharky — raw Sharky activity + our bot's positions side by side ──
 
@@ -37,8 +40,10 @@ async def sharky_overview(
 ):
     """Fetch Sharky6999 recent activity from Polymarket and our bot's positions."""
     async with aiohttp.ClientSession() as session:
-        activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
+        raw_activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
         sharky_name = await get_profile_name(session, SHARKY_WALLET)
+
+    activity = [a for a in raw_activity if int(a.get("timestamp", 0) or 0) >= TRACKING_START_TS]
 
     our_open = await db.get_open_positions_by_user_id(MY_USER_ID)
     our_closed = await db.get_closed_positions_by_user_id(MY_USER_ID, limit=limit)
@@ -69,7 +74,11 @@ async def compare_sharky(
     async with aiohttp.ClientSession() as session:
         activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
 
-    sharky_trades = [a for a in activity if a.get("type", "").upper() == "TRADE"]
+    sharky_trades = [
+        a for a in activity
+        if a.get("type", "").upper() == "TRADE"
+        and int(a.get("timestamp", 0) or 0) >= TRACKING_START_TS
+    ]
 
     our_open = await db.get_open_positions_by_user_id(MY_USER_ID)
     our_closed = await db.get_closed_positions_by_user_id(MY_USER_ID, limit=500)
