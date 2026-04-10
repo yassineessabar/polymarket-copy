@@ -36,9 +36,9 @@ ASSETS = {
     "xrp": {"binance": "xrpusdt", "name": "xrp", "slug_prefix": "xrp-updown-5m-"},
 }
 
-# How many seconds after window end to place the trade
-# Orderbook needs time to fill with sellers at ~99c after window closes
-TRADE_DELAY_SECS = 15
+# How many seconds BEFORE window end to place the trade
+# Buy when direction is clear but orderbook is still live
+TRADE_BEFORE_SECS = 12
 
 
 class Market:
@@ -241,21 +241,19 @@ class ScalperBot:
     # ── Trading Loop ──
 
     async def _trading_loop(self):
-        """Check every 0.5s — record start prices and trade when windows close.
+        """Check every 0.5s — buy 12s before window close when direction is clear.
 
-        Only trades ONE asset per 5-min window (BTC preferred, highest liquidity).
-        Retries up to 3 times with 5s gaps if orderbook is empty.
+        Only trades ONE asset per 5-min window (BTC = highest liquidity).
+        Minimum price change threshold to avoid flat/ambiguous moves.
         """
-        # Priority order — trade the first one that works
-        asset_priority = ["btc", "eth", "sol", "doge", "xrp"]
-        traded_windows: set[int] = set()  # window_start_ts we already traded
+        traded_windows: set[int] = set()
 
         while self.running:
             now = int(time.time())
 
             for slug, market in list(self.markets.items()):
                 if market.traded:
-                    if now > market.window_end_ts + 600:
+                    if now > market.window_end_ts + 300:
                         del self.markets[slug]
                     continue
 
@@ -270,32 +268,34 @@ class ScalperBot:
                     log.info(f"[Scalper] {market.asset.upper()} window OPEN | "
                              f"start=${current_price:,.2f} | {market.title[:50]}")
 
-                # Trade when window closes + delay
-                if now >= market.window_end_ts + TRADE_DELAY_SECS and market.start_price is not None:
-                    # Only trade one asset per window to avoid spreading $18 across 5
+                # Trade BEFORE window closes — when direction is clear
+                secs_to_close = market.window_end_ts - now
+                if (0 < secs_to_close <= TRADE_BEFORE_SECS
+                        and market.start_price is not None):
+
+                    # Only trade one asset per window
                     if market.window_start_ts in traded_windows:
                         market.traded = True
-                        market.trade_result = "SKIPPED (already traded this window)"
+                        market.trade_result = "SKIPPED"
+                        continue
+
+                    # Check if direction is clear (minimum 0.005% move)
+                    price_change_pct = abs(current_price - market.start_price) / market.start_price * 100
+                    if price_change_pct < 0.005:
+                        # Too flat — skip this asset, try next one
                         continue
 
                     market.end_price = current_price
-                    success = await self._execute_trade_with_retry(market)
+                    success = await self._execute_trade(market)
                     if success:
                         traded_windows.add(market.window_start_ts)
 
-            await asyncio.sleep(0.5)
+                # Mark as done if window closed and we didn't trade
+                if now > market.window_end_ts + 5 and not market.traded:
+                    market.traded = True
+                    market.trade_result = "MISSED (window closed)"
 
-    async def _execute_trade_with_retry(self, market: Market, max_retries: int = 3) -> bool:
-        """Try to execute trade, retry if orderbook is empty."""
-        for attempt in range(max_retries):
-            success = await self._execute_trade(market)
-            if success:
-                return True
-            if attempt < max_retries - 1:
-                market.traded = False  # reset for retry
-                log.info(f"[Scalper] Retry {attempt + 2}/{max_retries} in 5s...")
-                await asyncio.sleep(5)
-        return False
+            await asyncio.sleep(0.5)
 
     async def _execute_trade(self, market: Market) -> bool:
         """Returns True on success, False on failure (for retry)."""
