@@ -2,7 +2,7 @@
 import aiohttp
 from fastapi import APIRouter, Depends, Query
 from polyx_bot.database import Database
-from polyx_bot.wallet import get_usdc_balance
+from polyx_bot.wallet import get_usdc_balance, get_full_balance
 from polyx_bot.portfolio import get_position_with_pnl
 from .deps import get_db, get_current_user
 
@@ -23,7 +23,10 @@ async def portfolio_summary(
         balance = settings.get("demo_balance", 0)
     else:
         try:
-            balance = get_usdc_balance(user["wallet_address"])
+            balance = get_full_balance(
+                user.get("wallet_address", ""),
+                user.get("proxy_wallet", ""),
+            )
         except Exception:
             balance = 0.0
 

@@ -23,7 +23,7 @@ def decrypt_key(encrypted: str) -> str:
 
 
 def get_usdc_balance(address: str) -> float:
-    """Get USDC balance on Polygon."""
+    """Get USDC.e balance on Polygon for a single address."""
     data = "0x70a08231" + address[2:].lower().zfill(64)
     try:
         r = requests.post(POLYGON_RPC, json={
@@ -33,6 +33,14 @@ def get_usdc_balance(address: str) -> float:
         return int(r.json()["result"], 16) / 1e6
     except Exception:
         return 0.0
+
+
+def get_full_balance(eoa_address: str, proxy_address: str = "") -> float:
+    """Get total USDC.e balance across EOA + Polymarket proxy wallet."""
+    total = get_usdc_balance(eoa_address)
+    if proxy_address:
+        total += get_usdc_balance(proxy_address)
+    return total
 
 
 def get_matic_balance(address: str) -> float:

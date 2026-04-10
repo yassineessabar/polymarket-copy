@@ -9,7 +9,7 @@ from datetime import datetime
 import aiohttp
 
 from .database import Database
-from .wallet import decrypt_key, get_usdc_balance
+from .wallet import decrypt_key, get_usdc_balance, get_full_balance
 from .trading import get_user_clob_client, place_buy, place_sell
 from .risk_engine import risk_check, calculate_confidence
 from .api_helpers import (
@@ -78,7 +78,7 @@ class CopyTradeManager:
 
             # Re-send the home menu at the bottom
             from .keyboards import home_keyboard
-            from .wallet import get_usdc_balance
+            from .wallet import get_full_balance as _get_full_balance
 
             demo_mode = bool(settings and settings.get("demo_mode", 0))
             stats = await self.db.get_portfolio_stats(telegram_id)
@@ -89,7 +89,10 @@ class CopyTradeManager:
                 balance = settings.get("demo_balance", 0)
             else:
                 user = await self.db.get_user(telegram_id)
-                balance = get_usdc_balance(user["wallet_address"]) if user and user.get("wallet_address") else 0.0
+                balance = _get_full_balance(
+                    user.get("wallet_address", ""),
+                    user.get("proxy_wallet", "")
+                ) if user else 0.0
 
             net_worth = balance + positions_val
             mode_badge = f"<b>🎮 DEMO MODE</b>\n" if demo_mode else ""
@@ -182,7 +185,8 @@ class CopyTradeManager:
                             portfolio_value = demo_balance + pos_value
                         else:
                             try:
-                                usdc_balance = get_usdc_balance(wallet)
+                                proxy = user.get("proxy_wallet", "") if user else ""
+                                usdc_balance = get_full_balance(wallet, proxy)
                             except Exception:
                                 usdc_balance = 0.0
                             portfolio_value = usdc_balance + pos_value

@@ -201,6 +201,10 @@ class Database:
                 await db.execute("ALTER TABLE positions ADD COLUMN source_timestamp TEXT")
             except Exception:
                 pass
+            try:
+                await db.execute("ALTER TABLE users ADD COLUMN proxy_wallet TEXT")
+            except Exception:
+                pass
             # Backfill user_id on positions/trades where it's NULL
             try:
                 await db.execute(
