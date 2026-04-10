@@ -60,6 +60,23 @@ async def import_sharky_trades(
     db: Database = Depends(get_db),
 ):
     """Fetch Sharky6999 trade history and import into positions/trades tables for user_id=-3."""
+    import aiosqlite
+
+    # Ensure user -3 exists in DB
+    async with aiosqlite.connect(db.path) as conn:
+        await conn.execute(
+            "INSERT OR IGNORE INTO users (telegram_id, username, wallet_address, private_key_enc, "
+            "referral_code, user_id, auth_provider) VALUES (?, ?, ?, '', 'SHARKY_RECON', ?, 'web')",
+            (SHARKY_TELEGRAM_ID, "essabar.yassine@gmail.com",
+             "0xb6c9718dfacaa2397e36193ec1639baa87913b7d", SHARKY_USER_ID),
+        )
+        await conn.execute(
+            "INSERT OR IGNORE INTO user_settings (telegram_id, user_id, demo_mode, demo_balance, "
+            "copy_trading_active) VALUES (?, ?, 1, 1000.0, 1)",
+            (SHARKY_TELEGRAM_ID, SHARKY_USER_ID),
+        )
+        await conn.commit()
+
     async with aiohttp.ClientSession() as session:
         activity = await get_recent_activity(session, SHARKY_WALLET, limit=limit)
 
