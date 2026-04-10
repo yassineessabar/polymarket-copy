@@ -33,10 +33,13 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   });
 
   if (res.status === 401) {
+    // Clear bad token and retry without auth — dashboard is public
     clearToken();
-    if (typeof window !== "undefined") {
-      window.location.href = "/auth";
-    }
+    const retryRes = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: { "Content-Type": "application/json" },
+    });
+    if (retryRes.ok) return retryRes.json();
     throw new Error("Unauthorized");
   }
 
