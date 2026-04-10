@@ -89,10 +89,11 @@ class CopyTradeManager:
                 balance = settings.get("demo_balance", 0)
             else:
                 user = await self.db.get_user(telegram_id)
-                balance = _get_full_balance(
-                    user.get("wallet_address", ""),
-                    user.get("proxy_wallet", "")
-                ) if user else 0.0
+                proxy = user.get("proxy_wallet", "") if user else ""
+                if proxy:
+                    balance = get_usdc_balance(proxy)
+                else:
+                    balance = get_usdc_balance(user.get("wallet_address", "")) if user else 0.0
 
             net_worth = balance + positions_val
             mode_badge = f"<b>🎮 DEMO MODE</b>\n" if demo_mode else ""
@@ -186,7 +187,7 @@ class CopyTradeManager:
                         else:
                             try:
                                 proxy = user.get("proxy_wallet", "") if user else ""
-                                usdc_balance = get_full_balance(wallet, proxy)
+                                usdc_balance = get_usdc_balance(proxy) if proxy else get_usdc_balance(wallet)
                             except Exception:
                                 usdc_balance = 0.0
                             portfolio_value = usdc_balance + pos_value

@@ -23,10 +23,11 @@ async def portfolio_summary(
         balance = settings.get("demo_balance", 0)
     else:
         try:
-            balance = get_full_balance(
-                user.get("wallet_address", ""),
-                user.get("proxy_wallet", ""),
-            )
+            proxy = user.get("proxy_wallet", "")
+            if proxy:
+                balance = get_usdc_balance(proxy)
+            else:
+                balance = get_usdc_balance(user["wallet_address"])
         except Exception:
             balance = 0.0
 
