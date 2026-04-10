@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://51.210.15.18:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://51.210.15.18";
 
 const nextConfig: NextConfig = {
   async rewrites() {

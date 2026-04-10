@@ -1,6 +1,4 @@
-const API_BASE = typeof window !== "undefined" && !window.location.hostname.includes("51.210.15.18")
-  ? "http://51.210.15.18"
-  : "";
+const API_BASE = "";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
