@@ -440,9 +440,10 @@ class CopyTradeManager:
             try:
                 client = get_user_clob_client(telegram_id, private_key, wallet)
                 await asyncio.get_event_loop().run_in_executor(
-                    None, place_sell, client, our_pos.get("token_id", ""), proceeds)
+                    None, place_sell, client, our_pos.get("token_id", ""), shares)
             except Exception as e:
                 log.error(f"[Copy:{telegram_id}] Sell failed: {e}")
+                return  # Do NOT update DB if on-chain sell failed
 
         # Update position
         new_bet = our_bet - close_bet
@@ -545,9 +546,11 @@ class CopyTradeManager:
                 try:
                     client = get_user_clob_client(telegram_id, private_key, wallet)
                     await asyncio.get_event_loop().run_in_executor(
-                        None, place_sell, client, token_id, close_proceeds)
+                        None, place_sell, client, token_id, shares)
                 except Exception as e:
                     log.error(f"[Copy:{telegram_id}] Resolution close sell failed: {e}")
+                    checked_resolved.add(pos["id"])
+                    continue  # Do NOT close in DB if on-chain sell failed
 
             await self.db.close_position(pos["id"], cur_price, pnl_usd, close_reason)
 
@@ -697,9 +700,10 @@ class CopyTradeManager:
                     try:
                         client = get_user_clob_client(telegram_id, private_key, wallet)
                         await asyncio.get_event_loop().run_in_executor(
-                            None, place_sell, client, token_id, close_proceeds)
+                            None, place_sell, client, token_id, shares)
                     except Exception as e:
                         log.error(f"[Copy:{telegram_id}] Close sell failed: {e}")
+                        continue  # Do NOT close in DB if on-chain sell failed
 
                 # Close in DB
                 await self.db.close_position(pos["id"], cur_price, pnl_usd, close_reason)
