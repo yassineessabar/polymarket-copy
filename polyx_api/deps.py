@@ -20,10 +20,18 @@ def get_db() -> Database:
     return _db
 
 
+# Default public user — allows dashboard viewing without login
+DEFAULT_USER_ID = 7446549575
+
+
 async def get_current_user(request: Request, db: Database = Depends(get_db)) -> dict:
-    """Extract user from JWT Bearer token."""
+    """Extract user from JWT Bearer token, or fall back to default public user."""
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
+        # No token — return default user for public dashboard access
+        user = await db.get_user_by_user_id(DEFAULT_USER_ID)
+        if user:
+            return user
         raise HTTPException(401, "Missing or invalid Authorization header")
     token = auth[7:]
     try:

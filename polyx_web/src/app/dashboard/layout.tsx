@@ -52,11 +52,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [wallet, setWallet] = useState("");
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/auth");
-      return;
+    // Try to load wallet from API if logged in, otherwise show default
+    if (isLoggedIn()) {
+      userApi.me().then((data) => setWallet(data.wallet_address)).catch(() => {
+        setWallet("0x736fb967C9f02787fb37858C97D62577520a9568");
+      });
+    } else {
+      setWallet("0x736fb967C9f02787fb37858C97D62577520a9568");
     }
-    userApi.me().then((data) => setWallet(data.wallet_address)).catch(() => {});
   }, [router]);
 
   function logout() {
