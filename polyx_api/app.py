@@ -13,6 +13,7 @@ from .payments import router as payments_router, webhook_router
 from .notifications import router as notifications_router
 from .markets import router as markets_router
 from .trader_analytics import router as trader_analytics_router
+from .reconciliation import router as reconciliation_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -42,6 +43,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(markets_router)
 app.include_router(trader_analytics_router)
+app.include_router(reconciliation_router)
 app.include_router(webhook_router)
 
 # Authenticated routes

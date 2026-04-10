@@ -139,3 +139,13 @@ export const traderApi = {
   all: () => apiFetch<{ traders: any[] }>("/api/v1/traders/analytics"),
   one: (wallet: string) => apiFetch<any>(`/api/v1/traders/analytics/${wallet}`),
 };
+
+// Reconciliation (Sharky6999 comparison)
+export const reconciliationApi = {
+  sharky: (limit = 100) =>
+    apiFetch<any>(`/api/v1/reconciliation/sharky?limit=${limit}`),
+  importTrades: (limit = 100) =>
+    apiFetch<any>(`/api/v1/reconciliation/import?limit=${limit}`, { method: "POST" }),
+  compare: (limit = 100) =>
+    apiFetch<any>(`/api/v1/reconciliation/compare?limit=${limit}`),
+};
