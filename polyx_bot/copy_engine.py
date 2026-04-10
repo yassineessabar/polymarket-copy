@@ -20,7 +20,7 @@ from .fees import collect_performance_fee
 
 log = logging.getLogger("polyx")
 
-FAST_INTERVAL = 5   # seconds
+FAST_INTERVAL = 1   # seconds — poll every 1s for fastest copy
 SLOW_INTERVAL = 10  # seconds
 
 
@@ -162,12 +162,23 @@ class CopyTradeManager:
             cycle = 0
             api_fail_count = 0
             first_run = True
+            cached_portfolio = 0.0
+            cached_usdc = 0.0
+
+            # Pre-cache CLOB client at startup for faster first trade
+            if not demo_mode and not dry_run and private_key:
+                try:
+                    get_user_clob_client(telegram_id, private_key, wallet)
+                    log.info(f"[Copy:{telegram_id}] CLOB client pre-cached")
+                except Exception as e:
+                    log.error(f"[Copy:{telegram_id}] CLOB pre-cache failed: {e}")
+
             async with aiohttp.ClientSession() as session:
                 while True:
                     cycle += 1
                     try:
-                        # Reload settings periodically
-                        if cycle % 30 == 1:
+                        # Reload settings every 60 cycles (~60s at 1s interval)
+                        if cycle % 60 == 1:
                             settings = await self.db.get_settings(telegram_id)
                             dry_run = settings.get("dry_run", 1)
                             demo_mode = settings.get("demo_mode", 0)
@@ -178,22 +189,23 @@ class CopyTradeManager:
                             await asyncio.sleep(FAST_INTERVAL)
                             continue
 
-                        # Get portfolio value
-                        open_pos = await self.db.get_open_positions(telegram_id)
-                        pos_value = sum(p.get("bet_amount", 0) for p in open_pos)
+                        # Refresh portfolio value every 30 cycles (~30s) — not every cycle
+                        if cycle % 30 == 1 or cached_portfolio <= 0:
+                            open_pos = await self.db.get_open_positions(telegram_id)
+                            pos_value = sum(p.get("bet_amount", 0) for p in open_pos)
 
-                        if demo_mode:
-                            portfolio_value = demo_balance + pos_value
-                        else:
-                            try:
-                                proxy = user.get("proxy_wallet", "") if user else ""
-                                usdc_balance = get_usdc_balance(proxy) if proxy else get_usdc_balance(wallet)
-                            except Exception:
-                                usdc_balance = 0.0
-                            portfolio_value = usdc_balance + pos_value
+                            if demo_mode:
+                                cached_usdc = demo_balance
+                            else:
+                                try:
+                                    proxy = user.get("proxy_wallet", "") if user else ""
+                                    cached_usdc = await asyncio.get_event_loop().run_in_executor(
+                                        None, get_usdc_balance, proxy if proxy else wallet)
+                                except Exception:
+                                    pass  # keep last cached value
+                            cached_portfolio = cached_usdc + pos_value
 
-                        if portfolio_value <= 0:
-                            portfolio_value = settings.get("quickbuy_amount", 25.0) * 10
+                        portfolio_value = cached_portfolio if cached_portfolio > 0 else settings.get("quickbuy_amount", 25.0) * 10
 
                         risk = await self.db.get_daily_risk(telegram_id)
 
@@ -201,7 +213,7 @@ class CopyTradeManager:
                         for target_info in targets:
                             target = target_info["wallet_addr"]
                             try:
-                                activity = await get_recent_activity(session, target, limit=100)
+                                activity = await get_recent_activity(session, target, limit=20)
                                 api_fail_count = 0  # reset on success
                             except Exception as e:
                                 api_fail_count += 1
@@ -255,8 +267,8 @@ class CopyTradeManager:
 
                         first_run = False
 
-                        # ── SLOW POLL: detect closes (every 2 fast cycles = ~10s) ──
-                        if cycle % 2 == 0:
+                        # ── SLOW POLL: detect closes (every 10 cycles = ~10s) ──
+                        if cycle % 10 == 0:
                             await self._check_closes(
                                 session, telegram_id, targets, settings,
                                 risk, dry_run, private_key, wallet,
