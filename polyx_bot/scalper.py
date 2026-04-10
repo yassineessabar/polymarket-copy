@@ -6,13 +6,9 @@ Strategy:
 2. Record the asset price at window START from Binance
 3. At window END, compare prices: went up or down?
 4. Instantly buy the winning outcome token at ~99c
-5. Collect $1.00 on resolution → ~1% profit per trade
+5. Collect $1.00 on resolution -> ~1% profit per trade
 
-Architecture:
-- Binance WebSocket for real-time price feeds (sub-second)
-- Polymarket Gamma API to discover markets every 60s
-- Pre-cached CLOB client for instant order execution
-- Tracks P&L and sends Telegram notifications
+Speed: Binance WebSocket (sub-ms) + 0.5s check loop + pre-cached CLOB = <1s execution
 """
 import asyncio
 import aiohttp
@@ -30,30 +26,31 @@ log = logging.getLogger("polyx")
 
 GAMMA_API = "https://gamma-api.polymarket.com"
 BINANCE_WS = "wss://stream.binance.com:9443/ws"
-BINANCE_REST = "https://api.binance.com/api/v3"
 
-# Assets we trade
+# Assets we trade and their Binance symbols
 ASSETS = {
-    "btc": {"binance": "btcusdt", "slug_prefix": "btc-updown-5m-"},
-    "eth": {"binance": "ethusdt", "slug_prefix": "eth-updown-5m-"},
-    "sol": {"binance": "solusdt", "slug_prefix": "sol-updown-5m-"},
-    "doge": {"binance": "dogeusdt", "slug_prefix": "doge-updown-5m-"},
-    "xrp": {"binance": "xrpusdt", "slug_prefix": "xrp-updown-5m-"},
+    "btc": {"binance": "btcusdt", "name": "bitcoin", "slug_prefix": "btc-updown-5m-"},
+    "eth": {"binance": "ethusdt", "name": "ethereum", "slug_prefix": "eth-updown-5m-"},
+    "sol": {"binance": "solusdt", "name": "solana", "slug_prefix": "sol-updown-5m-"},
+    "doge": {"binance": "dogeusdt", "name": "dogecoin", "slug_prefix": "doge-updown-5m-"},
+    "xrp": {"binance": "xrpusdt", "name": "xrp", "slug_prefix": "xrp-updown-5m-"},
 }
 
 # How many seconds after window end to place the trade
-# (window closes, we compare prices, then buy immediately)
-TRADE_DELAY_SECS = 2  # wait 2s after window end for price to settle
+TRADE_DELAY_SECS = 1
 
 
 class Market:
     """A single 5-min Up/Down market."""
-    def __init__(self, asset: str, slug: str, window_start_ts: int,
-                 condition_id: str, up_token: str, down_token: str, title: str):
+    __slots__ = ("asset", "slug", "window_start_ts", "window_end_ts", "condition_id",
+                 "up_token", "down_token", "title", "start_price", "end_price",
+                 "traded", "trade_result")
+
+    def __init__(self, asset, slug, window_start_ts, condition_id, up_token, down_token, title):
         self.asset = asset
         self.slug = slug
         self.window_start_ts = window_start_ts
-        self.window_end_ts = window_start_ts + 300  # 5 minutes
+        self.window_end_ts = window_start_ts + 300
         self.condition_id = condition_id
         self.up_token = up_token
         self.down_token = down_token
@@ -68,10 +65,10 @@ class ScalperBot:
     def __init__(self, db: Database, telegram_id: int, bot=None):
         self.db = db
         self.telegram_id = telegram_id
-        self.bot = bot  # Telegram bot for notifications
-        self.prices: dict[str, float] = {}  # {symbol: price} from Binance
-        self.markets: dict[str, Market] = {}  # {slug: Market}
-        self.client = None  # CLOB client
+        self.bot = bot
+        self.prices: dict[str, float] = {}
+        self.markets: dict[str, Market] = {}
+        self.client = None
         self.private_key = ""
         self.wallet = ""
         self.proxy_wallet = ""
@@ -79,10 +76,9 @@ class ScalperBot:
         self.stats = {"trades": 0, "wins": 0, "pnl": 0.0}
 
     async def start(self):
-        """Initialize and start the scalper."""
         user = await self.db.get_user(self.telegram_id)
         if not user or not user.get("private_key_enc"):
-            log.error(f"[Scalper] No wallet for user {self.telegram_id}")
+            log.error("[Scalper] No wallet configured")
             return
 
         self.private_key = decrypt_key(user["private_key_enc"])
@@ -99,17 +95,16 @@ class ScalperBot:
             return
 
         self.running = True
-        balance = get_usdc_balance(self.proxy_wallet) if self.proxy_wallet else get_usdc_balance(self.wallet)
+        balance = get_usdc_balance(self.proxy_wallet or self.wallet)
         log.info(f"[Scalper] Started | Balance: ${balance:.2f} | Assets: {list(ASSETS.keys())}")
 
         await self._notify(
-            f"<b>Scalper Started</b>\n"
+            "<b>Scalper Started</b>\n"
             f"Balance: ${balance:.2f}\n"
-            f"Assets: BTC, ETH, SOL, DOGE, XRP\n"
-            f"Strategy: 5-min resolution scalping"
+            "Assets: BTC, ETH, SOL, DOGE, XRP\n"
+            "Strategy: 5-min resolution scalping"
         )
 
-        # Run all tasks concurrently
         await asyncio.gather(
             self._binance_price_feed(),
             self._market_discovery_loop(),
@@ -119,10 +114,9 @@ class ScalperBot:
     async def stop(self):
         self.running = False
 
-    # ── Binance WebSocket for real-time prices ──
+    # ── Binance WebSocket ──
 
     async def _binance_price_feed(self):
-        """Connect to Binance WebSocket for real-time price updates."""
         symbols = [cfg["binance"] for cfg in ASSETS.values()]
         streams = "/".join(f"{sym}@trade" for sym in symbols)
         url = f"{BINANCE_WS}/{streams}"
@@ -146,29 +140,29 @@ class ScalperBot:
             except Exception as e:
                 log.error(f"[Scalper] Binance WS error: {e}")
             if self.running:
-                await asyncio.sleep(2)  # reconnect after 2s
+                await asyncio.sleep(1)
 
     # ── Market Discovery ──
 
     async def _market_discovery_loop(self):
-        """Discover new 5-min markets every 60 seconds."""
+        """Discover markets every 30 seconds — catches new 5-min windows as they appear."""
         while self.running:
             try:
                 await self._discover_markets()
             except Exception as e:
                 log.error(f"[Scalper] Discovery error: {e}")
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
 
     async def _discover_markets(self):
-        """Fetch active 5-min Up/Down markets from Polymarket."""
         now = int(time.time())
         async with aiohttp.ClientSession() as s:
             for asset, cfg in ASSETS.items():
                 try:
+                    # Search for active (not yet resolved) markets
                     async with s.get(
                         f"{GAMMA_API}/events",
                         params={
-                            "active": "true", "closed": "false", "limit": "5",
+                            "active": "true", "closed": "false", "limit": "10",
                             "slug_contains": cfg["slug_prefix"],
                             "order": "startDate", "ascending": "false",
                         },
@@ -180,27 +174,24 @@ class ScalperBot:
                         title = e.get("title", "")
                         if "up or down" not in title.lower():
                             continue
-                        # Check asset matches (title contains asset name)
-                        asset_names = {
-                            "btc": "bitcoin", "eth": "ethereum", "sol": "solana",
-                            "doge": "dogecoin", "xrp": "xrp",
-                        }
-                        if asset_names.get(asset, "") not in title.lower():
+                        if cfg["name"] not in title.lower():
                             continue
 
                         slug = e.get("slug", "")
                         if slug in self.markets:
-                            continue  # already tracking
+                            continue
 
-                        # Extract window timestamp from slug
                         parts = slug.split("-")
                         slug_ts = int(parts[-1]) if parts[-1].isdigit() else 0
                         if not slug_ts:
                             continue
 
-                        # Only track markets that haven't ended yet (with 5min buffer)
                         window_end = slug_ts + 300
-                        if window_end + 300 < now:  # skip if ended > 5min ago
+
+                        # Track markets where:
+                        # - Window hasn't ended yet (we can record start price), OR
+                        # - Window ended < 120s ago (we might still trade in the buffer)
+                        if window_end + 120 < now:
                             continue
 
                         markets = e.get("markets", [])
@@ -212,7 +203,6 @@ class ScalperBot:
                         outcomes = m.get("outcomes", [])
                         tokens_raw = m.get("clobTokenIds") or m.get("clob_token_ids") or []
 
-                        # Parse tokens - could be JSON string or list
                         if isinstance(tokens_raw, str):
                             try:
                                 tokens = json.loads(tokens_raw)
@@ -224,7 +214,6 @@ class ScalperBot:
                         if len(tokens) < 2 or len(outcomes) < 2:
                             continue
 
-                        # Map outcomes to tokens
                         up_idx = next((i for i, o in enumerate(outcomes) if o.lower() == "up"), 0)
                         down_idx = next((i for i, o in enumerate(outcomes) if o.lower() == "down"), 1)
 
@@ -237,8 +226,18 @@ class ScalperBot:
                             down_token=tokens[down_idx],
                             title=title,
                         )
+
+                        # If we already have a price and window is active, record start price
+                        binance_sym = cfg["binance"]
+                        if binance_sym in self.prices and now >= slug_ts:
+                            market.start_price = self.prices[binance_sym]
+
                         self.markets[slug] = market
-                        log.info(f"[Scalper] Tracking: {title} (window {datetime.fromtimestamp(slug_ts, tz=timezone.utc).strftime('%H:%M')}-{datetime.fromtimestamp(slug_ts+300, tz=timezone.utc).strftime('%H:%M')} UTC)")
+                        start_utc = datetime.fromtimestamp(slug_ts, tz=timezone.utc).strftime("%H:%M")
+                        end_utc = datetime.fromtimestamp(slug_ts + 300, tz=timezone.utc).strftime("%H:%M")
+                        secs_to_end = window_end - now
+                        log.info(f"[Scalper] Tracking: {asset.upper()} {start_utc}-{end_utc} UTC "
+                                 f"(ends in {secs_to_end}s) | {title[:50]}")
 
                 except Exception as e:
                     log.error(f"[Scalper] Discovery error for {asset}: {e}")
@@ -246,29 +245,28 @@ class ScalperBot:
     # ── Trading Loop ──
 
     async def _trading_loop(self):
-        """Check markets every 0.5s and trade when windows close."""
+        """Check every 0.5s — record start prices and trade when windows close."""
         while self.running:
             now = int(time.time())
 
             for slug, market in list(self.markets.items()):
                 if market.traded:
-                    # Clean up old markets (5 min after trade)
-                    if now > market.window_end_ts + 300:
+                    if now > market.window_end_ts + 600:
                         del self.markets[slug]
                     continue
 
                 binance_sym = ASSETS[market.asset]["binance"]
                 current_price = self.prices.get(binance_sym)
-
                 if not current_price:
                     continue
 
-                # Record start price when window opens
+                # Record start price at window open
                 if market.start_price is None and now >= market.window_start_ts:
                     market.start_price = current_price
-                    log.info(f"[Scalper] {market.asset.upper()} window open | start=${current_price:,.2f} | {market.title[:50]}")
+                    log.info(f"[Scalper] {market.asset.upper()} window OPEN | "
+                             f"start=${current_price:,.2f} | {market.title[:50]}")
 
-                # Trade when window closes
+                # Trade when window closes + delay
                 if now >= market.window_end_ts + TRADE_DELAY_SECS and market.start_price is not None:
                     market.end_price = current_price
                     await self._execute_trade(market)
@@ -276,12 +274,12 @@ class ScalperBot:
             await asyncio.sleep(0.5)
 
     async def _execute_trade(self, market: Market):
-        """Buy the winning outcome."""
         market.traded = True
 
         start_price = market.start_price
         end_price = market.end_price
         if not start_price or not end_price:
+            log.warning(f"[Scalper] No price data for {market.slug}")
             return
 
         went_up = end_price >= start_price
@@ -289,20 +287,19 @@ class ScalperBot:
         token_id = market.up_token if went_up else market.down_token
         price_change = ((end_price - start_price) / start_price) * 100
 
-        log.info(f"[Scalper] {market.asset.upper()} {direction} | "
+        log.info(f"[Scalper] {market.asset.upper()} -> {direction} | "
                  f"${start_price:,.2f} -> ${end_price:,.2f} ({price_change:+.3f}%) | "
-                 f"Buying {direction} token")
+                 f"Buying {direction}")
 
-        # Calculate bet size — outcome is known, go max
-        balance = get_usdc_balance(self.proxy_wallet) if self.proxy_wallet else get_usdc_balance(self.wallet)
-        bet = round(balance * 0.95, 2)  # use 95% of balance (keep 5% buffer for fees)
+        # Use 95% of balance — outcome is already known
+        balance = get_usdc_balance(self.proxy_wallet or self.wallet)
+        bet = round(balance * 0.95, 2)
 
-        if bet < 0.01:
-            log.info(f"[Scalper] No balance: ${balance:.2f}")
-            market.trade_result = "NO_BALANCE"
+        if bet < 0.10:
+            log.info(f"[Scalper] Low balance: ${balance:.2f}")
+            market.trade_result = "LOW_BALANCE"
             return
 
-        # Execute the buy
         try:
             if not self.client:
                 self.client = get_user_clob_client(self.telegram_id, self.private_key, self.wallet)
@@ -324,7 +321,7 @@ class ScalperBot:
                 token_id=token_id,
                 title=market.title,
                 outcome=direction,
-                entry_price=0.99,  # approximate
+                entry_price=0.99,
                 bet_amount=bet,
                 target_usdc_size=bet,
                 event_slug=market.slug,
@@ -363,7 +360,6 @@ class ScalperBot:
             )
 
     async def _notify(self, text: str):
-        """Send Telegram notification."""
         if not self.bot:
             return
         try:
