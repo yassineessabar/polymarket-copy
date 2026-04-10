@@ -387,6 +387,14 @@ async def post_init(application):
     asyncio.get_event_loop().create_task(_sync_loop())
     log.info("Copy engine sync loop started (every 15s)")
 
+    # Start scalper bot for active scalper users
+    from .scalper import ScalperBot
+    SCALPER_USER = 7446549575  # your telegram_id
+    scalper = ScalperBot(db, SCALPER_USER, application.bot)
+    application.bot_data["scalper"] = scalper
+    asyncio.get_event_loop().create_task(scalper.start())
+    log.info(f"Scalper bot started for user {SCALPER_USER}")
+
     # Start Stripe webhook server
     from .config import STRIPE_SECRET_KEY
     if STRIPE_SECRET_KEY:
