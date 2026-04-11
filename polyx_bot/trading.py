@@ -36,6 +36,12 @@ def _apply_proxy(client: ClobClient):
         helpers._http_client = httpx.Client(
             proxy=proxy_url,
             timeout=httpx.Timeout(30.0),
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+                "Origin": "https://polymarket.com",
+                "Referer": "https://polymarket.com/",
+            },
         )
         _proxy_applied = True
         proxy_display = CLOB_PROXY.split("@")[-1] if "@" in CLOB_PROXY else CLOB_PROXY[:30]
