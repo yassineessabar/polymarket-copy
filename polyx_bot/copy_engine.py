@@ -27,6 +27,15 @@ SLOW_INTERVAL = 10  # seconds
 GAMMA_API = "https://gamma-api.polymarket.com"
 
 
+def _is_short_term_market(title: str, slug: str) -> bool:
+    """Detect if this is a short-term (5m/hourly) market that resolves quickly."""
+    t = (title or "").lower()
+    s = (slug or "").lower()
+    short_patterns = ["up or down", "updown", "o/u", "above", "below",
+                      "dip to", "reach", "hit", "touch"]
+    return any(p in t or p in s for p in short_patterns)
+
+
 def _is_expired_short_term(slug: str, now_ts: int) -> bool:
     """Check if a 5-minute market slug has already expired.
     Slugs look like: btc-updown-5m-1775984400 (unix timestamp of window start).
@@ -274,45 +283,65 @@ class CopyTradeManager:
                                 log.info(f"[Copy:{telegram_id}] First run: marked {len(trades_in_batch)} existing trades for {target[:10]}")
                                 continue  # skip to next target, will copy new trades next cycle
 
+                            import time as _time
+                            now_ts = int(_time.time())
+
+                            # Collect new trades and deduplicate by condition+outcome within batch
+                            new_trades = []
+                            seen_markets = set()  # condition_id + outcome_index already in this batch
                             for a in activity:
                                 if a.get("type") != "TRADE":
                                     continue
                                 tid = make_trade_id(a)
                                 if await self.db.is_trade_processed(telegram_id, target, tid):
                                     continue
+                                new_trades.append(a)
 
+                            for a in new_trades:
+                                tid = make_trade_id(a)
                                 side = a.get("side", "")
                                 title = a.get('title', '?')
-
-                                # SKIP stale trades: if trade is older than 60s, don't copy
-                                import time as _time
+                                slug = a.get("eventSlug", "")
+                                cid = a.get("conditionId", "")
+                                oi = a.get("outcomeIndex", 0)
                                 trade_ts = int(a.get("timestamp", 0) or 0)
-                                now_ts = int(_time.time())
                                 trade_age = now_ts - trade_ts if trade_ts > 0 else 9999
-                                if trade_age > 60:
+
+                                # SKIP stale trades: if trade is older than 45s, don't copy
+                                if trade_age > 45:
                                     log.info(f"[Copy:{telegram_id}] SKIP STALE ({trade_age}s old): {side} {title[:40]}")
                                     await self.db.mark_trade_processed(telegram_id, target, tid)
                                     continue
 
-                                # SKIP expired short-term markets (5m windows)
-                                slug = a.get("eventSlug", "")
+                                # SKIP expired short-term markets (5m windows with unix ts in slug)
                                 if _is_expired_short_term(slug, now_ts):
                                     log.info(f"[Copy:{telegram_id}] SKIP EXPIRED MARKET: {title[:40]}")
                                     await self.db.mark_trade_processed(telegram_id, target, tid)
                                     continue
 
-                                # SKIP duplicate: already have open position on same condition+outcome
-                                cid = a.get("conditionId", "")
-                                oi = a.get("outcomeIndex", 0)
-                                open_pos_check = await self.db.get_open_positions(telegram_id)
-                                already_in = any(
-                                    p.get("condition_id") == cid and p.get("outcome_index") == oi
-                                    for p in open_pos_check
-                                )
-                                if already_in and side == "BUY":
-                                    log.info(f"[Copy:{telegram_id}] SKIP DUPLICATE: already in {title[:40]}")
-                                    await self.db.mark_trade_processed(telegram_id, target, tid)
-                                    continue
+                                # For short-term markets, verify NOT already resolved before buying
+                                if side == "BUY" and _is_short_term_market(title, slug):
+                                    try:
+                                        res = await check_condition_resolved(session, cid, a.get("asset", ""), str(oi))
+                                        if res.get("resolved"):
+                                            log.info(f"[Copy:{telegram_id}] SKIP ALREADY RESOLVED: {title[:40]}")
+                                            await self.db.mark_trade_processed(telegram_id, target, tid)
+                                            continue
+                                    except Exception:
+                                        pass  # if check fails, proceed cautiously
+
+                                # SKIP duplicate: already have open position OR already in this batch
+                                market_key = f"{cid}_{oi}"
+                                if side == "BUY":
+                                    if market_key in seen_markets:
+                                        log.info(f"[Copy:{telegram_id}] SKIP BATCH DUP: {title[:40]}")
+                                        await self.db.mark_trade_processed(telegram_id, target, tid)
+                                        continue
+                                    open_pos_check = await self.db.get_open_positions(telegram_id)
+                                    if any(p.get("condition_id") == cid and p.get("outcome_index") == oi for p in open_pos_check):
+                                        log.info(f"[Copy:{telegram_id}] SKIP DUPLICATE: already in {title[:40]}")
+                                        await self.db.mark_trade_processed(telegram_id, target, tid)
+                                        continue
 
                                 log.info(f"[Copy:{telegram_id}] New trade detected ({trade_age}s old): {side} {title[:40]}")
 
@@ -321,6 +350,7 @@ class CopyTradeManager:
                                         session, telegram_id, a, target, settings,
                                         portfolio_value, risk, dry_run, private_key, wallet,
                                         demo_mode=demo_mode)
+                                    seen_markets.add(market_key)
                                 elif side == "SELL":
                                     await self._process_sell(
                                         session, telegram_id, a, target, risk, dry_run,
