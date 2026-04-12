@@ -27,7 +27,7 @@ MY_TELEGRAM_ID = 7446549575
 MY_USER_ID = 7446549575
 
 # Only track trades after this timestamp (when live tracking started)
-TRACKING_START_TS = 1775794075  # 2026-04-10 ~04:07 UTC
+TRACKING_START_TS = 1775983600  # 2026-04-12 ~08:46 UTC (reset)
 
 
 # ── GET /sharky — raw Sharky activity + our bot's positions side by side ──
