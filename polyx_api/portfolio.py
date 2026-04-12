@@ -58,6 +58,29 @@ async def portfolio_summary(
     }
 
 
+@router.post("/reset")
+async def reset_portfolio(
+    user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
+):
+    """Full reset: clear all positions, trades, risk, and reset demo balance to 1000."""
+    import aiosqlite
+    user_id = user["user_id"]
+    telegram_id = user["telegram_id"]
+
+    async with aiosqlite.connect(db.path) as conn:
+        await conn.execute("DELETE FROM positions WHERE user_id=?", (user_id,))
+        await conn.execute("DELETE FROM trades WHERE user_id=?", (user_id,))
+        await conn.execute("DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+        await conn.execute("DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
+        await conn.execute("DELETE FROM performance_fees WHERE telegram_id=?", (telegram_id,))
+        await conn.execute(
+            "UPDATE user_settings SET demo_balance=1000.0 WHERE user_id=?", (user_id,))
+        await conn.commit()
+
+    return {"ok": True, "message": "Portfolio reset to $1,000.00"}
+
+
 @router.get("/positions")
 async def get_positions(
     status: str = Query("open", regex="^(open|closed)$"),
