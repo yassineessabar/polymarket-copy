@@ -366,15 +366,13 @@ class Database:
             await db.commit()
 
     async def reset_demo(self, telegram_id: int, new_balance: float):
-        """Close all open positions, clear processed trades, reset daily risk, set new demo balance."""
+        """Delete all positions/trades, clear processed trades, reset daily risk, set new demo balance."""
         async with aiosqlite.connect(self.path) as db:
-            await db.execute(
-                "UPDATE positions SET is_open=0, closed_at=datetime('now'), exit_price=entry_price, pnl_usd=0, close_reason='DEMO RESET' "
-                "WHERE telegram_id=? AND is_open=1", (telegram_id,))
-            await db.execute(
-                "DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
-            await db.execute(
-                "DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM trades WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM positions WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM performance_fees WHERE telegram_id=?", (telegram_id,))
             await db.execute(
                 "UPDATE user_settings SET demo_balance=?, demo_mode=1 WHERE telegram_id=?",
                 (new_balance, telegram_id))
@@ -790,7 +788,7 @@ class Database:
         }
 
     async def reset_demo_by_user_id(self, user_id: int, new_balance: float):
-        """Close all open positions, clear processed trades, reset daily risk, set new demo balance."""
+        """Delete all positions/trades, clear processed trades, reset daily risk, set new demo balance."""
         async with aiosqlite.connect(self.path) as db:
             # Get telegram_id
             async with db.execute(
@@ -800,14 +798,11 @@ class Database:
                 if not row:
                     return
                 telegram_id = row[0]
-            await db.execute(
-                "UPDATE positions SET is_open=0, closed_at=datetime('now'), "
-                "exit_price=entry_price, pnl_usd=0, close_reason='DEMO RESET' "
-                "WHERE user_id=? AND is_open=1", (user_id,))
-            await db.execute(
-                "DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
-            await db.execute(
-                "DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM trades WHERE user_id=?", (user_id,))
+            await db.execute("DELETE FROM positions WHERE user_id=?", (user_id,))
+            await db.execute("DELETE FROM processed_trades WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM daily_risk WHERE telegram_id=?", (telegram_id,))
+            await db.execute("DELETE FROM performance_fees WHERE telegram_id=?", (telegram_id,))
             await db.execute(
                 "UPDATE user_settings SET demo_balance=?, demo_mode=1 WHERE user_id=?",
                 (new_balance, user_id))
