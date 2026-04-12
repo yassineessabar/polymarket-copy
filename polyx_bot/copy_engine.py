@@ -23,6 +23,37 @@ log = logging.getLogger("polyx")
 FAST_INTERVAL = 1   # seconds — poll every 1s for fastest copy
 SLOW_INTERVAL = 10  # seconds
 
+# Gamma API base for resolution checks
+GAMMA_API = "https://gamma-api.polymarket.com"
+
+
+def _is_expired_short_term(slug: str, now_ts: int) -> bool:
+    """Check if a 5-minute market slug has already expired.
+    Slugs look like: btc-updown-5m-1775984400 (unix timestamp of window start).
+    Window is 5 minutes, so end = start + 300. Skip if < 30s left or already ended.
+    """
+    import re
+    m = re.search(r'(\d{10,})$', slug)
+    if not m:
+        return False
+    window_start = int(m.group(1))
+    window_end = window_start + 300
+    # Skip if market ends within 30 seconds or already ended
+    return now_ts >= (window_end - 30)
+
+
+async def api_get(session, url, params=None, retries=2):
+    """Simple GET with retries for API calls."""
+    for i in range(retries):
+        try:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                if r.status == 200:
+                    return await r.json()
+        except Exception:
+            if i == retries - 1:
+                raise
+    return None
+
 
 class CopyTradeManager:
     def __init__(self, db: Database, bot):
@@ -251,7 +282,39 @@ class CopyTradeManager:
                                     continue
 
                                 side = a.get("side", "")
-                                log.info(f"[Copy:{telegram_id}] New trade detected: {side} {a.get('title', '?')[:40]}")
+                                title = a.get('title', '?')
+
+                                # SKIP stale trades: if trade is older than 60s, don't copy
+                                import time as _time
+                                trade_ts = int(a.get("timestamp", 0) or 0)
+                                now_ts = int(_time.time())
+                                trade_age = now_ts - trade_ts if trade_ts > 0 else 9999
+                                if trade_age > 60:
+                                    log.info(f"[Copy:{telegram_id}] SKIP STALE ({trade_age}s old): {side} {title[:40]}")
+                                    await self.db.mark_trade_processed(telegram_id, target, tid)
+                                    continue
+
+                                # SKIP expired short-term markets (5m windows)
+                                slug = a.get("eventSlug", "")
+                                if _is_expired_short_term(slug, now_ts):
+                                    log.info(f"[Copy:{telegram_id}] SKIP EXPIRED MARKET: {title[:40]}")
+                                    await self.db.mark_trade_processed(telegram_id, target, tid)
+                                    continue
+
+                                # SKIP duplicate: already have open position on same condition+outcome
+                                cid = a.get("conditionId", "")
+                                oi = a.get("outcomeIndex", 0)
+                                open_pos_check = await self.db.get_open_positions(telegram_id)
+                                already_in = any(
+                                    p.get("condition_id") == cid and p.get("outcome_index") == oi
+                                    for p in open_pos_check
+                                )
+                                if already_in and side == "BUY":
+                                    log.info(f"[Copy:{telegram_id}] SKIP DUPLICATE: already in {title[:40]}")
+                                    await self.db.mark_trade_processed(telegram_id, target, tid)
+                                    continue
+
+                                log.info(f"[Copy:{telegram_id}] New trade detected ({trade_age}s old): {side} {title[:40]}")
 
                                 if side == "BUY":
                                     await self._process_buy(
@@ -518,7 +581,38 @@ class CopyTradeManager:
             token_id = pos.get("token_id", "")
             entry = pos.get("entry_price", 0)
 
-            resolution = await check_condition_resolved(session, cid, token_id, oi)
+            # Priority: check via event slug first (most reliable for 5-min markets)
+            slug = pos.get("event_slug", "")
+            resolution = None
+            if slug:
+                try:
+                    slug_data = await api_get(session, f"{GAMMA_API}/events", {"slug": slug}, retries=1)
+                    slug_events = slug_data if isinstance(slug_data, list) else [slug_data] if isinstance(slug_data, dict) else []
+                    for sevt in slug_events:
+                        if not isinstance(sevt, dict):
+                            continue
+                        smkts = sevt.get("markets", [])
+                        if not smkts:
+                            continue
+                        sm = smkts[0]
+                        sprices = sm.get("outcomePrices", "")
+                        soutcomes = sm.get("outcomes", [])
+                        if sprices and soutcomes:
+                            import json as _json
+                            if isinstance(sprices, str):
+                                spl = _json.loads(sprices) if sprices.startswith("[") else sprices.split(",")
+                            else:
+                                spl = sprices
+                            for si, sp in enumerate(spl):
+                                if float(sp) >= 0.99 and si < len(soutcomes):
+                                    resolution = {"resolved": True, "winning_index": si}
+                                    break
+                except Exception:
+                    pass
+
+            # Fallback: use condition_id based check
+            if resolution is None:
+                resolution = await check_condition_resolved(session, cid, token_id, oi)
             if not resolution.get("resolved"):
                 continue
 
