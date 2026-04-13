@@ -793,6 +793,60 @@ class CopyTradeManager:
 
             log.info(f"[Copy:{telegram_id}] Auto-closed stale position #{pos['id']}: {pos.get('title','?')[:40]}")
 
+        # Step A.6: Auto-close positions past end_date + 24h grace period
+        for pos in open_pos:
+            if pos["id"] in checked_resolved:
+                continue
+            end_date_str = pos.get("end_date")
+            if not end_date_str:
+                continue
+            try:
+                ed = datetime.fromisoformat(end_date_str.replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                continue
+            # Grace period: 24 hours after end_date (wait for Polymarket to resolve)
+            if (now - ed).total_seconds() < 86400:
+                continue
+
+            entry = pos.get("entry_price", 0)
+            bet_amt = pos.get("bet_amount", 0)
+            token_id = pos.get("token_id", "")
+
+            # Try to get live CLOB price for fair close
+            cur_price = entry  # default: flat close
+            if token_id:
+                try:
+                    clob_price = await get_market_price(session, token_id)
+                    if clob_price > 0:
+                        cur_price = clob_price
+                except Exception:
+                    pass
+
+            shares = bet_amt / entry if entry > 0 else 0
+            pnl_usd = shares * (cur_price - entry)
+
+            if demo_mode:
+                await self.db.adjust_demo_balance(telegram_id, shares * cur_price)
+
+            await self.db.close_position(pos["id"], cur_price, pnl_usd, "EXPIRED (past end_date)")
+            await self.db.increment_daily_pnl(telegram_id, pnl_usd)
+            checked_resolved.add(pos["id"])
+
+            mode_tag = " [DEMO]" if demo_mode else (" [DRY]" if dry_run else "")
+            result = "WIN" if pnl_usd > 0 else "LOSS" if pnl_usd < 0 else "FLAT"
+            demo_bal_text = ""
+            if demo_mode:
+                cur_demo = await self.db.get_demo_balance(telegram_id)
+                demo_bal_text = f"\n💰 Demo Balance: ${cur_demo:,.2f}"
+            await self._notify(telegram_id,
+                f"<b>CLOSE{mode_tag}</b> {result}\n"
+                f"{pos.get('title', '?')[:50]} — {pos.get('outcome', '?')}\n"
+                f"Reason: EXPIRED (market ended {end_date_str[:10]})\n"
+                f"Entry: {entry*100:.1f}c → Exit: {cur_price*100:.1f}c\n"
+                f"Bet: ${bet_amt:.2f} | P&L: ${pnl_usd:+.2f}{demo_bal_text}")
+
+            log.info(f"[Copy:{telegram_id}] Expired position #{pos['id']}: {pos.get('title','?')[:40]}")
+
         # Step B: Check if target exited non-resolved positions
         for target_info in all_targets:
             target = target_info["wallet_addr"]
