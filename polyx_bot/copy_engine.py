@@ -330,9 +330,11 @@ class CopyTradeManager:
                                     except Exception:
                                         pass  # if check fails, proceed cautiously
 
-                                # SKIP duplicate: already have open position OR already in this batch
+                                # SKIP duplicate: for SHORT-TERM markets only, block batch dups and existing positions
+                                # For long-term markets, allow adding to positions (whales build positions via many fills)
                                 market_key = f"{cid}_{oi}"
-                                if side == "BUY":
+                                is_short = _is_short_term_market(title, slug)
+                                if side == "BUY" and is_short:
                                     if market_key in seen_markets:
                                         log.info(f"[Copy:{telegram_id}] SKIP BATCH DUP: {title[:40]}")
                                         await self.db.mark_trade_processed(telegram_id, target, tid)
@@ -342,6 +344,10 @@ class CopyTradeManager:
                                         log.info(f"[Copy:{telegram_id}] SKIP DUPLICATE: already in {title[:40]}")
                                         await self.db.mark_trade_processed(telegram_id, target, tid)
                                         continue
+                                elif side == "BUY" and market_key in seen_markets:
+                                    # Long-term market: still skip batch dups (same poll cycle), but allow DB dups (adding to position)
+                                    await self.db.mark_trade_processed(telegram_id, target, tid)
+                                    continue
 
                                 log.info(f"[Copy:{telegram_id}] New trade detected ({trade_age}s old): {side} {title[:40]}")
 
