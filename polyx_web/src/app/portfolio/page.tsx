@@ -273,14 +273,28 @@ export default function PortfolioPage() {
                       {delaySec !== null ? `${delaySec}s` : "—"}
                     </div>
                   </div>
-                  {tab === "open" && pos.end_date && (
-                    <div>
-                      <div className="text-[10px] text-[#6B7280] font-medium">Expires</div>
-                      <div className="text-xs font-mono font-medium text-[#0F0F0F]">
-                        {new Date(pos.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  {tab === "open" && pos.end_date && (() => {
+                    const endDate = new Date(pos.end_date);
+                    const now = new Date();
+                    const diffMs = endDate.getTime() - now.getTime();
+                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                    const isExpired = diffMs < 0;
+                    const isSoon = !isExpired && diffDays <= 3;
+                    let label: string;
+                    if (isExpired) label = "Expired";
+                    else if (diffDays === 0) label = "Today";
+                    else if (diffDays === 1) label = "Tomorrow";
+                    else if (diffDays <= 7) label = `${diffDays}d left`;
+                    else label = endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return (
+                      <div>
+                        <div className="text-[10px] text-[#6B7280] font-medium">Expires</div>
+                        <div className={`text-xs font-mono font-bold ${isExpired ? "text-[#EF4444]" : isSoon ? "text-[#F59E0B]" : "text-[#0F0F0F]"}`}>
+                          {label}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   {tab === "closed" && pos.closed_at && (
                     <div>
                       <div className="text-[10px] text-[#6B7280] font-medium">Closed</div>
