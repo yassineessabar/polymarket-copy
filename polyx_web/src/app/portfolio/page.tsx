@@ -273,6 +273,14 @@ export default function PortfolioPage() {
                       {delaySec !== null ? `${delaySec}s` : "—"}
                     </div>
                   </div>
+                  {tab === "open" && pos.end_date && (
+                    <div>
+                      <div className="text-[10px] text-[#6B7280] font-medium">Expires</div>
+                      <div className="text-xs font-mono font-medium text-[#0F0F0F]">
+                        {new Date(pos.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </div>
+                    </div>
+                  )}
                   {tab === "closed" && pos.closed_at && (
                     <div>
                       <div className="text-[10px] text-[#6B7280] font-medium">Closed</div>

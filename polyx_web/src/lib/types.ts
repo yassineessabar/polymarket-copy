@@ -56,6 +56,7 @@ export interface Position {
   live_price?: number;
   unrealized_pnl?: number;
   pnl_pct?: number;
+  end_date?: string;
 }
 
 export interface CopyTarget {

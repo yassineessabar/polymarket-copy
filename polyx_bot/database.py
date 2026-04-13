@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS positions (
     exit_price      REAL,
     pnl_usd         REAL,
     close_reason    TEXT,
-    user_id         INTEGER
+    user_id         INTEGER,
+    end_date        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS trades (
@@ -332,7 +333,8 @@ class Database:
     async def open_position(self, telegram_id: int, target_wallet: str, condition_id: str,
                             outcome_index: int, token_id: str, title: str, outcome: str,
                             entry_price: float, bet_amount: float, target_usdc_size: float,
-                            event_slug: str, source_timestamp: str = None) -> int:
+                            event_slug: str, source_timestamp: str = None,
+                            end_date: str = None) -> int:
         async with aiosqlite.connect(self.path) as db:
             # Look up user_id for this telegram_id so web API can find positions
             user_id = None
@@ -344,10 +346,10 @@ class Database:
                     user_id = row[0]
             cur = await db.execute(
                 "INSERT INTO positions (telegram_id, user_id, target_wallet, condition_id, outcome_index, "
-                "token_id, title, outcome, entry_price, bet_amount, target_usdc_size, event_slug, source_timestamp) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "token_id, title, outcome, entry_price, bet_amount, target_usdc_size, event_slug, source_timestamp, end_date) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (telegram_id, user_id, target_wallet, condition_id, outcome_index, token_id,
-                 title, outcome, entry_price, bet_amount, target_usdc_size, event_slug, source_timestamp))
+                 title, outcome, entry_price, bet_amount, target_usdc_size, event_slug, source_timestamp, end_date))
             await db.commit()
             return cur.lastrowid
 

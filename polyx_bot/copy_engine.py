@@ -462,6 +462,25 @@ class CopyTradeManager:
                 log.error(f"[Copy:{telegram_id}] Buy failed: {e}")
                 return
 
+        # Fetch end date from Gamma API
+        end_date = None
+        try:
+            evt_data = await api_get(session, f"{GAMMA_API}/events", {"slug": slug}, retries=1)
+            if isinstance(evt_data, list) and evt_data:
+                evt = evt_data[0]
+            elif isinstance(evt_data, dict):
+                evt = evt_data
+            else:
+                evt = None
+            if evt:
+                end_date = evt.get("endDate") or evt.get("end_date") or None
+                if not end_date:
+                    mkts = evt.get("markets", [])
+                    if mkts and isinstance(mkts[0], dict):
+                        end_date = mkts[0].get("endDate") or mkts[0].get("end_date") or None
+        except Exception:
+            pass
+
         # Record position
         source_ts = activity.get("createdAt") or activity.get("timestamp") or None
         pos_id = await self.db.open_position(
@@ -469,7 +488,7 @@ class CopyTradeManager:
             condition_id=cid, outcome_index=oi, token_id=token_id,
             title=title, outcome=outcome, entry_price=price,
             bet_amount=bet, target_usdc_size=usdc_size, event_slug=slug,
-            source_timestamp=source_ts)
+            source_timestamp=source_ts, end_date=end_date)
 
         # Record trade
         trade_id = await self.db.record_trade(
